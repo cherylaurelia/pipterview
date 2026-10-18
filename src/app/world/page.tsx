@@ -1,10 +1,6 @@
-import type { Metadata } from "next";
-import World from "@/components/world/World";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "extraview · 3D practice world",
-};
-
+/** The world used to live here; it's the home page now. */
 export default function WorldPage() {
-  return <World />;
+  redirect("/");
 }

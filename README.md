@@ -1,4 +1,4 @@
-# Steady
+# Pip
 
 Interview practice for nervous candidates. Undergrads and new grads going after SWE, PM, data, FDE, and other tech roles talk to an AI interviewer out loud, starting gentle and building up to real pressure, and get honest, kind feedback.
 
