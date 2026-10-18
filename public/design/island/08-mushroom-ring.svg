@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512">
+<defs><filter id="hand" x="-10%" y="-10%" width="120%" height="120%">
+<feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="1" seed="50" result="w"/>
+<feDisplacementMap in="SourceGraphic" in2="w" scale="4.5" xChannelSelector="R" yChannelSelector="G" result="sw"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="10" result="t"/>
+<feDisplacementMap in="sw" in2="t" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="30" result="n"/>
+<feColorMatrix in="n" type="matrix" values="0.32 0 0 0 0.78  0.32 0 0 0 0.78  0.32 0 0 0 0.78  0 0 0 0 1" result="g"/>
+<feBlend in="d" in2="g" mode="multiply" result="m"/>
+<feComposite in="m" in2="d" operator="in"/></filter></defs>
+<g filter="url(#hand)" fill="none" stroke="#1f1814" stroke-width="3.0" stroke-linecap="round" stroke-linejoin="round">
+<path d="M113.66 100.00 C113.83 101.59 113.20 103.31 111.41 104.83 C109.61 106.35 106.49 107.85 102.90 109.14 C99.31 110.43 94.84 111.66 89.87 112.55 C84.90 113.43 78.85 114.23 73.09 114.44 C67.33 114.65 60.71 114.33 55.31 113.80 C49.90 113.28 45.15 112.22 40.67 111.31 C36.19 110.41 32.24 109.46 28.44 108.35 C24.65 107.25 20.54 106.09 17.91 104.70 C15.28 103.30 13.22 101.62 12.66 100.00 C12.09 98.38 12.72 96.55 14.51 94.96 C16.30 93.37 19.41 91.68 23.41 90.46 C27.42 89.25 33.16 88.27 38.54 87.65 C43.91 87.04 50.05 86.91 55.67 86.78 C61.30 86.64 66.76 86.64 72.29 86.83 C77.82 87.03 83.82 87.26 88.84 87.95 C93.86 88.64 98.83 89.75 102.42 90.97 C106.02 92.19 108.52 93.77 110.39 95.27 C112.27 96.78 113.49 98.41 113.66 100.00 Z" fill="#cfe3a8" stroke="none" opacity=".9"/>
+<path d="M18 102 q1 -5 3 -7 M22 102 q1 -4 3 -5 M104 104 q1 -5 3 -7 M108 104 q1 -4 3 -5 M58 112 q1 -5 3 -7 M62 112 q1 -4 3 -5" stroke="#7ea457" stroke-width="2.4"/>
+<g transform="translate(34 96) scale(1.0)">
+<path d="M-6 -15 C-6.5 -8 -9 -3 -8 0 C-4 2.2 4 2.2 8 0 C9 -3 6.5 -8 6 -15Z" fill="#fbf3df"/>
+<path d="M-17 -16 C-19 -30 -8 -36.5 0 -36.5 C8 -36.5 19 -30 17 -16 C11 -12.5 -11 -12.5 -17 -16Z" fill="#d4675a"/>
+<g stroke="none" fill="#fbf3df"><ellipse cx="-7" cy="-26" rx="3" ry="2.4"/><ellipse cx="5" cy="-30" rx="2.4" ry="1.9"/><ellipse cx="9" cy="-21" rx="2" ry="1.7"/><ellipse cx="-1" cy="-20" rx="1.7" ry="1.4"/></g></g><g transform="translate(94 96) scale(1.0)">
+<path d="M-6 -15 C-6.5 -8 -9 -3 -8 0 C-4 2.2 4 2.2 8 0 C9 -3 6.5 -8 6 -15Z" fill="#fbf3df"/>
+<path d="M-17 -16 C-19 -30 -8 -36.5 0 -36.5 C8 -36.5 19 -30 17 -16 C11 -12.5 -11 -12.5 -17 -16Z" fill="#e08a6a"/>
+<g stroke="none" fill="#fbf3df"><ellipse cx="-7" cy="-26" rx="3" ry="2.4"/><ellipse cx="5" cy="-30" rx="2.4" ry="1.9"/><ellipse cx="9" cy="-21" rx="2" ry="1.7"/><ellipse cx="-1" cy="-20" rx="1.7" ry="1.4"/></g></g><g transform="translate(64 90) scale(1.35)">
+<path d="M-6 -15 C-6.5 -8 -9 -3 -8 0 C-4 2.2 4 2.2 8 0 C9 -3 6.5 -8 6 -15Z" fill="#fbf3df"/>
+<path d="M-17 -16 C-19 -30 -8 -36.5 0 -36.5 C8 -36.5 19 -30 17 -16 C11 -12.5 -11 -12.5 -17 -16Z" fill="#d4675a"/>
+<g stroke="none" fill="#fbf3df"><ellipse cx="-7" cy="-26" rx="3" ry="2.4"/><ellipse cx="5" cy="-30" rx="2.4" ry="1.9"/><ellipse cx="9" cy="-21" rx="2" ry="1.7"/><ellipse cx="-1" cy="-20" rx="1.7" ry="1.4"/></g></g>
+
+</g></svg>

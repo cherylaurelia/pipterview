@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512">
+<defs><filter id="hand" x="-10%" y="-10%" width="120%" height="120%">
+<feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="1" seed="47" result="w"/>
+<feDisplacementMap in="SourceGraphic" in2="w" scale="4.5" xChannelSelector="R" yChannelSelector="G" result="sw"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7" result="t"/>
+<feDisplacementMap in="sw" in2="t" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="27" result="n"/>
+<feColorMatrix in="n" type="matrix" values="0.32 0 0 0 0.78  0.32 0 0 0 0.78  0.32 0 0 0 0.78  0 0 0 0 1" result="g"/>
+<feBlend in="d" in2="g" mode="multiply" result="m"/>
+<feComposite in="m" in2="d" operator="in"/></filter></defs>
+<g filter="url(#hand)" fill="none" stroke="#1f1814" stroke-width="3.0" stroke-linecap="round" stroke-linejoin="round">
+<path d="M28 40 V86 M100 40 V86" stroke="#1f1814" stroke-width="7"/><path d="M28 40 V86 M100 40 V86" stroke="#a8734a" stroke-width="3.4"/>
+<path d="M28 86 V112 M100 86 V112 M36 80 V108 M92 80 V108" stroke-width="4.6"/>
+<rect x="20" y="40" width="88" height="14" rx="5" fill="#c48d5f"/>
+<rect x="20" y="58" width="88" height="14" rx="5" fill="#c48d5f"/>
+<path d="M32 72 V80 M96 72 V80" stroke-width="4.6"/>
+<rect x="14" y="78" width="100" height="12" rx="5" fill="#a8734a"/>
+<path d="M30 47 h10 M76 64 h14 M58 84 h12" stroke-width="2.2" opacity=".6"/>
+</g></svg>
