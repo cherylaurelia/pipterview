@@ -10,7 +10,7 @@ const cedarville = Cedarville_Cursive({ variable: "--font-cedarville", weight: "
 export const metadata: Metadata = {
   title: "Pip · Interview practice for nervous candidates",
   description:
-    "Practice technical, behavioral, and system design interviews out loud with an AI interviewer, at your own pace, until the nerves fade.",
+    "Practice technical and behavioral interviews out loud with an AI interviewer, at your own pace, until the nerves fade.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

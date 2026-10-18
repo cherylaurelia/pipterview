@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { NERVOUSNESS_LABELS, READINESS, clearHistory, loadHistory, type SessionRecord } from "@/lib/history";
 import { INTERVIEW_TYPES } from "@/lib/interview/catalog";
+import { isVisibleInterviewTypeId } from "@/lib/interview/types";
 import { INTENSITY_OPTIONS } from "./room/SessionSetup";
+import { RoundIcon } from "./RoundIcon";
 import { Button, ButtonLink, Card, SectionTitle } from "./ui";
 
 /** A small line chart: one or two series over sessions, on a fixed scale. */
@@ -61,8 +63,9 @@ function TrendChart({
 
 export function ProgressView() {
   const [history, setHistory] = useState<SessionRecord[] | null>(null);
+  // sessions of hidden round types (system design, for now) stay stored but aren't listed or counted
   // eslint-disable-next-line react-hooks/set-state-in-effect -- read browser storage after mount
-  useEffect(() => setHistory(loadHistory()), []);
+  useEffect(() => setHistory(loadHistory().filter((h) => isVisibleInterviewTypeId(h.typeId))), []);
 
   if (history === null) return null;
   if (history.length === 0) {
@@ -140,6 +143,7 @@ export function ProgressView() {
             <li key={h.id} className="flex flex-wrap items-start justify-between gap-3 py-3 text-sm">
               <div className="min-w-0">
                 <p className="font-medium text-slate-900">
+                  <RoundIcon type={h.typeId} className="mr-1.5 inline-block align-[-5px]" />
                   {INTERVIEW_TYPES[h.typeId].label}{" "}
                   <span className="font-normal text-slate-500">
                     · {INTENSITY_OPTIONS.find((o) => o.value === h.intensity)?.label} ·{" "}

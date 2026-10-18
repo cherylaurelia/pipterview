@@ -17,7 +17,9 @@ import { setVoiceVolume } from "@/lib/voice/speak";
 import { BookIcon, ChatIcon, CodeIcon, HelpIcon, HomeIcon, IslandIcon, SpeakerIcon } from "./icons";
 import { IslandPanel } from "./islandpanel";
 import { StoryBook } from "./storybook";
-import { ChickIcon, NavButton, Panel, Portrait, uiFont } from "./retro";
+import { GardenIcon } from "../GardenIcon";
+import { RoundIcon } from "../RoundIcon";
+import { NavButton, Panel, PipLogo, uiFont } from "./retro";
 import { GUIDE_NAME, PREP_LABELS, PREP_TYPES, type PrepType } from "./script";
 import { useConversation } from "./useConversation";
 import type { Mood } from "./people";
@@ -213,6 +215,7 @@ export default function World() {
   const [type, setType] = useState<PrepType>("technical");
   const [step, setStep] = useState<"pick" | "resume" | "context">("pick"); // context: "about you", opened from Customize
   const [elapsed, setElapsed] = useState(0);
+  const [showClock, setShowClock] = useState(false); // the session clock stays hidden unless you ask for it
   const [customizing, setCustomizing] = useState(false);
   // after you finish: a few seconds of sunset before the report opens, and you can close it to keep watching
   const [lingered, setLingered] = useState(false);
@@ -487,102 +490,105 @@ export default function World() {
         />
       </div>
 
-      {/* 1. the welcome card: one big way to start, or choose a round */}
+      {/* 1. the welcome card: one big way to start, or choose a round. Centred in the space above the dock; on short screens
+          it's capped to that space and scrolls inside, so neither end is cut off or hidden behind the dock. */}
       <div
-        className={`absolute inset-0 z-10 flex items-center justify-center bg-[#3d2a1c]/10 px-4 pb-16 transition-opacity duration-500 ${
+        className={`absolute inset-0 z-10 flex items-center justify-center bg-[#3d2a1c]/10 px-4 pt-3 pb-[4.5rem] transition-opacity duration-500 ${
           mode === "splash" ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
-        <Panel title="" className="w-[min(500px,100%)] [&>header]:hidden">
-          <div className="flex gap-4 px-2 pt-2 pb-3">
-            <Portrait size={76} />
-            <div className="min-w-0">
-              <h1 className="text-[30px] font-bold leading-none tracking-tight text-[#4a3424]">{GUIDE_NAME}</h1>
-              <p className="mt-1 font-script text-[22px] leading-tight text-[#8a6a4a]">Never feel unready again.</p>
-              <p className="mt-2 text-[14.5px] leading-relaxed text-[#5a4430]">
-                I&apos;m {GUIDE_NAME}. Practise interviews out loud with me, at a little table on a floating island. Talk or type;
-                there&apos;s no rush.
-              </p>
-            </div>
-          </div>
-          {step !== "pick" ? (
-            <div className="mx-1 mb-1 rounded-2xl bg-white/70">
-              <ResumeStep
-                draft={profileDraft}
-                onChange={setProfileDraft}
-                onBack={() => setStep("pick")}
-                continueLabel={step === "context" ? "Save" : "Continue"}
-                onContinue={() => {
-                  if (step === "resume") setMode("world");
-                  setStep("pick");
-                }}
-              />
-            </div>
-          ) : (
-            <div className="space-y-3 px-1 pb-1">
-              <NavButton tone="yellow" onClick={() => choose("behavioral")} className="w-full py-3 text-[16px]">
-                Start practising
-              </NavButton>
-              <p className="text-center text-[12.5px] text-[#8a6a4a]">
-                {PRESSURE.find((o) => o.value === settings.intensity)?.label} pressure · {LENGTH.find((o) => o.value === settings.length)?.label} ·{" "}
-                <button onClick={() => setCustomizing((v) => !v)} className="font-bold text-[#b0702a] underline underline-offset-2" aria-expanded={customizing}>
-                  {customizing ? "Done" : "Customize"}
-                </button>
-              </p>
-              {customizing && (
-                <div className="space-y-2 rounded-2xl bg-white/70 px-3 py-2.5">
-                  <Toggle label="Pressure" value={settings.intensity} options={PRESSURE} onChange={(intensity) => setSettings({ ...settings, intensity })} />
-                  <Toggle label="Length" value={settings.length} options={LENGTH} onChange={(length) => setSettings({ ...settings, length })} />
-                  <p className="flex items-center gap-2 text-[12.5px] text-[#6b5640]">
-                    <span className="w-[70px] shrink-0 font-bold text-[#4a3424]">About you</span>
-                    <span>{isTailored(profileDraft) ? "Resume added: questions will fit you." : "Optional."}</span>
-                    <button onClick={() => setStep("context")} className="font-bold text-[#b0702a] underline underline-offset-2">
-                      {isTailored(profileDraft) ? "Edit" : "Add a resume or job"}
-                    </button>
-                  </p>
-                </div>
-              )}
-              <div>
-                <p className="px-1 pb-1 text-[12px] font-bold uppercase tracking-wide text-[#a08060]">Or choose a round</p>
-                <div className="grid gap-1.5 sm:grid-cols-3">
-                  {PREP_TYPES.map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => choose(t)}
-                      className="flex items-center gap-2.5 rounded-2xl bg-white/80 px-3 py-2.5 text-left ring-1 ring-[#f0dfc2] transition-colors hover:bg-[#fff0d4] sm:flex-col sm:items-start sm:gap-1"
-                    >
-                      <ChickIcon size={24} tone={t === "technical" ? "blue" : "yellow"} />
-                      <span className="min-w-0">
-                        <span className="block text-[14px] font-bold text-[#4a3424]">{PREP_LABELS[t]}</span>
-                        <span className="block text-[12px] leading-snug text-[#8a6a4a]">{PREP_BLURB[t]}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
+        <Panel title="" className="max-h-full w-[min(500px,100%)] [&>header]:hidden">
+          <div className="retro-scroll min-h-0 overflow-y-auto">
+            <div className="flex gap-4 px-2 pt-2 pb-3">
+              <PipLogo size={76} />
+              <div className="min-w-0">
+                <h1 className="text-[30px] font-bold leading-none tracking-tight text-[#4a3424]">{GUIDE_NAME}</h1>
+                <p className="mt-1 font-script text-[22px] leading-tight text-[#8a6a4a]">Never feel unready again.</p>
+                <p className="mt-2 text-[14.5px] leading-relaxed text-[#5a4430]">
+                  I&apos;m {GUIDE_NAME}. Practise interviews out loud with me, at a little table on a floating island. Talk or type;
+                  there&apos;s no rush.
+                </p>
               </div>
-              {/* what practising unlocks: every finished session grows the next thing on your island */}
-              <button onClick={() => toggleTab("island")} className="block w-full rounded-2xl bg-white/80 px-3.5 py-3 text-left ring-1 ring-[#f0dfc2] hover:bg-[#fff6e6]">
-                <span className="flex items-baseline justify-between text-[12.5px]">
-                  <span className="font-bold text-[#4a3424]">Your island</span>
-                  <span className="text-[#8a6a4a]">
-                    {Math.min(garden.grown, GARDEN_ITEMS.length)} of {GARDEN_ITEMS.length} grown{streak > 1 ? ` · ${streak}-day streak` : ""}
-                  </span>
-                </span>
-                <span className="mt-2 flex gap-1" aria-hidden>
-                  {GARDEN_ITEMS.map((item, i) => (
-                    <span
-                      key={item.id}
-                      className={`h-2 flex-1 rounded-full ${i < garden.grown ? "" : i === garden.grown ? "border border-dashed border-[#d9a85a]" : "bg-[#efe2cc]"}`}
-                      style={i < garden.grown ? { background: item.color } : undefined}
-                    />
-                  ))}
-                </span>
-                <span className="mt-1.5 block text-[12.5px] text-[#6b5640]">
-                  Finish a round to grow the next one: <b className="text-[#3d2a1c]">{nextItem.label}</b>
-                </span>
-              </button>
             </div>
-          )}
+            {step !== "pick" ? (
+              <div className="mx-1 mb-1 rounded-2xl bg-white/70">
+                <ResumeStep
+                  draft={profileDraft}
+                  onChange={setProfileDraft}
+                  onBack={() => setStep("pick")}
+                  continueLabel={step === "context" ? "Save" : "Continue"}
+                  onContinue={() => {
+                    if (step === "resume") setMode("world");
+                    setStep("pick");
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="space-y-3 px-1 pb-1">
+                <NavButton tone="yellow" onClick={() => choose("behavioral")} className="w-full py-3 text-[16px]">
+                  Start practising
+                </NavButton>
+                <p className="text-center text-[12.5px] text-[#8a6a4a]">
+                  {PRESSURE.find((o) => o.value === settings.intensity)?.label} pressure · {LENGTH.find((o) => o.value === settings.length)?.label} ·{" "}
+                  <button onClick={() => setCustomizing((v) => !v)} className="font-bold text-[#b0702a] underline underline-offset-2" aria-expanded={customizing}>
+                    {customizing ? "Done" : "Customize"}
+                  </button>
+                </p>
+                {customizing && (
+                  <div className="space-y-2 rounded-2xl bg-white/70 px-3 py-2.5">
+                    <Toggle label="Pressure" value={settings.intensity} options={PRESSURE} onChange={(intensity) => setSettings({ ...settings, intensity })} />
+                    <Toggle label="Length" value={settings.length} options={LENGTH} onChange={(length) => setSettings({ ...settings, length })} />
+                    <p className="flex items-center gap-2 text-[12.5px] text-[#6b5640]">
+                      <span className="w-[70px] shrink-0 font-bold text-[#4a3424]">About you</span>
+                      <span>{isTailored(profileDraft) ? "Resume added: questions will fit you." : "Optional."}</span>
+                      <button onClick={() => setStep("context")} className="font-bold text-[#b0702a] underline underline-offset-2">
+                        {isTailored(profileDraft) ? "Edit" : "Add a resume or job"}
+                      </button>
+                    </p>
+                  </div>
+                )}
+                <div>
+                  <p className="px-1 pb-1 text-[12px] font-bold uppercase tracking-wide text-[#a08060]">Or choose a round</p>
+                  <div className="grid gap-1.5 sm:grid-cols-3">
+                    {PREP_TYPES.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => choose(t)}
+                        className="flex items-center gap-2.5 rounded-2xl bg-white/80 px-3 py-2.5 text-left ring-1 ring-[#f0dfc2] transition-colors hover:bg-[#fff0d4] sm:flex-col sm:items-start sm:gap-1"
+                      >
+                        <RoundIcon type={t} size={44} />
+                        <span className="min-w-0">
+                          <span className="block text-[14px] font-bold text-[#4a3424]">{PREP_LABELS[t]}</span>
+                          <span className="block text-[12px] leading-snug text-[#8a6a4a]">{PREP_BLURB[t]}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* what practising unlocks: every finished session grows the next thing on your island */}
+                <button onClick={() => toggleTab("island")} className="block w-full rounded-2xl bg-white/80 px-3.5 py-3 text-left ring-1 ring-[#f0dfc2] hover:bg-[#fff6e6]">
+                  <span className="flex items-baseline justify-between text-[12.5px]">
+                    <span className="font-bold text-[#4a3424]">Your island</span>
+                    <span className="text-[#8a6a4a]">
+                      {Math.min(garden.grown, GARDEN_ITEMS.length)} of {GARDEN_ITEMS.length} grown{streak > 1 ? ` · ${streak}-day streak` : ""}
+                    </span>
+                  </span>
+                  <span className="mt-2 flex gap-1" aria-hidden>
+                    {GARDEN_ITEMS.map((item, i) => (
+                      <span
+                        key={item.id}
+                        className={`h-2 flex-1 rounded-full ${i < garden.grown ? "" : i === garden.grown ? "border border-dashed border-[#d9a85a]" : "bg-[#efe2cc]"}`}
+                        style={i < garden.grown ? { background: item.color } : undefined}
+                      />
+                    ))}
+                  </span>
+                  <span className="mt-1.5 block text-[12.5px] text-[#6b5640]">
+                    Finish a round to grow the next one: <b className="text-[#3d2a1c]">{nextItem.label}</b>
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
         </Panel>
       </div>
 
@@ -599,7 +605,7 @@ export default function World() {
         >
           <p className="text-[15px] font-bold text-[#4a3424]">Ready when you are</p>
           <p className="-mt-1 flex items-center gap-1.5 text-[13px] text-[#6b5640]">
-            <span className="h-3 w-3 rounded" style={{ background: nextItem.color }} aria-hidden />
+            <GardenIcon id={nextItem.id} size={20} />
             Finish this session to grow: <b className="text-[#3d2a1c]">{nextItem.label}</b>
           </p>
           <NavButton tone="yellow" onClick={sitDown} className="w-full py-2.5 text-[16px]">
@@ -653,16 +659,12 @@ export default function World() {
             )}
             {seated && type === "technical" && (
               <div className={`min-h-0 flex-1 flex-col ${panel === "code" ? "flex" : "hidden"}`}>
-                {/* what Pip last said, so you can code without flipping back to the chat */}
-                {lastGuideLine && (
-                  <div className="mb-2 flex gap-2 rounded-2xl bg-[#fff1d6] px-3 py-2">
-                    <ChickIcon size={20} />
-                    <p className="line-clamp-3 text-[13px] leading-snug text-[#5a4430]">{lastGuideLine}</p>
-                  </div>
-                )}
                 <CodePanel
                   key={convo.question?.id ?? "starter"}
                   question={convo.question}
+                  guideLine={lastGuideLine}
+                  canAsk={convo.status === "your-turn" || convo.status === "speaking" || convo.status === "listening"}
+                  onAskHint={() => void convo.answer("Could I have a small hint?")}
                   onChange={(text, language) => {
                     code.current.text = text;
                     code.current.language = language;
@@ -692,7 +694,7 @@ export default function World() {
           {/* at the table: what finishing grows, and the session's own actions, with Finish as the main one */}
           {seated && (
             <p className="mt-2.5 flex items-center gap-1.5 border-t border-[#f0dfc2] pt-2 text-[12.5px] text-[#6b5640]">
-              <span className="h-3 w-3 shrink-0 rounded" style={{ background: nextItem.color }} aria-hidden />
+              <GardenIcon id={nextItem.id} size={20} />
               Finish to grow: <b className="text-[#3d2a1c]">{nextItem.label}</b>
             </p>
           )}
@@ -700,13 +702,19 @@ export default function World() {
             <footer className="mt-2 flex items-center gap-2">
               <span className="flex items-center gap-1.5 font-mono text-[12px] text-[#8a6a4a]" title="Your plant grows while you practise">
                 <Sprout minutes={elapsed / 60} />
-                {/* gentle practice promises no clock */}
-                {gentle ? "Take your time" : clock}
+                {/* gentle practice promises no clock; otherwise it's hidden until you ask for it */}
+                {gentle ? (
+                  "Take your time"
+                ) : (
+                  <button onClick={() => setShowClock((v) => !v)} className="underline-offset-2 hover:underline" aria-pressed={showClock}>
+                    {showClock ? clock : "Show timer"}
+                  </button>
+                )}
               </span>
               <span className="flex-1" />
-              <NavButton onClick={standUp}>Stand up</NavButton>
+              <NavButton onClick={standUp}>Take a break</NavButton>
               <NavButton tone="yellow" onClick={() => void convo.finish()} disabled={!convo.canFinish} title={convo.canFinish ? "End here and get feedback" : "Answer at least once to get feedback"}>
-                Finish
+                I&apos;m done
               </NavButton>
             </footer>
           )}
@@ -721,7 +729,7 @@ export default function World() {
           <div className="sticky top-0 z-10 flex flex-wrap items-center justify-end gap-2 border-b border-[#ead8b8] bg-[#f3ead9]/95 px-4 py-3 backdrop-blur">
             {grewNow && (
               <span className="mr-auto flex items-center gap-2 rounded-full bg-[#fffdf8] px-3.5 py-1.5 text-[13.5px] font-bold text-[#3d2a1c] ring-1 ring-[#ead8b8]">
-                <span className="h-3 w-3 rounded" style={{ background: grewNow.color }} aria-hidden />
+                <GardenIcon id={grewNow.id} size={20} />
                 New on your island: {grewNow.label}
               </span>
             )}

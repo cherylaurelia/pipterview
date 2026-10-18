@@ -7,6 +7,18 @@ export function isInterviewTypeId(value: string): value is InterviewTypeId {
   return (INTERVIEW_TYPE_IDS as readonly string[]).includes(value);
 }
 
+/**
+ * The round types people can pick, review, and see in their progress. System design is hidden for now: its questions,
+ * rubric, and design workspace stay in place (and the API still accepts it), but nothing in the UI offers it, and
+ * /interview/system-design redirects home (see next.config.ts).
+ */
+export const VISIBLE_INTERVIEW_TYPE_IDS = ["technical", "behavioral"] as const satisfies readonly InterviewTypeId[];
+export const HIDDEN_INTERVIEW_TYPE_IDS = INTERVIEW_TYPE_IDS.filter((id) => !isVisibleInterviewTypeId(id));
+
+export function isVisibleInterviewTypeId(value: string): value is (typeof VISIBLE_INTERVIEW_TYPE_IDS)[number] {
+  return (VISIBLE_INTERVIEW_TYPE_IDS as readonly string[]).includes(value);
+}
+
 export const ROLE_IDS = ["swe", "pm", "data", "fde", "other"] as const;
 export type RoleId = (typeof ROLE_IDS)[number];
 
