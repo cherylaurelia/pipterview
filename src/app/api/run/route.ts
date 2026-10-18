@@ -4,16 +4,16 @@ import { nativeRunnerEnabled, runNative } from "@/lib/server/native-runner";
 import type { CodingSpec } from "@/lib/workspace/types";
 
 const RunRequestSchema = z.object({
-  language: z.enum(["java", "cpp"]),
+  language: z.enum(["java", "cpp", "c"]),
   code: z.string().max(50_000),
   spec: CodingSpecSchema.optional(),
 });
 
-/** Compiles and runs Java or C++ for the code editor. Python and JavaScript run in the browser instead. */
+/** Compiles and runs Java, C++, or C for the code editor. Python, JavaScript, and TypeScript run in the browser instead. */
 export async function POST(request: Request) {
   if (!nativeRunnerEnabled()) {
     return Response.json(
-      { error: "Java and C++ need the local code runner, which is off in production. Use Python or JavaScript." },
+      { error: "Java, C++, and C need the local code runner, which is off in production. Use Python, JavaScript, or TypeScript." },
       { status: 503 },
     );
   }
