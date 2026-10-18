@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Feedback } from "@/lib/interview/prompts";
 import type { Profile } from "@/lib/interview/tailor";
 import type { InterviewTypeId, Question, SessionSettings, SessionState, TranscriptEntry } from "@/lib/interview/types";
+import { recentQuestions, rememberQuestion } from "@/lib/recent-questions";
 import { streamTurnRequest } from "@/lib/turn-client";
 import { DONE_PHRASE, SILENCE_MS, VOICE_MODE_KEY, stripDonePhrase } from "@/lib/voice/hands-free";
 import { createSpeechQueue, stopSpeaking, warmUpVoices } from "@/lib/voice/speak";
@@ -184,7 +185,10 @@ export function useConversation(prep: PrepType, options: Options) {
         session.current = turn.state;
         transcript.current = [...previous, turn.entry];
         lastRequest.current = null;
-        setQuestion(turn.state.questions[Math.min(turn.state.questionIndex, turn.state.questions.length - 1)] ?? null);
+        const asked = turn.state.questions[Math.min(turn.state.questionIndex, turn.state.questions.length - 1)] ?? null;
+        setQuestion(asked);
+        // remember bank questions you've had, so the next sessions pick others first
+        if (asked && turn.state.phase === "question" && !asked.tailoredReason) rememberQuestion(turn.state.typeId, asked.id);
         turnPending.current = false;
 
         if (queue) {
@@ -228,7 +232,8 @@ export function useConversation(prep: PrepType, options: Options) {
     setNotice(null);
     setStatus("connecting");
     const { settings, profile } = optionsRef.current;
-    void guideTurn({ url: "/api/interview/start", body: { typeId: TYPE_FOR[prep], settings, ...(profile ? { profile } : {}) }, previous: [] });
+    const avoid = recentQuestions(TYPE_FOR[prep]);
+    void guideTurn({ url: "/api/interview/start", body: { typeId: TYPE_FOR[prep], settings, ...(profile ? { profile } : {}), ...(avoid.length ? { avoid } : {}) }, previous: [] });
   }, [guideTurn, prep, setStatus]);
 
   /** After an error: re-send only what failed (your last answer, or the scoring), not the whole session. */
