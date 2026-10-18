@@ -1,48 +1,102 @@
-# Pip
+# pipterview ⋆⭒˚.⋆
 
-Interview practice for nervous candidates. Undergrads and new grads going after SWE, PM, data, FDE, and other tech roles talk to an AI interviewer out loud, starting gentle and building up to real pressure, and get honest, kind feedback.
+**an extra view for your interviews.**
 
-Built for the **well-being track**: the product applies gradual exposure to interview anxiety.
-- **Pressure levels** (gentle → standard → realistic) change how the interviewer behaves, whether there's a clock, and how quickly hints come.
-- **Check-ins** before and after each session track nerves over time on the progress page.
-- **Breathing exercise** before starting and whenever you pause; **"ask for a moment to think"** normalizes a real-interview habit.
-- **Feedback** leads with strengths, frames weaknesses as next steps, says "readiness" instead of hire/no-hire, and coaches delivery (pace, filler words, rambling) where nerves show first.
+A cozy 3D world that helps tech students get past interview anxiety, one practice round at a time.
 
-## Run it
+---
+
+## What is it?
+
+A 3D practice island where you do mock interviews out loud with **Pip**, a friendly interviewer, instead of a chat box, a scary stranger or an uncanny avatar.
+
+## Why
+
+As students in tech, we know getting picked for an interview feels like finding the pot of gold at the end of the rainbow.
+
+But what happens when you're too lost, overwhelmed and anxious to know how to prepare?
+
+Seeking help is hard, and starting is often the biggest mountain.
+
+That's why we made **pipterview**: another set of eyes, ears and advice for the words you can't quite get out, the code you don't know how to write, and the skills you can't explain.
+
+To make interview prep less scary, and ultimately an everyday part of your life. **Consistency over catastrophe.**
+
+## How it works
+
+1. **Add context about yourself** (optional): your resume or the roles you're targeting.
+2. **Pick a round:** behavioral, technical, or a resume skills quiz.
+3. **Talk it through with Pip,** out loud or by typing. Pip asks follow-ups, gives hints and adapts when you're stuck.
+4. **Get a summary of how you did** after each session.
+5. **Grow your island.** Every finished session plants something new in your island garden.
+
+### The coding environment
+
+Technical mocks happen in our own coding environment, built on **Monaco** (the editor inside VS Code):
+
+- **Python** runs in the browser through **Pyodide**, the real Python interpreter compiled to WebAssembly.
+- **JavaScript and TypeScript** run in a sandboxed Web Worker with a time limit.
+- **Java, C++ and C** compile and run on the server (local only, see limitations).
+- A **test-harness generator** turns one problem definition into runnable tests in every language, with hidden test cases and **exact or any-order comparison** for questions with more than one correct answer.
+
+## Made with
+
+- Next.js 16, React 19, TypeScript
+- Three.js + React Three Fiber
+- Tailwind CSS
+- Claude via the Anthropic SDK
+- ElevenLabs (voice), Web Speech API (speech recognition)
+- Monaco Editor, Pyodide (WebAssembly)
+- Zod, Vitest, Vercel
+
+## Designed for
+
+Students recruiting for tech internships.
+
+## Run it locally
 
 ```bash
 npm install
 cp .env.example .env.local   # then set ANTHROPIC_API_KEY, or MOCK_AI=1 to run without one
 npm run dev
-npm test                      # unit tests (flow logic, delivery stats, coding specs, Java/C++ drivers)
+npm test
 ```
 
 Open http://localhost:3000 in Chrome or Edge (voice input needs the Web Speech API; any browser can type answers). Java needs a JDK on the machine running the server (`brew install openjdk@21`); C++ needs clang or g++.
 
-In a Superset workspace, setup installs dependencies and copies `.env.local` from the main checkout, and the **Run** button starts the dev server on a free per-workspace port (see `.superset/`).
-
-## How it works
-
-```
-hold to talk ─▶ speech-to-text ─▶ POST /api/interview/turn ─▶ Claude ─▶ text-to-speech
- (browser)       (Web Speech)       (flow + prompt)                     (speechSynthesis)
-```
-
-- **Voice loop** — `src/lib/voice/`. `usePushToTalk` wraps browser speech recognition. Hands-free by default: the mic opens when Alex finishes and an answer sends after a pause (longer in gentle mode) or on "that's my answer"; push-to-talk is a toggle. `speak` reads lines aloud sentence by sentence; talking interrupts it. Both are behind small interfaces so a hosted STT/TTS service can replace them.
-- **Interviewer logic** — `src/lib/interview/`.
-  - `catalog.ts`: interview types, question banks, rubrics, and pacing. Edit this to change the categories or questions.
-  - `flow.ts`: the state machine (opening → questions with follow-ups → "any questions for me?" → done). The server decides where the interview is; each turn the model picks one allowed action (`clarify`, `hint`, `follow_up`, `next_question`, `end_interview`) and writes what to say.
-  - `prompts.ts`: the interviewer persona, per-turn directives, and the feedback prompt and schema.
-- **Claude calls** — `src/lib/claude.ts`. Structured output for every turn and for the feedback report. Per-turn directives are mid-conversation system messages, so the conversation only ever grows by appending.
-- **Workspaces** — `src/components/workspace/`. Technical rounds get a Monaco editor in Python, JavaScript, Java, or C++, run against each problem's visible and hidden tests. Python and JavaScript run in the browser (`public/workers/`); Java and C++ compile and run on the server (`src/lib/server/`, dev-only by default because it executes candidate code). Specs live in `src/lib/interview/coding.ts`. System design rounds get an Excalidraw whiteboard with a component palette plus notes. The latest code and test results, or the diagram (image plus a text summary) and notes, go to the interviewer with each answer that changed them, and to the feedback report at the end.
-- **3D scene** — `src/components/scene/`. Placeholder boxes for the table and the two characters. Each piece is its own component, driven by an `activity` prop (`idle`, `speaking`, `listening`, `thinking`), so the designed models can replace them one at a time.
-
-## Environment
+### Environment
 
 | Variable | |
 |---|---|
 | `ANTHROPIC_API_KEY` | Claude API key |
 | `MOCK_AI=1` | Scripted interviewer and placeholder feedback; no key or credits needed. |
 | `CLAUDE_MODEL` | Optional model override (default `claude-opus-5-5`). |
-| `ELEVENLABS_API_KEY` | Optional natural interviewer voice; falls back to the browser voice. |
-| `LOCAL_CODE_RUNNER=1` | Allow the Java/C++ runner in production. Only do this behind a real sandbox. |
+| `ELEVENLABS_API_KEY` | Optional natural voice for Pip; falls back to the browser voice. |
+| `ELEVENLABS_VOICE_ID` | Optional voice for Pip. |
+| `ELEVENLABS_SPEED` | Optional speaking speed, `0.7` to `1.2` (default `1`). |
+| `LOCAL_CODE_RUNNER=1` | Allow the Java/C++/C runner in production. Only do this behind a real sandbox. |
+| `RATE_LIMIT=off` | Turn off the per-visitor rate limit on paid API routes. |
+
+## Known limitations
+
+- **Everything is stored locally,** for ease of access, so a new browser starts fresh.
+- **Talking can still be finicky,** especially in a fast back-and-forth: you can occasionally get cut off or talked over. Push-to-talk avoids this, and typing always works.
+- **Java, C++ and C are off in the deployed app.** They run on a server, and running strangers' code needs a proper sandbox. Until we add one, the deployed app runs Python, JavaScript and TypeScript, straight in the browser.
+- **API limits:** public visitors are rate-limited, so anyone can use the app, just not indefinitely.
+
+## Particularly proud of
+
+- Bringing Pip to life as a 3D mascot with React Three Fiber and Three.js.
+- Designing the Pip logo and the icons by hand.
+- Spending real time scoping down, so the app tells one clear story.
+- The coding environment, the part we were most nervous about: six languages, with errors and test runs for all of them.
+
+## What's next
+
+- **System design interviews** as a selectable round.
+- **More customization,** plus more thorough testing with real students: which interviews are hardest to prepare for, honest critique of the game-like approach, and whether it really reduces friction-induced anxiety.
+- **Community features,** so students can mock interview each other inside the 3D world.
+
+---
+
+thanks for checking out pipterview ٩(^ᗜ^ )و ´- until next time...
