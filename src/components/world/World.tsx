@@ -716,10 +716,11 @@ export default function World() {
       {/* the feedback report, a moment after the sun starts setting; the sunset glows through around it */}
       {/* (hidden, not unmounted, while you watch the sunset: the report records the session once, when it mounts) */}
       {convo.status === "report" && convo.feedback && convo.scored && lingered && (
-        <div className={`fixed inset-0 z-30 overflow-y-auto bg-[#3b2343]/25 backdrop-blur-[3px] ${watchingSunset ? "hidden" : ""}`}>
-          <div className="sticky top-0 z-10 flex flex-wrap items-center justify-end gap-2 px-4 py-3">
+        // a solid warm page (the blurred sunset behind made it hard to read), with the buttons in a bar that stays put
+        <div className={`fixed inset-0 z-30 overflow-y-auto bg-[#f3ead9] ${watchingSunset ? "hidden" : ""}`}>
+          <div className="sticky top-0 z-10 flex flex-wrap items-center justify-end gap-2 border-b border-[#ead8b8] bg-[#f3ead9]/95 px-4 py-3 backdrop-blur">
             {grewNow && (
-              <span className="mr-auto flex items-center gap-2 rounded-full bg-[#fff8ec] px-3.5 py-1.5 text-[13.5px] font-bold text-[#4a3424] shadow-[0_4px_14px_rgba(90,60,30,0.16)]">
+              <span className="mr-auto flex items-center gap-2 rounded-full bg-[#fffdf8] px-3.5 py-1.5 text-[13.5px] font-bold text-[#3d2a1c] ring-1 ring-[#ead8b8]">
                 <span className="h-3 w-3 rounded" style={{ background: grewNow.color }} aria-hidden />
                 New on your island: {grewNow.label}
               </span>

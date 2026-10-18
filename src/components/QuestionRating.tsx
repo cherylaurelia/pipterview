@@ -31,7 +31,7 @@ export function QuestionRating({
   const [error, setError] = useState<string | null>(null);
 
   if (state === "saved") {
-    return <p className="text-[14px] text-[#3f6b2f]">Thanks, your rating helps improve the questions.</p>;
+    return <p className="text-[14px] text-[#9a5b12]">Thanks, your rating helps improve the questions.</p>;
   }
 
   const submit = async () => {
