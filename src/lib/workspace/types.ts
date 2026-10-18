@@ -1,17 +1,19 @@
 /** Shared types for the coding editor and the system design whiteboard. */
 
-export const CODE_LANGUAGES = ["python", "javascript", "java", "cpp"] as const;
+export const CODE_LANGUAGES = ["python", "javascript", "typescript", "java", "cpp", "c"] as const;
 export type CodeLanguage = (typeof CODE_LANGUAGES)[number];
 
 export const LANGUAGE_LABELS: Record<CodeLanguage, string> = {
   python: "Python",
   javascript: "JavaScript",
+  typescript: "TypeScript",
   java: "Java",
   cpp: "C++",
+  c: "C",
 };
 
 /** Languages that compile and run on the server (the local runner) rather than in the browser. */
-export const NATIVE_LANGUAGES: readonly CodeLanguage[] = ["java", "cpp"];
+export const NATIVE_LANGUAGES: readonly CodeLanguage[] = ["java", "cpp", "c"];
 
 /** Value types for generating Java and C++ test drivers. */
 export const VALUE_TYPES = ["int", "int[]", "int[][]", "string", "bool", "tree", "void"] as const;

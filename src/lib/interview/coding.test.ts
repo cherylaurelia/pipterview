@@ -1,5 +1,6 @@
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
-import { cppDriver, javaDriver } from "../server/drivers";
+import { cDriver, cppDriver, javaDriver } from "../server/drivers";
 import { CODE_LANGUAGES } from "../workspace/types";
 import { INTERVIEW_TYPES } from "./catalog";
 import { CODING_SPECS } from "./coding";
@@ -37,8 +38,13 @@ describe("coding specs", () => {
         }
       });
 
-      it("generates Java and C++ drivers with one result per test", () => {
-        for (const driver of [javaDriver(spec), cppDriver(spec)]) {
+      it("has a TypeScript starter that transpiles cleanly", () => {
+        const out = ts.transpileModule(spec.starter.typescript, { reportDiagnostics: true });
+        expect(out.diagnostics ?? []).toHaveLength(0);
+      });
+
+      it("generates Java, C++, and C drivers with one result per test", () => {
+        for (const driver of [javaDriver(spec), cppDriver(spec), cDriver(spec)]) {
           expect(driver.match(/\/\/ Test \d+/g)).toHaveLength(spec.tests.length);
         }
       });
@@ -52,6 +58,8 @@ describe("coding specs", () => {
     const bst = CODING_SPECS["valid-bst"];
     expect(javaDriver(bst)).toContain("TreeNode.build(new Integer[]{5, 1, 4, null, null, 3, 6})");
     expect(cppDriver(bst)).toContain("mi_driver::build({5, 1, 4, nullopt, nullopt, 3, 6})");
+    expect(cDriver(two)).toContain("int a0[4] = {2, 7, 11, 15};");
+    expect(cDriver(two)).toContain("int* r = twoSum(a0, a0Size, a1, &rs);");
   });
 
   it("rejects test values that don't match their declared type", () => {

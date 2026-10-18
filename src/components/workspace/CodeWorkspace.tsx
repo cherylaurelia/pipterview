@@ -11,8 +11,10 @@ const LANGUAGE_KEY = "mock-interviewer:language";
 const BLANK: Record<CodeLanguage, string> = {
   python: "# Write your solution here. print() output shows below when you run it.\n",
   javascript: "// Write your solution here. console.log() output shows below when you run it.\n",
+  typescript: "// Write your solution here. console.log() output shows below when you run it.\n",
   java: "import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        // Write and try your solution here. System.out output shows below.\n    }\n}\n",
   cpp: "#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    // Write and try your solution here. cout output shows below.\n    return 0;\n}\n",
+  c: "#include <stdio.h>\n\nint main(void) {\n    // Write and try your solution here. printf output shows below.\n    return 0;\n}\n",
 };
 
 function starterFor(question: Question, language: CodeLanguage) {
@@ -206,7 +208,7 @@ export default function CodeWorkspace({
             minimap: { enabled: false },
             fontSize: 14,
             scrollBeyondLastLine: false,
-            tabSize: language === "javascript" ? 2 : 4,
+            tabSize: language === "javascript" || language === "typescript" ? 2 : 4,
             automaticLayout: true,
           }}
         />

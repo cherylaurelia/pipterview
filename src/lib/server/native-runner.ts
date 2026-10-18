@@ -4,10 +4,10 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { CodingSpec } from "../workspace/types";
-import { CPP_PRELUDE, JAVA_TREE_NODE, RESULT_MARKER, cppDriver, javaDriver } from "./drivers";
+import { CPP_PRELUDE, C_PRELUDE, JAVA_TREE_NODE, RESULT_MARKER, cDriver, cppDriver, javaDriver } from "./drivers";
 
 /**
- * Compiles and runs Java and C++ on this machine. This executes arbitrary
+ * Compiles and runs Java, C++, and C on this machine. This executes arbitrary
  * code with the server's permissions, so it's only enabled in development
  * (or with LOCAL_CODE_RUNNER=1). For a public deployment, replace runNative
  * with a call to a sandboxed service such as Judge0 that returns the same shape.
@@ -80,6 +80,7 @@ function exec(command: string, args: string[], cwd: string, timeoutMs: number): 
 
 let javaBin: string | null | undefined;
 let cppCompiler: string | null | undefined;
+let cCompiler: string | null | undefined;
 
 /** Finds a working JDK without needing it on PATH (macOS ships stub `java` commands that only print an error). */
 async function findJava(): Promise<string | null> {
@@ -110,9 +111,18 @@ async function findCpp(): Promise<string | null> {
   return (cppCompiler = null);
 }
 
+async function findC(): Promise<string | null> {
+  if (cCompiler !== undefined) return cCompiler;
+  for (const cc of [process.env.CC, "cc", "clang", "gcc"].filter(Boolean) as string[]) {
+    const check = await exec(cc, ["--version"], tmpdir(), 10_000);
+    if (check.code === 0) return (cCompiler = cc);
+  }
+  return (cCompiler = null);
+}
+
 // ---------- Output parsing ----------
 
-function parseRun(out: Exec, spec: CodingSpec | undefined, language: "java" | "cpp"): NativeResult {
+function parseRun(out: Exec, spec: CodingSpec | undefined, language: "java" | "cpp" | "c"): NativeResult {
   const results: NativeResult["results"] = [];
   const userLines: string[] = [];
   for (const line of out.stdout.split("\n")) {
@@ -219,12 +229,38 @@ async function runCpp(run: string, code: string, spec?: CodingSpec): Promise<Nat
   return parseRun(ran, spec, "cpp");
 }
 
-export async function runNative(language: "java" | "cpp", code: string, spec?: CodingSpec): Promise<NativeResult> {
+async function runC(run: string, code: string, spec?: CodingSpec): Promise<NativeResult> {
+  const dir = runFile(run, "");
+  const cc = await findC();
+  if (!cc) return { results: [], stdout: "", error: "No C compiler on the server. Install clang (xcode-select --install) or gcc." };
+
+  let userFile: string;
+  if (spec) {
+    // The candidate's code is its own file, so compiler errors use their line numbers.
+    userFile = "solution.h";
+    await writeFile(runFile(run, userFile), code);
+    await writeFile(runFile(run, "main.c"), `${C_PRELUDE}\n#include "solution.h"\n${cDriver(spec)}`);
+  } else {
+    userFile = "main.c";
+    await writeFile(runFile(run, userFile), code);
+  }
+
+  const compiled = await exec(cc, ["-std=c11", "-O2", "-o", "main", "main.c", "-lm"], dir, COMPILE_MS);
+  if (compiled.timedOut) return { results: [], stdout: "", error: "Compiling took too long." };
+  if (compiled.code !== 0) {
+    return { results: [], stdout: "", error: `Compile error:\n${cleanCompileErrors(compiled.stderr, userFile, 0)}` };
+  }
+  const ran = await exec(runFile(run, "main"), [], dir, RUN_MS);
+  return parseRun(ran, spec, "c");
+}
+
+export async function runNative(language: "java" | "cpp" | "c", code: string, spec?: CodingSpec): Promise<NativeResult> {
   return withSlot(async () => {
     const run = randomUUID();
     await mkdir(runFile(run, ""), { recursive: true });
     try {
-      return language === "java" ? await runJava(run, code, spec) : await runCpp(run, code, spec);
+      if (language === "java") return await runJava(run, code, spec);
+      return language === "cpp" ? await runCpp(run, code, spec) : await runC(run, code, spec);
     } catch (err) {
       return { results: [], stdout: "", error: err instanceof Error ? err.message : String(err) };
     } finally {
