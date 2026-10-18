@@ -1,9 +1,12 @@
 import { interviewerTurn } from "@/lib/claude";
 import { TurnRequestSchema } from "@/lib/interview/schemas";
 import { streamTurn } from "@/lib/server/ndjson";
+import { rateLimited } from "@/lib/server/rate-limit";
 
 /** Takes the transcript ending in the candidate's answer and streams the interviewer's reply. */
 export async function POST(request: Request) {
+  const limited = rateLimited(request, "turn");
+  if (limited) return limited;
   const body = TurnRequestSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
     return Response.json({ error: "Invalid request body." }, { status: 400 });
