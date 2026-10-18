@@ -12,14 +12,14 @@ export function IslandPanel({ garden, streak }: { garden: Garden; streak: number
     return iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
   };
   return (
-    <div className="retro-scroll min-h-0 flex-1 overflow-y-auto">
+    <div className="retro-scroll min-h-0 flex-1 overflow-y-auto lowercase">
       <div className="rounded-2xl bg-[#fff1d6] px-4 py-3">
         <p className="text-[12.5px] font-bold text-[#a07a4a]">Next on your island</p>
         <div className="mt-1 flex items-center gap-2.5">
           <GardenIcon id={next.id} size={32} />
           <p className="text-[15px] font-bold text-[#3d2a1c]">{next.label}</p>
         </div>
-        <p className="mt-1 text-[13px] text-[#6b5640]">Finish any round to grow it. Every finished session grows one thing.</p>
+        <p className="mt-1 text-[13px] text-[#6b5640]">Finish any round to grow it. Consistency over catastrophe: one small thing at a time.</p>
       </div>
       <p className="mt-3 px-1 text-[12.5px] text-[#8a6a4a]">
         {Math.min(garden.grown, total)} of {total} grown{streak > 1 ? ` · ${streak}-day streak` : ""}
