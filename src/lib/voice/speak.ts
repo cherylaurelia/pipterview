@@ -3,8 +3,8 @@
  * (see /api/tts), otherwise the browser's built-in speechSynthesis.
  *
  * Speech is queued sentence by sentence, so a streamed reply starts playing
- * as soon as its first sentence arrives; each sentence's audio is fetched as
- * soon as it's complete, so the next one is ready when the current one ends.
+ * as soon as its first sentence arrives; audio is fetched up to two sentences
+ * ahead, so the next one is ready when the current one ends.
  * stopSpeaking() (the candidate interrupting) cuts it off immediately.
  */
 
@@ -54,19 +54,33 @@ export function stopSpeaking() {
 type Prepared = { kind: "audio"; url: string } | { kind: "browser"; text: string };
 
 /**
- * Starts getting a sentence's audio. Called as soon as the sentence is complete, so the next sentence is usually ready
- * by the time the current one finishes (no gap between sentences). Falls back to the browser voice on any failure.
+ * How many sentences' audio to fetch ahead of the one playing. ElevenLabs caps simultaneous requests per account (low
+ * on the cheaper plans, and shared by everyone using the site), so fetching every sentence at once gets some of them
+ * refused and the voice flips to the browser's mid-reply. Two ahead is still enough to have the next sentence ready.
+ */
+const LOOKAHEAD = 2;
+/** The server says the voice service is busy (its concurrency cap): wait this long, then try once more. */
+const BUSY_RETRY_MS = 700;
+
+/**
+ * Gets a sentence's audio. Started a sentence or two before it's needed, so it's usually ready by the time the
+ * current one finishes (no gap between sentences). Falls back to the browser voice on any failure.
  */
 async function prepare(text: string, previousText: string | undefined, signal: AbortSignal): Promise<Prepared> {
   if (await premiumAvailable()) {
     try {
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, previousText }),
-        signal,
-      });
-      if (res.ok) return { kind: "audio", url: URL.createObjectURL(await res.blob()) };
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, previousText }),
+          signal,
+        });
+        if (res.ok) return { kind: "audio", url: URL.createObjectURL(await res.blob()) };
+        if (res.status !== 503 || attempt > 0) break; // only "busy" is worth a retry
+        await new Promise((resolve) => setTimeout(resolve, BUSY_RETRY_MS));
+        if (signal.aborted) break;
+      }
     } catch {
       // Fall back to the browser voice below.
     }
@@ -124,8 +138,8 @@ export function createSpeechQueue(): SpeechQueue {
   stopSpeaking();
   let buffer = "";
   let lastSentence: string | undefined;
-  // each sentence starts fetching its audio the moment it's queued; playback takes them in order
-  const sentences: Promise<Prepared>[] = [];
+  // sentences in order; the first LOOKAHEAD not yet playing have their audio fetching (`prepared`)
+  const sentences: { text: string; previous?: string; prepared?: Promise<Prepared> }[] = [];
   const abort = new AbortController();
   let playing = false;
   let closed = false;
@@ -134,16 +148,29 @@ export function createSpeechQueue(): SpeechQueue {
   let finish!: () => void;
   const done = new Promise<void>((resolve) => (finish = resolve));
 
+  let waiting = false; // playback is waiting on a sentence's audio, which counts as one of the LOOKAHEAD fetches
+
+  /** Starts fetching audio for upcoming sentences, keeping at most LOOKAHEAD requests going at once. */
+  const prefetch = () => {
+    for (const s of sentences.slice(0, LOOKAHEAD - (waiting ? 1 : 0))) s.prepared ??= prepare(s.text, s.previous, abort.signal);
+  };
+
   const enqueue = (sentence: string) => {
-    sentences.push(prepare(sentence, lastSentence, abort.signal));
+    sentences.push({ text: sentence, previous: lastSentence });
     lastSentence = sentence;
+    prefetch();
   };
 
   const pump = async () => {
     if (playing) return;
     playing = true;
     while (sentences.length && !cancelled) {
-      const item = await sentences.shift()!;
+      const next = sentences.shift()!;
+      next.prepared ??= prepare(next.text, next.previous, abort.signal);
+      waiting = true;
+      const item = await next.prepared;
+      waiting = false;
+      prefetch(); // now that this one's audio is in, the next ones fetch while it plays (never more than LOOKAHEAD at once)
       await play(item, () => cancelled, (a) => (audio = a));
       audio = null;
     }
@@ -175,7 +202,7 @@ export function createSpeechQueue(): SpeechQueue {
     cancel() {
       cancelled = true;
       abort.abort(); // stop fetching audio for sentences that will never play
-      for (const pending of sentences.splice(0)) void pending.then((p) => p.kind === "audio" && URL.revokeObjectURL(p.url));
+      for (const pending of sentences.splice(0)) void pending.prepared?.then((p) => p.kind === "audio" && URL.revokeObjectURL(p.url));
       audio?.pause();
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
       finish();
