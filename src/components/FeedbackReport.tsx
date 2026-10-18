@@ -153,7 +153,7 @@ export function FeedbackReport({
 
   return (
     <main className={`min-h-full text-[#3d2a1c] ${embedded ? "" : "bg-[#f6efe4]"}`}>
-      <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 sm:px-6">
+      <div className="report-enter mx-auto max-w-3xl space-y-4 px-4 py-6 sm:px-6">
         {/* how it went */}
         <section className={`${card} px-6 py-6 sm:px-8`}>
           <p className="flex items-center gap-1.5 text-[13px] font-bold text-[#8a6440]">
