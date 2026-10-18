@@ -35,7 +35,7 @@ import { MOCK_ENABLED, mockFeedback, mockInterviewerTurn, mockTailoring } from "
 
 // Override with CLAUDE_MODEL in .env.local. Turns need a model that supports
 // mid-conversation system messages.
-const MODEL = process.env.CLAUDE_MODEL ?? "claude-opus-5-5";
+const MODEL = process.env.CLAUDE_MODEL?.trim() || "claude-opus-5-5"; // a blank CLAUDE_MODEL= falls back too
 // Interviewer turns are short and latency-sensitive; tailoring and feedback need more care.
 const TURN_EFFORT = "low";
 const TAILOR_EFFORT = "medium";
