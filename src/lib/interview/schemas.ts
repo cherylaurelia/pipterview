@@ -7,6 +7,9 @@ export const SettingsSchema = z.object({
   intensity: z.enum(INTENSITIES),
   style: z.enum(COMPANY_STYLES),
   length: z.enum(LENGTHS).default("full"),
+  // A first name only: it's spoken aloud and goes into the prompt.
+  interviewerName: z.string().regex(/^[A-Za-z][A-Za-z' -]{0,23}$/).optional(),
+  stories: z.array(z.string().max(200)).max(8).optional(),
 });
 
 /** Request-body validation for the interview API routes. */
@@ -20,14 +23,21 @@ const SignatureSchema = z.object({ params: z.array(z.enum(VALUE_TYPES)).max(10),
 
 export const CodingSpecSchema = z.object({
   mode: z.enum(["function", "class"]),
-  entry: z.object({ python: identifier, javascript: identifier, java: identifier, cpp: identifier }),
+  entry: z.object({ python: identifier, javascript: identifier, typescript: identifier, java: identifier, cpp: identifier, c: identifier }),
   argTypes: z.array(z.enum(["json", "tree"])).max(10).optional(),
   types: z.union([
     SignatureSchema,
     z.object({ constructor: z.array(z.enum(VALUE_TYPES)).max(10), methods: z.record(identifier, SignatureSchema) }),
   ]),
   signature: text(1000),
-  starter: z.object({ python: text(5000), javascript: text(5000), java: text(5000), cpp: text(5000) }),
+  starter: z.object({
+    python: text(5000),
+    javascript: text(5000),
+    typescript: text(5000),
+    java: text(5000),
+    cpp: text(5000),
+    c: text(5000),
+  }),
   compare: z.enum(["exact", "unordered"]),
   tests: z
     .array(z.object({ args: z.array(z.unknown()).max(10), expected: z.unknown(), hidden: z.boolean().optional() }))
@@ -86,6 +96,7 @@ export const TranscriptSchema = z
       questionId: text(80).optional(),
       workspace: WorkspaceSnapshotSchema.optional(),
       durationMs: z.number().int().min(0).max(3_600_000).optional(),
+      thinkMs: z.number().int().min(0).max(3_600_000).optional(),
       stressSignals: list(5, 200).optional(),
       adapted: z.boolean().optional(),
     }),

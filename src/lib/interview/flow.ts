@@ -1,5 +1,5 @@
 import { getInterviewType } from "./catalog";
-import type { CandidateContext, InterviewTypeId, InterviewerAction, Question, SessionSettings, SessionState } from "./types";
+import { DEFAULT_INTERVIEWER_NAME, type CandidateContext, type InterviewTypeId, type InterviewerAction, type Question, type SessionSettings, type SessionState } from "./types";
 
 export const DEFAULT_SETTINGS: SessionSettings = { intensity: "standard", style: "big_tech", length: "full" };
 
@@ -97,7 +97,7 @@ export function directiveFor(state: SessionState, context: DirectiveContext = {}
     case "intro":
       return [
         "Phase: opening.",
-        `Greet the candidate, introduce yourself as Alex, and say in one sentence that this is a ${type.label.toLowerCase()} interview with ${total === 1 ? "one main question" : `${total} questions`}.`,
+        `Greet the candidate, introduce yourself as ${state.settings.interviewerName ?? DEFAULT_INTERVIEWER_NAME}, and say in one sentence that this is a ${type.label.toLowerCase()} interview with ${total === 1 ? "one main question" : `${total} questions`}.`,
         `Then ask the first question, close to verbatim: ${quote(state.questions[0])}`,
         'Use action "next_question".',
       ].join("\n");
