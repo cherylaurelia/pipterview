@@ -16,14 +16,28 @@ export function gradientMap() {
   return gradient;
 }
 
+let paleGradient: THREE.DataTexture | null = null;
+
+/** The same ramp with a lifted darkest step, for pale things that would otherwise go mustard in the warm sunset light. */
+function paleGradientMap() {
+  if (!paleGradient) {
+    paleGradient = new THREE.DataTexture(new Uint8Array([150, 160, 196, 232, 255]), 5, 1, THREE.RedFormat);
+    paleGradient.minFilter = paleGradient.magFilter = THREE.LinearFilter;
+    paleGradient.generateMipmaps = false;
+    paleGradient.needsUpdate = true;
+  }
+  return paleGradient;
+}
+
 const cache = new Map<string, THREE.MeshToonMaterial>();
 
-/** A shared soft-shaded material in `color`. */
-export function toon(color: string) {
-  let m = cache.get(color);
+/** A shared soft-shaded material in `color`; `pale` keeps its shadowed side lighter. */
+export function toon(color: string, pale = false) {
+  const key = pale ? `${color}:pale` : color;
+  let m = cache.get(key);
   if (!m) {
-    m = new THREE.MeshToonMaterial({ color, gradientMap: gradientMap() });
-    cache.set(color, m);
+    m = new THREE.MeshToonMaterial({ color, gradientMap: pale ? paleGradientMap() : gradientMap() });
+    cache.set(key, m);
   }
   return m;
 }
