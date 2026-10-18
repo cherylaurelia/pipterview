@@ -10,7 +10,13 @@ export function streamTurn(run: (onSay: (text: string) => void) => Promise<TurnR
   const encoder = new TextEncoder();
   const body = new ReadableStream({
     async start(controller) {
-      const send = (event: object) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      const send = (event: object) => {
+        try {
+          controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        } catch {
+          // The client disconnected; nothing to send to.
+        }
+      };
       try {
         const result = await run((text) => send({ type: "say", text }));
         send({ type: "done", ...result });
@@ -18,7 +24,11 @@ export function streamTurn(run: (onSay: (text: string) => void) => Promise<TurnR
         console.error(`${label} failed`, error);
         send({ type: "error", error: describeApiError(error).message });
       }
-      controller.close();
+      try {
+        controller.close();
+      } catch {
+        // Already closed because the client disconnected.
+      }
     },
   });
   return new Response(body, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" } });
