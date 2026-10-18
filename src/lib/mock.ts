@@ -63,7 +63,7 @@ export function mockInterviewerTurn(state: SessionState, transcript: TranscriptE
   return { state: next, entry };
 }
 
-export function mockTailoring(typeId: InterviewTypeId, profile: Profile, count?: number): { questions: Question[]; candidate: CandidateContext } {
+export function mockTailoring(typeId: InterviewTypeId, profile: Profile, count?: number, avoid: string[] = []): { questions: Question[]; candidate: CandidateContext } {
   const source = profile.resumePdf ? "an uploaded resume PDF" : profile.resumeText ? "a pasted resume" : "no resume";
   const jd = profile.jobDescription?.trim() ? "a job description" : "no job description";
   return {
@@ -71,7 +71,7 @@ export function mockTailoring(typeId: InterviewTypeId, profile: Profile, count?:
       role: profile.role,
       summary: `Mock summary (MOCK_AI=1) for a ${ROLES[profile.role]} candidate, from ${source} and ${jd}.`,
     },
-    questions: pickBankQuestions(typeId, Math.random, count).map((q) => ({
+    questions: pickBankQuestions(typeId, Math.random, count, avoid).map((q) => ({
       ...q,
       tailoredReason: "Mock mode picks bank questions; real tailoring needs an API key.",
     })),

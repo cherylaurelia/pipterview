@@ -35,7 +35,7 @@ export const INTERVIEW_TYPES: Record<InterviewTypeId, InterviewType> = {
     questionsPerSession: 2,
     maxFollowUps: 3,
     maxTurnsPerQuestion: 8,
-    interviewerGuidance: `This is a coding round with a shared editor (Python, JavaScript, Java, or C++) that can run the problem's tests. Good flow: let them clarify and talk through an approach first; once the approach is sound, ask them to code it; then ask them to run the tests, trace a small example, and state the time and space complexity. Their latest code and test results are attached to their answers automatically whenever they change. Read them closely and refer to specifics, like a variable, a loop, or a failing test, but don't read code aloud. Probe understanding, not recall: if they jump straight to a textbook solution, ask why it works, have them walk an edge case, or change a constraint from the follow-up ladder. Point out bugs by asking questions that lead them there; never fix or write code for them, and never state the optimal solution. If they stall for more than a turn, give the next hint on the ladder rather than inventing a bigger one.`,
+    interviewerGuidance: `This is a coding round with a shared editor (Python, JavaScript, TypeScript, Java, C++, or C) that can run the problem's tests. Good flow: let them clarify and talk through an approach first; once the approach is sound, ask them to code it; then ask them to run the tests, trace a small example, and state the time and space complexity. Their latest code and test results are attached to their answers automatically whenever they change. Read them closely and refer to specifics, like a variable, a loop, or a failing test, but don't read code aloud. Probe understanding, not recall: if they jump straight to a textbook solution, ask why it works, have them walk an edge case, or change a constraint from the follow-up ladder. Point out bugs by asking questions that lead them there; never fix or write code for them, and never state the optimal solution. If they stall for more than a turn, give the next hint on the ladder rather than inventing a bigger one.`,
     questions: [
       {
         id: "two-sum",
@@ -593,6 +593,164 @@ export const INTERVIEW_TYPES: Record<InterviewTypeId, InterviewType> = {
           "No measurable benefit",
         ],
       },
+      {
+        id: "tell-me-about-yourself",
+        prompt: "Walk me through your background and what brings you here today.",
+        difficulty: "easy",
+        topics: ["communication", "motivation"],
+        strongAnswer:
+          "A 60 to 90 second arc rather than a resume recital: where they are now, one or two experiences that show what they're good at (each with a concrete detail), and why that leads to this role. Ends by handing the conversation back.",
+        followUps: [
+          "Which of those experiences taught you the most, and why?",
+          "What's something that isn't on your resume that I should know about you?",
+          "What kind of team do you do your best work on?",
+        ],
+        hints: [
+          "Try present, past, future: what you're doing now, one or two things you've done, and what you want next.",
+          "Pick the one experience you'd most like to be asked about, and make sure it's in there.",
+        ],
+        commonMistakes: [
+          "Reading the resume line by line",
+          "Going on for more than two minutes",
+          "A life story with no link to the role",
+        ],
+      },
+      {
+        id: "critical-feedback",
+        prompt: "Tell me about a time you got critical feedback. What did you do with it?",
+        difficulty: "medium",
+        topics: ["self-awareness", "growth"],
+        strongAnswer:
+          "Real, specific feedback from a mentor, manager, professor, or teammate. Describes how they took it in the moment without getting defensive, the concrete change they made, and evidence the change stuck or was noticed.",
+        followUps: [
+          "How did you react when you first heard it?",
+          "What exactly did you change, and how did you check it was working?",
+          "Have you ever disagreed with feedback you were given? What did you do?",
+        ],
+        hints: BEHAVIORAL_HINTS,
+        commonMistakes: [
+          "Feedback that is really praise in disguise",
+          "No concrete change in behavior",
+          "Getting defensive or blaming the person who gave it",
+        ],
+      },
+      {
+        id: "ambiguity",
+        prompt: "Tell me about a time you had to make progress without clear instructions.",
+        difficulty: "medium",
+        topics: ["ambiguity", "ownership"],
+        strongAnswer:
+          "Explains what was unclear and why it mattered, how they reduced the ambiguity (asking the right person, writing down assumptions, building a small version first), the decision they made and why, and how they adjusted once they learned more.",
+        followUps: [
+          "What assumptions did you make, and how did you check them?",
+          "Who did you go to for clarity, and what did you ask them?",
+          "What would you have done if your first guess had turned out wrong?",
+        ],
+        hints: BEHAVIORAL_HINTS,
+        commonMistakes: [
+          "Waiting to be told what to do",
+          "Charging ahead without checking any assumptions",
+          "No outcome",
+        ],
+      },
+      {
+        id: "lead-without-authority",
+        prompt: "Tell me about a time you got a group to go with your idea when you weren't the one in charge.",
+        difficulty: "medium",
+        topics: ["leadership", "influence"],
+        strongAnswer:
+          "Shows influence without a title: understood what others cared about, made a clear case (often with a prototype, data, or a small trial), handled objections, and reached a decision. Credits the team and states the outcome.",
+        followUps: [
+          "Who was hardest to convince, and what finally changed their mind?",
+          "What did you do when someone pushed back?",
+          "How did you keep things moving once the group agreed?",
+        ],
+        hints: BEHAVIORAL_HINTS,
+        commonMistakes: [
+          "Being the official leader and calling it influence",
+          "Getting their way through pressure or by going around people",
+          "Taking all the credit",
+        ],
+      },
+      {
+        id: "helped-teammate",
+        prompt: "Tell me about a time you helped a teammate who was struggling.",
+        difficulty: "easy",
+        topics: ["teamwork", "empathy"],
+        strongAnswer:
+          "Noticed someone was stuck, offered help in a way that respected them (pairing, unblocking, sharing context) instead of taking over, balanced it with their own work, and the teammate or project ended up better off.",
+        followUps: [
+          "How did you notice they were struggling?",
+          "How did you balance helping them with your own work?",
+          "What would you have done if they hadn't wanted your help?",
+        ],
+        hints: BEHAVIORAL_HINTS,
+        commonMistakes: [
+          "Simply doing the work for them",
+          "A story that is really about their own heroics",
+          "No outcome for the teammate",
+        ],
+      },
+      {
+        id: "disagree-and-commit",
+        prompt: "Tell me about a time a decision went against what you wanted. What did you do?",
+        difficulty: "medium",
+        topics: ["teamwork", "maturity"],
+        strongAnswer:
+          "Made their case clearly and respectfully before the decision, accepted it once it was made, committed to making it work, and reflects honestly on whether the decision turned out to be right.",
+        followUps: [
+          "How did you make your case before the decision was made?",
+          "What did committing to it look like in practice?",
+          "Looking back, who was right?",
+        ],
+        hints: BEHAVIORAL_HINTS,
+        commonMistakes: [
+          "Quietly not doing it, or sulking",
+          "Re-arguing after the decision was made",
+          "A story with nothing at stake",
+        ],
+      },
+      {
+        id: "user-impact",
+        prompt: "Tell me about something you built or improved for other people to use. How did you know it helped them?",
+        difficulty: "medium",
+        topics: ["impact", "user focus"],
+        strongAnswer:
+          "Starts from a real need, explains how they learned what people needed (talking to users, data, feedback), what they built or changed because of it, and how they measured that it helped. Mentions something they changed after seeing it used.",
+        followUps: [
+          "How did you find out what people actually needed?",
+          "What did you learn once people started using it?",
+          "If you had another month on it, what would you change?",
+        ],
+        hints: BEHAVIORAL_HINTS,
+        commonMistakes: [
+          "Describing the technology instead of the people using it",
+          "No evidence that it helped",
+          "Assuming what users wanted without checking",
+        ],
+      },
+      {
+        id: "hardest-bug",
+        prompt: "Tell me about the hardest technical problem or bug you've had to solve.",
+        difficulty: "medium",
+        topics: ["problem solving", "technical depth"],
+        strongAnswer:
+          "A specific problem explained so a non-expert can follow it, a systematic approach (reproduce, narrow down, form and test hypotheses), the root cause, the fix, and what they did so it wouldn't happen again, like a test or a check.",
+        followUps: [
+          "How did you narrow it down? What did you rule out first?",
+          "What was the actual root cause?",
+          "What did you change so it wouldn't happen again?",
+        ],
+        hints: [
+          "Think of a bug that took you more than a day, or one whose cause surprised you.",
+          "Walk through it in order: what you saw, what you tried, and what it turned out to be.",
+        ],
+        commonMistakes: [
+          "So much jargon it's hard to follow",
+          "A lucky guess with no method behind it",
+          "Stopping at the fix, with no prevention or lesson",
+        ],
+      },
     ],
     rubric: [
       {
@@ -753,6 +911,56 @@ The candidate has a whiteboard and a notes panel. Their latest diagram (an image
           "No data model",
           "Only one approach with no trade-off discussed",
           "Offset pagination on a constantly changing feed",
+        ],
+      },
+      {
+        id: "leaderboard",
+        prompt: "Let's design the leaderboard for an online game with millions of players.",
+        difficulty: "medium",
+        topics: ["data structures", "caching", "scale"],
+        strongAnswer:
+          "Clarifies what the leaderboard shows (global top 100, a player's own rank, friends, daily versus all-time) and how often scores change. Proposes an API for submitting scores and reading ranks. Uses a sorted structure such as a sorted set keyed by score for fast top-N and rank lookups, explains how scores get there (directly, or through a queue when writes spike), and handles daily resets and ties. Discusses sharding or approximation once one structure is too big.",
+        followUps: [
+          "How would you return a single player's exact rank quickly?",
+          "Scores spike at the end of every match. How do you handle that write load?",
+          "How do daily and weekly leaderboards work alongside the all-time one?",
+          "What happens when the leaderboard is too big for one machine?",
+          "How would you stop players from submitting fake scores?",
+        ],
+        hints: [
+          "Start with the two things players do: submit a score and look at rankings.",
+          "Which data structure keeps items sorted and lets you ask for the top N or a rank quickly?",
+          "Think about what happens when thousands of matches end in the same minute.",
+        ],
+        commonMistakes: [
+          "Sorting the whole table on every read",
+          "Ignoring ties and resets",
+          "Trusting scores sent straight from the game client",
+        ],
+      },
+      {
+        id: "notifications",
+        prompt: "Let's design a notification system that sends push, email, and text messages for an app.",
+        difficulty: "medium",
+        topics: ["queues", "reliability", "APIs"],
+        strongAnswer:
+          "Clarifies the types of notification, volume, and how fast they must arrive. Other services call a notification API; requests go onto a queue so spikes don't overwhelm senders; workers per channel call providers such as an email service or a push gateway; user preferences and opt-outs are checked before sending. Covers retries with backoff, deduplication so nobody gets the same message twice, rate limits per user, and tracking delivery status.",
+        followUps: [
+          "Why put a queue between the API and the senders?",
+          "An email provider goes down for ten minutes. What happens?",
+          "How do you make sure someone doesn't get the same notification twice?",
+          "How do user preferences and quiet hours fit in?",
+          "How would you send a message to every user at once without falling over?",
+        ],
+        hints: [
+          "Who sends notifications into this system, and who receives them?",
+          "What should happen when there are suddenly a million notifications to send?",
+          "Think about what to do when sending fails part-way.",
+        ],
+        commonMistakes: [
+          "Calling providers directly and synchronously from the API",
+          "No retry or deduplication plan",
+          "Forgetting user preferences and opt-outs",
         ],
       },
     ],
