@@ -49,8 +49,8 @@ export function ResumeStep({
   return (
     <div className="space-y-3 px-3 pt-1 pb-3 text-[13.5px] text-[#3c3a36]">
       <p>
-        <b>All optional.</b> Add your resume and questions will be about your own projects; add a job posting and they&apos;ll fit
-        the role. Skip it and you can talk about any project you like.
+        <b>All optional.</b> Add your resume and I&apos;ll ask about your own projects, including the bits that are just kind of
+        <i>there</i>. Add a job posting and the questions will fit the role. Skip it and you can talk about any project you like.
       </p>
 
       <label className="block space-y-1">
