@@ -3,6 +3,7 @@ import { ROLES, getInterviewType, rubricFor } from "./catalog";
 import { deliveryStats, describeDelivery } from "./delivery";
 import { LANGUAGE_LABELS, type WorkspaceSnapshot } from "../workspace/types";
 import {
+  DEFAULT_INTERVIEWER_NAME,
   INTERVIEWER_ACTIONS,
   type CandidateContext,
   type CompanyStyle,
@@ -40,8 +41,11 @@ export function interviewerSystemPrompt(typeId: InterviewTypeId, settings: Sessi
   const about = candidate
     ? `\n\nAbout this candidate (from their resume and target job; use it to make follow-ups specific, and never read it back to them):\nTarget role: ${ROLES[candidate.role]}\n${candidate.summary}`
     : "";
+  const stories = settings.stories?.length
+    ? `\n\nStories this candidate has told in earlier practice sessions:\n${settings.stories.map((s) => `- ${s}`).join("\n")}\nLet them choose their own examples. Only if they freeze or say they can't think of one, gently suggest a story from this list that fits the question (for example, "What about your hackathon project?"), and treat that as a hint.`
+    : "";
 
-  return `You are Alex, a friendly and professional interviewer at a tech company. You are running a mock ${type.label.toLowerCase()} interview to help an undergraduate or new-grad candidate practice for tech roles such as software engineering, product management, data science, or forward-deployed engineering.
+  return `You are ${settings.interviewerName ?? DEFAULT_INTERVIEWER_NAME}, a friendly and professional interviewer at a tech company. You are running a mock ${type.label.toLowerCase()} interview to help an undergraduate or new-grad candidate practice for tech roles such as software engineering, product management, data science, or forward-deployed engineering.
 
 How you speak:
 Everything you put in "say" is read aloud by text-to-speech. Write natural spoken English: no markdown, lists, code, emoji, or symbols that don't read aloud. Say "O of n log n", not "O(n log n)". Keep each turn short, usually one to three sentences and never more than about 70 words. Ask one question at a time.
@@ -57,7 +61,7 @@ Before each of your turns, a system message tells you where the interview is and
 ${INTENSITY_TONE[settings.intensity]}
 ${COMPANY_TONE[settings.style]}
 
-${type.interviewerGuidance}${about}`;
+${type.interviewerGuidance}${about}${stories}`;
 }
 
 export const InterviewerTurnSchema = z.object({
@@ -119,6 +123,8 @@ Ground every judgment in the transcript. Quote or closely paraphrase what the ca
 Reward reasoning over recall: a correct answer that the candidate can't explain or adapt when a constraint changes should score lower on problem solving than one they reasoned their way to.
 
 Lead with what genuinely went well; nervous candidates need to know what to keep doing. Frame every weakness as a next step ("Next time, try…"), never as a verdict on the person. Advice must be concrete and actionable: say what to do differently next time, not just what was missing. If delivery stats suggest nerves (a rushed pace, many filler words, very long answers), mention it kindly with one practical habit, such as pausing before answering. If the interview ended early or an answer was too short to judge, say so instead of guessing.
+
+Also collect the candidate's stories for their story bank: every distinct personal experience they told (a project, a conflict, a failure, a time they led), in any round. For each, give it a short memorable title, split it into situation, task, action and result using what they actually said (leave a part empty if they never covered it), list the competencies it shows, and give one tip that would make the story stronger. Don't invent details they didn't say.
 
 When the candidate's final code or whiteboard is attached, judge it directly: read the code and its test results, or look at the diagram and notes. If a coding round has a rubric dimension for implementation and the candidate wrote no code, say so and score it 1.`;
 
@@ -184,5 +190,19 @@ export const FeedbackSchema = z.object({
     }),
   ),
   nextSteps: z.array(z.string()).describe("Two or three specific practice suggestions before the next interview."),
+  stories: z
+    .array(
+      z.object({
+        title: z.string().describe("A short, memorable name for the story, like 'Rebuilding the hackathon backend overnight'."),
+        questionId: z.string().describe("The id of the question it answered."),
+        situation: z.string().describe("The context, in one sentence from what they said; empty if they never set the scene."),
+        task: z.string().describe("Their goal or responsibility; empty if missing."),
+        action: z.string().describe("What they personally did; empty if missing."),
+        result: z.string().describe("The outcome, ideally with a number; empty if missing."),
+        skills: z.array(z.string()).describe("Two to four competencies it shows, such as leadership, conflict, failure, ownership, teamwork."),
+        tip: z.string().describe("One concrete way to make this story stronger next time."),
+      }),
+    )
+    .describe("Each distinct personal story the candidate told, for their story bank. Empty if they told none."),
 });
 export type Feedback = z.infer<typeof FeedbackSchema>;

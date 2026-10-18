@@ -110,6 +110,8 @@ export async function interviewerTurn(
   state: SessionState,
   transcript: TranscriptEntry[],
   onSay: (text: string) => void = () => {},
+  /** The client went away: stop generating (and paying for) the reply. */
+  signal?: AbortSignal,
 ): Promise<TurnResult> {
   const last = transcript.at(-1);
   const context: DirectiveContext = {
@@ -119,7 +121,7 @@ export async function interviewerTurn(
   const adapted = Boolean(stressGuidance(state, context.stress)) && state.settings.intensity !== "realistic";
   if (MOCK_ENABLED) {
     const result = mockInterviewerTurn(state, transcript, context);
-    await streamMockSay(result.entry.text, onSay);
+    await streamMockSay(result.entry.text, onSay, signal);
     return { ...result, entry: { ...result.entry, ...(adapted ? { adapted } : {}) } };
   }
 
@@ -134,7 +136,7 @@ export async function interviewerTurn(
     output_config: { effort: TURN_EFFORT, format: betaZodOutputFormat(InterviewerTurnSchema) },
     system: interviewerSystemPrompt(state.typeId, state.settings, state.candidate),
     messages: buildMessages(transcript, directive),
-  });
+  }, { signal });
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
       const text = say(event.delta.text);
@@ -167,8 +169,9 @@ export async function interviewerTurn(
 }
 
 /** Mock mode streams its scripted line word by word, so the streaming path gets exercised without an API key. */
-async function streamMockSay(text: string, onSay: (text: string) => void) {
+async function streamMockSay(text: string, onSay: (text: string) => void, signal?: AbortSignal) {
   for (const word of text.split(/(?<= )/)) {
+    if (signal?.aborted) return;
     onSay(word);
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
@@ -238,7 +241,7 @@ export async function generateFeedback(
   transcript: TranscriptEntry[],
   finalWork: WorkspaceSnapshot[] = [],
 ): Promise<Feedback> {
-  if (MOCK_ENABLED) return mockFeedback(state, finalWork);
+  if (MOCK_ENABLED) return mockFeedback(state, finalWork, transcript);
   const response = await getClient().beta.messages.parse({
     model: MODEL,
     max_tokens: 16000,
