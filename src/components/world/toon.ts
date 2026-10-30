@@ -51,11 +51,11 @@ const swaying = new Map<string, THREE.MeshToonMaterial>();
  * The soft-shaded material for instanced grass, reeds and cattails, which lean in the breeze: each leans by its
  * height, in waves that roll across the island. `vertexColors` for meshes that carry their own colours.
  */
-export function swayingToon(vertexColors = false) {
-  const key = String(vertexColors);
+export function swayingToon(vertexColors = false, pale = false) {
+  const key = `${vertexColors}-${pale}`;
   let m = swaying.get(key);
   if (!m) {
-    m = new THREE.MeshToonMaterial({ gradientMap: gradientMap(), vertexColors });
+    m = new THREE.MeshToonMaterial({ gradientMap: pale ? paleGradientMap() : gradientMap(), vertexColors });
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uWind = wind;
       shader.vertexShader = shader.vertexShader

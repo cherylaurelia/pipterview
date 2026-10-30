@@ -28,7 +28,7 @@ const GradeShader = {
       vec3 c = texture2D(tDiffuse, vUv).rgb;
       float l = dot(c, vec3(0.299, 0.587, 0.114));
       // split toning: shadows lean violet-blue, highlights lean gold (rosier at sunset)
-      vec3 cool = mix(vec3(0.70, 0.74, 1.12), vec3(0.78, 0.62, 1.08), uEvening);
+      vec3 cool = mix(vec3(0.86, 0.86, 1.03), vec3(0.78, 0.62, 1.08), uEvening); // only a hint of violet by day, so cream stays cream
       vec3 warm = mix(vec3(1.06, 1.0, 0.88), vec3(1.12, 0.92, 0.80), uEvening);
       c *= mix(cool, vec3(1.0), smoothstep(0.0, 0.45, l) * 0.75 + 0.25);
       c *= mix(vec3(1.0), warm, smoothstep(0.45, 1.0, l) * 0.6);
@@ -92,6 +92,8 @@ const OutlineShader = {
 /** See-through things (sky, clouds, the waterfall, blush) shouldn't cast ambient occlusion. */
 const seeThrough = (o: THREE.Object3D) => {
   if (o instanceof THREE.Sprite) return true;
+  // nor does the grass (only on layer 1): thousands of thin blades just turn into dark speckle and outline noise
+  if ((o.layers.mask & 1) === 0) return true;
   const m = (o as THREE.Mesh).material as THREE.Material | undefined;
   return !!m && !Array.isArray(m) && (m.transparent || !m.depthWrite);
 };
