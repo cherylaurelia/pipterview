@@ -14,7 +14,8 @@ import { ResumeStep } from "./resume";
 import { HelpPanel, MicPrimer, StatusBanner, TOUR_STEPS, TourBubble, loadTourDone, micChoice, saveMicChoice, saveTourDone, type TourStep } from "./onboarding";
 import { createAmbience, type Ambience } from "./sound";
 import { setVoiceVolume } from "@/lib/voice/speak";
-import { BookIcon, ChatIcon, CodeIcon, HelpIcon, HomeIcon, IslandIcon, SpeakerIcon } from "./icons";
+import { BookIcon, ChatIcon, CloseIcon, CodeIcon, HelpIcon, HomeIcon, IslandIcon, SpeakerIcon } from "./icons";
+import { askCritter, CRITTERS, type CritterAction, type CritterPick } from "./critters";
 import { IslandPanel } from "./islandpanel";
 import { StoryBook } from "./storybook";
 import { GardenIcon } from "../GardenIcon";
@@ -25,7 +26,7 @@ import { useConversation } from "./useConversation";
 import type { Mood } from "./people";
 import type { WorldMode } from "./WorldScene";
 
-const WorldScene = dynamic(() => import("./WorldScene"), { ssr: false, loading: () => <div className="absolute inset-0 bg-[#dfe9f3]" /> });
+const WorldScene = dynamic(() => import("./WorldScene"), { ssr: false, loading: () => <div className="absolute inset-0 bg-[#ece6dc]" /> });
 
 const PREP_BLURB: Record<PrepType, string> = {
   behavioral: "The stories you've lived but haven't said out loud yet.",
@@ -229,6 +230,9 @@ export default function World() {
   // the one side panel: chat and code while you're at the table; stories and help any time
   const [panel, setPanel] = useState<PanelTab | null>(null);
   const [poked, setPoked] = useState(false);
+  // the pond creature you've clicked on; only on the island (it lets go when you sit down or go home)
+  const [critter, setCritter] = useState<CritterPick | null>(null);
+  const picked = mode === "world" ? critter : null;
   // first-visit help: which tour bubbles you've seen (null until loaded, so nothing flashes), the help window, and the
   // one-time "can I hear you?" before the browser's microphone prompt
   const [tourDone, setTourDone] = useState<TourStep[] | null>(null);
@@ -360,6 +364,10 @@ export default function World() {
     return () => window.removeEventListener("keydown", onKey);
   }, [seated, micAsk, canTalk, status, toggleTalk, tableTab]);
 
+  const doCritter = (pick: CritterPick, action: CritterAction) => {
+    askCritter(pick, action.label);
+    sound.ambience.current?.critter(action.sound);
+  };
   const pokePip = () => {
     sound.ambience.current?.chirp();
     setPoked(true);
@@ -484,6 +492,8 @@ export default function World() {
           evening={evening}
           aside={seated ? (wide ? 0.32 : 0.16) : 0}
           garden={{ count: viewingIsland ? garden.grown : garden.seen, freshFrom: garden.seen }}
+          critter={picked}
+          onPickCritter={setCritter}
           onPokePip={pokePip}
           onSit={sitDown}
           onArrive={onArrive}
@@ -792,6 +802,27 @@ export default function World() {
               </div>
             </div>
           </Panel>
+        </div>
+      )}
+
+      {/* the creature you clicked on at the pond, and what it can do (at the top, clear of the cards below) */}
+      {picked && (
+        <div className="pointer-events-none absolute inset-x-0 top-4 z-20 flex justify-center px-3">
+          <div className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-[#fff8ec]/95 p-1.5 shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur">
+            <span className="px-2.5 text-[13px] text-[#8a6a4a]">{CRITTERS[picked.kind].name}</span>
+            {CRITTERS[picked.kind].actions.map((action) => (
+              <button
+                key={action.label}
+                onClick={() => doCritter(picked, action)}
+                className="rounded-full px-3.5 py-2 text-[13.5px] font-bold text-[#4a3424] transition-colors hover:bg-[#fff0d4] active:bg-[#ffe1a1]"
+              >
+                {action.label}
+              </button>
+            ))}
+            <button onClick={() => setCritter(null)} title="Let go" aria-label="Let go" className="rounded-full p-2 text-[#8a6a4a] transition-colors hover:bg-[#fff0d4]">
+              <CloseIcon />
+            </button>
+          </div>
         </div>
       )}
 

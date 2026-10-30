@@ -1,11 +1,14 @@
 // The world's soundscape, with Web Audio: a lo-fi beat (soft swung drums, warm electric-piano chords, a mellow bass,
 // vinyl crackle, everything through a warm low-pass), a gentle breeze, birdsong by day and crickets at dusk, and small
-// cues (a chime when it's your turn, a pop when the guide speaks, a chirp when you poke Pip).
+// cues (a chime when it's your turn, a pop when the guide speaks, a chirp when you poke Pip, and the pond creatures'
+// croaks, quacks and splashes).
 //
 // Drop a royalty-free track at public/audio/lofi.mp3 and it plays (looped) instead of the synthesised beat.
 //
 // Everything ducks while the mic is listening, to keep it out of your answer, but stays audible: with headphones the
 // mic hardly hears it anyway.
+
+import type { CritterSound } from "./critters";
 
 export interface SoundState {
   /** The mic is open: the music and nature step well back. */
@@ -32,6 +35,8 @@ export interface Ambience {
   pop(): void;
   /** You poked Pip. */
   chirp(): void;
+  /** A pond creature did something. */
+  critter(sound: CritterSound): void;
   dispose(): void;
 }
 
@@ -319,6 +324,44 @@ export function createAmbience(): Ambience {
       const at = ctx.currentTime + 0.01;
       tone(fx, 1900, at, { peak: 0.07, attack: 0.004, decay: 0.08, glide: 1.4 });
       tone(fx, 2300, at + 0.11, { peak: 0.06, attack: 0.004, decay: 0.1, glide: 1.35 });
+    },
+    critter(sound: CritterSound) {
+      if (!enabled) return;
+      const at = ctx.currentTime + 0.01;
+      if (sound === "croak") {
+        // ribbit: a low, buzzy double croak, then another
+        for (const dt of [0, 0.16, 0.5, 0.66]) {
+          tone(fx, 150, at + dt, { type: "sawtooth", peak: 0.03, attack: 0.01, decay: 0.12, glide: 0.75 });
+          tone(fx, 300, at + dt, { type: "triangle", peak: 0.04, attack: 0.01, decay: 0.1, glide: 0.8 });
+        }
+      } else if (sound === "quack") {
+        for (const dt of [0, 0.22]) {
+          tone(fx, 560, at + dt, { type: "sawtooth", peak: 0.025, attack: 0.008, decay: 0.15, glide: 0.72 });
+          tone(fx, 280, at + dt, { type: "square", peak: 0.015, attack: 0.008, decay: 0.13, glide: 0.8 });
+        }
+      } else if (sound === "plop") {
+        tone(fx, 320, at, { peak: 0.08, attack: 0.004, decay: 0.12, glide: 2.4 });
+      } else if (sound === "slurp") {
+        tone(fx, 1100, at, { peak: 0.05, attack: 0.004, decay: 0.08, glide: 0.35 });
+        tone(fx, 420, at + 0.12, { peak: 0.05, attack: 0.004, decay: 0.08, glide: 1.8 });
+      } else {
+        // a splash (or wings beating on water): bursts of bright noise
+        const bursts = sound === "flap" ? [0, 0.12, 0.24, 0.36, 0.48] : [0, 0.05];
+        bursts.forEach((dt, i) => {
+          const src = ctx.createBufferSource();
+          src.buffer = white;
+          const filter = ctx.createBiquadFilter();
+          filter.type = "bandpass";
+          filter.frequency.value = sound === "flap" ? 900 : 1600 - i * 500;
+          const g = ctx.createGain();
+          const peak = sound === "flap" ? 0.12 : 0.22;
+          g.gain.setValueAtTime(peak, at + dt);
+          g.gain.exponentialRampToValueAtTime(0.0001, at + dt + (sound === "flap" ? 0.09 : 0.35));
+          src.connect(filter).connect(g).connect(fx);
+          src.start(at + dt);
+          src.stop(at + dt + 0.4);
+        });
+      }
     },
     dispose() {
       clearInterval(scheduler);

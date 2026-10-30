@@ -35,9 +35,9 @@ const GradeShader = {
       float l2 = dot(c, vec3(0.299, 0.587, 0.114));
       c = mix(vec3(l2), c, 1.12);
       c = mix(c, c * c * (3.0 - 2.0 * c), 0.35);
-      // vignette: the edges fall off gently towards a warm dark
+      // vignette: the edges fall off very gently (the backdrop should stay a clean cream)
       vec2 d = vUv - 0.5;
-      c = mix(c * vec3(0.78, 0.72, 0.8), c, 1.0 - smoothstep(0.25, 0.75, dot(d, d) * 1.8));
+      c = mix(c * vec3(0.92, 0.89, 0.9), c, 1.0 - smoothstep(0.25, 0.75, dot(d, d) * 1.8));
       gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
     }`,
 };
