@@ -2,7 +2,7 @@ import { ROLES, getInterviewType, rubricFor } from "./interview/catalog";
 import { advance, currentQuestion, directiveFor, pickBankQuestions, type DirectiveContext, type InterviewerAction } from "./interview/flow";
 import type { Feedback } from "./interview/prompts";
 import type { Profile } from "./interview/tailor";
-import type { CandidateContext, InterviewTypeId, Question, SessionState, TranscriptEntry } from "./interview/types";
+import { DEFAULT_INTERVIEWER_NAME, type CandidateContext, type InterviewTypeId, type Question, type SessionState, type TranscriptEntry } from "./interview/types";
 import type { WorkspaceSnapshot } from "./workspace/types";
 
 /**
@@ -30,7 +30,7 @@ export function mockInterviewerTurn(state: SessionState, transcript: TranscriptE
   const reassure = context.stress?.length && state.settings.intensity !== "realistic" ? "No rush, take your time. " : "";
   if (state.phase === "intro") {
     action = "next_question";
-    say = `Hi, I'm Alex, thanks for joining. This is a practice ${type.label.toLowerCase()} interview. Let's start. ${state.questions[0].prompt}`;
+    say = `Hi, I'm ${state.settings.interviewerName ?? DEFAULT_INTERVIEWER_NAME}, thanks for joining. This is a practice ${type.label.toLowerCase()} interview. Let's start. ${state.questions[0].prompt}`;
   } else if (question && /moment to think/.test(lastAnswer)) {
     action = "clarify";
     say = "Of course, take your time.";
@@ -88,7 +88,48 @@ function describeWork(work: WorkspaceSnapshot) {
   return `I can see your diagram. Components: ${components}.`;
 }
 
-export function mockFeedback(state: SessionState, finalWork: WorkspaceSnapshot[] = []): Feedback {
+// Rough STAR detection for mock stories: enough to exercise the story bank without the model.
+const ACTION = /\bI\s+(built|led|wrote|organi[sz]ed|made|decided|talked|created|designed|fixed|started|helped|set up|ran|reached out)\b/i;
+const RESULT = /\b(result|in the end|finally|shipped|launched|passed|won|improved|increased|reduced|saved|\d+\s?%)/i;
+const TASK = /\b(needed to|had to|my job|goal was|responsible for|was asked to)\b/i;
+const SKILLS: [RegExp, string][] = [
+  [/\b(led|lead|organi[sz]ed|ran)\b/i, "leadership"],
+  [/\b(disagree|conflict|argument|pushed back)/i, "conflict"],
+  [/\b(fail|mistake|wrong|learned)/i, "learning from failure"],
+  [/\b(team|group|together|we)\b/i, "teamwork"],
+  [/\b(deadline|quickly|overnight|week)\b/i, "working under pressure"],
+];
+
+function mockStories(state: SessionState, transcript: TranscriptEntry[]): Feedback["stories"] {
+  let questionId = state.questions[0]?.id ?? "q";
+  const stories: Feedback["stories"] = [];
+  for (const entry of transcript) {
+    if (entry.role === "interviewer") {
+      if (entry.questionId) questionId = entry.questionId;
+      continue;
+    }
+    if (entry.text.split(/\s+/).length < 12) continue;
+    const sentences = entry.text.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const find = (re: RegExp) => sentences.find((s) => re.test(s)) ?? "";
+    const situation = sentences[0];
+    const action = find(ACTION), result = find(RESULT), task = find(TASK);
+    const words = situation.replace(/^(so|well|okay|um|one time|once)[, ]+/i, "").replace(/^(I|we)\s+\w+\s+/i, "").split(/\s+/);
+    const title = words.slice(0, 6).join(" ").replace(/[.,!?]+$/, "");
+    stories.push({
+      title: title.charAt(0).toUpperCase() + title.slice(1),
+      questionId,
+      situation,
+      task,
+      action,
+      result,
+      skills: SKILLS.filter(([re]) => re.test(entry.text)).map(([, skill]) => skill).slice(0, 3),
+      tip: !result ? "Finish with the result: what changed, ideally with a number." : !action ? "Say what you personally did, with “I”, not just what the team did." : "Lead with a one-line summary so the interviewer knows where it's going.",
+    });
+  }
+  return stories;
+}
+
+export function mockFeedback(state: SessionState, finalWork: WorkspaceSnapshot[] = [], transcript: TranscriptEntry[] = []): Feedback {
   const rubric = rubricFor(state.typeId, state.candidate?.role);
   return {
     recommendation: "lean_hire",
@@ -108,5 +149,6 @@ export function mockFeedback(state: SessionState, finalWork: WorkspaceSnapshot[]
       strongerAnswer: q.strongAnswer,
     })),
     nextSteps: ["Placeholder next step one.", "Placeholder next step two."],
+    stories: mockStories(state, transcript),
   };
 }

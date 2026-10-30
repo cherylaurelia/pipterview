@@ -15,5 +15,5 @@ export async function POST(request: Request) {
   if (transcript.at(-1)?.role !== "candidate") {
     return Response.json({ error: "The transcript must end with the candidate's answer." }, { status: 400 });
   }
-  return streamTurn((onSay) => interviewerTurn(state, transcript, onSay), "interview/turn");
+  return streamTurn((onSay) => interviewerTurn(state, transcript, onSay, request.signal), "interview/turn");
 }

@@ -22,6 +22,9 @@ export interface SessionRecord {
   reflection?: string;
   wordsPerMinute?: number;
   fillersPerMinute?: number;
+  hedgesPerAnswer?: number;
+  averageThinkSeconds?: number;
+  ownershipPercent?: number;
 }
 
 const KEY = "mock-interviewer:history";

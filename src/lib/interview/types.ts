@@ -91,7 +91,13 @@ export interface SessionSettings {
   intensity: Intensity;
   style: CompanyStyle;
   length: SessionLength;
+  /** What the interviewer calls themselves, so the voice matches the character on screen. Defaults to Alex. */
+  interviewerName?: string;
+  /** One-line summaries of stories from the candidate's story bank, so the interviewer can nudge them towards one if they freeze. */
+  stories?: string[];
 }
+
+export const DEFAULT_INTERVIEWER_NAME = "Alex";
 
 /** Where the conversation is. The server advances this. */
 export type Phase = "intro" | "question" | "candidate_questions" | "done";
@@ -124,6 +130,8 @@ export interface TranscriptEntry {
   workspace?: WorkspaceSnapshot;
   /** How long a spoken answer took, for pace and filler-word stats. Absent for typed answers. */
   durationMs?: number;
+  /** How long the candidate took to start speaking once it was their turn (spoken answers only). */
+  thinkMs?: number;
   /** Signs the candidate was struggling on this answer (a long silence before starting, "I'm blanking", a rushed pace). */
   stressSignals?: string[];
   /** Set on interviewer lines where Alex eased off because the candidate seemed stressed. */

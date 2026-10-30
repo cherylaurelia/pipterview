@@ -9,5 +9,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid request body." }, { status: 400 });
   }
   const { typeId, settings, profile } = body.data;
-  return streamTurn(async (onSay) => interviewerTurn(await startSession(typeId, settings, profile), [], onSay), "interview/start");
+  return streamTurn(
+    async (onSay) => interviewerTurn(await startSession(typeId, settings, profile), [], onSay, request.signal),
+    "interview/start",
+  );
 }

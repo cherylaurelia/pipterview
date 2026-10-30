@@ -25,3 +25,24 @@ describe("deliveryStats", () => {
     expect(deliveryStats([{ role: "candidate", text: "I liked the umbrella project" }]).fillerCount).toBe(0);
   });
 });
+
+describe("delivery habits", () => {
+  it("counts hedges, ownership, think time and talk share", () => {
+    const stats = deliveryStats([
+      { role: "interviewer", text: "Tell me about a time you led something." },
+      { role: "candidate", text: "I think we built it, maybe. I led the design and I wrote the API.", durationMs: 8_000, thinkMs: 2_000 },
+      { role: "candidate", text: "We shipped it and our users liked it, I guess.", durationMs: 5_000, thinkMs: 4_000 },
+    ]);
+    expect(stats.hedgeCount).toBe(3);
+    expect(stats.hedgesPerAnswer).toBe(1.5);
+    expect(stats.topHedges[0]).toEqual({ word: "i think", count: 1 });
+    expect(stats.averageThinkSeconds).toBe(3);
+    // "I" words: I (think), I (led), I (wrote), I (guess) = 4; "we" words: we, We, our = 3
+    expect(stats.ownershipPercent).toBe(57);
+    expect(stats.talkSharePercent).toBeGreaterThan(70);
+  });
+
+  it("leaves ownership out when it barely came up", () => {
+    expect(deliveryStats([{ role: "candidate", text: "A hash map gives constant time lookups." }]).ownershipPercent).toBeUndefined();
+  });
+});
