@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { NavButton, Panel, Portrait, raised } from "./retro";
 import { GUIDE_NAME } from "./script";
 import type { ConvoStatus } from "./useConversation";
@@ -164,6 +164,35 @@ const HELP: [string, ReactNode][] = [
   ["Sound", <><b>Mute {GUIDE_NAME}</b> to read instead of listen; <b>Sound</b> in the dock sets the volumes.</>],
 ];
 
+const AI_LABEL: Record<string, string> = {
+  live: "Claude (live)",
+  mock: "Practice script (MOCK_AI is on)",
+  "missing-key": "Not set up: add ANTHROPIC_API_KEY",
+};
+const VOICE_LABEL: Record<string, string> = { elevenlabs: "ElevenLabs", browser: "Your browser's voice" };
+
+/** Which interviewer and voice the server is using, so you can tell whether your setup worked. */
+function SetupStatus() {
+  const [status, setStatus] = useState<{ ai: string; voice: string } | null>(null);
+  useEffect(() => {
+    fetch("/api/status")
+      .then((r) => r.json())
+      .then(setStatus)
+      .catch(() => {});
+  }, []);
+  if (!status) return null;
+  return (
+    <div className="mt-3 rounded-2xl bg-white/70 px-3 py-2.5 text-[12.5px] text-[#6b5640] ring-1 ring-[#ead8b8]">
+      <p>
+        <b className="text-[#4a3424]">Interviewer:</b> {AI_LABEL[status.ai] ?? status.ai}
+      </p>
+      <p>
+        <b className="text-[#4a3424]">Voice:</b> {VOICE_LABEL[status.voice] ?? status.voice}
+      </p>
+    </div>
+  );
+}
+
 /** The controls, in one place. */
 export function HelpPanel({ onReplayTour }: { onReplayTour: () => void }) {
   return (
@@ -176,6 +205,7 @@ export function HelpPanel({ onReplayTour }: { onReplayTour: () => void }) {
           </div>
         ))}
       </dl>
+      <SetupStatus />
       <div className="flex justify-end px-1 pt-3">
         <NavButton onClick={onReplayTour}>Show the tour again</NavButton>
       </div>

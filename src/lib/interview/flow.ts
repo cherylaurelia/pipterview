@@ -12,11 +12,15 @@ export function questionCount(typeId: InterviewTypeId, settings: SessionSettings
   return settings.length === "quick" ? 1 : getInterviewType(typeId).questionsPerSession;
 }
 
-/** Picks questions from the bank at random, then orders them warm-up first. */
-export function pickBankQuestions(typeId: InterviewTypeId, random: () => number = Math.random, count?: number): Question[] {
+/**
+ * Picks questions from the bank at random, then orders them warm-up first. Questions in `avoid` (the ones you've had
+ * recently) are only used once the rest run out, so practice doesn't keep repeating itself.
+ */
+export function pickBankQuestions(typeId: InterviewTypeId, random: () => number = Math.random, count?: number, avoid: string[] = []): Question[] {
   const type = getInterviewType(typeId);
+  const recent = new Set(avoid);
   return [...type.questions]
-    .map((q) => ({ q, key: random() }))
+    .map((q) => ({ q, key: random() + (recent.has(q.id) ? 1 : 0) }))
     .sort((a, b) => a.key - b.key)
     .slice(0, count ?? type.questionsPerSession)
     .map(({ q }) => q)
@@ -26,12 +30,12 @@ export function pickBankQuestions(typeId: InterviewTypeId, random: () => number 
 
 export function createSession(
   typeId: InterviewTypeId,
-  options: { questions?: Question[]; candidate?: CandidateContext; settings?: SessionSettings } = {},
+  options: { questions?: Question[]; candidate?: CandidateContext; settings?: SessionSettings; avoid?: string[] } = {},
 ): SessionState {
   const settings = options.settings ?? DEFAULT_SETTINGS;
   return {
     typeId,
-    questions: options.questions ?? pickBankQuestions(typeId, Math.random, questionCount(typeId, settings)),
+    questions: options.questions ?? pickBankQuestions(typeId, Math.random, questionCount(typeId, settings), options.avoid),
     candidate: options.candidate,
     settings,
     phase: "intro",
@@ -75,6 +79,8 @@ export interface DirectiveContext {
   codeShared?: boolean;
   /** Signs the candidate is struggling right now, from their latest answer. */
   stress?: string[];
+  /** What the interviewer has already asked on the current question (follow-ups, hints), so it doesn't repeat itself. */
+  asked?: string[];
 }
 
 /** How Alex responds to signs of stress, by intensity. Gentle and standard ease off; realistic holds steady. */
@@ -115,9 +121,12 @@ export function directiveFor(state: SessionState, context: DirectiveContext = {}
         "Private interviewer notes. Never read these aloud or reveal them.",
         `- A strong answer: ${q.strongAnswer}`,
         `- Common mistakes worth probing if you hear them: ${q.commonMistakes.join("; ")}.`,
-        `- Follow-up ladder (used ${state.followUps} of ${type.maxFollowUps}). Pick the next one that fits what they've said, adapting the wording; skip any they've already covered:`,
+        `- Follow-up ladder (used ${state.followUps} of ${type.maxFollowUps}). Pick the one that targets the weakest part of their latest answer (a missing result, an unclear personal contribution, an unexplained choice, an untested edge case), not simply the next in order. Adapt the wording; skip any they've already covered:`,
         bullets(q.followUps),
       ];
+      if (context.asked?.length) {
+        lines.push("- You've already said these on this question. Don't repeat or rephrase them; build on what they answered:", bullets(context.asked));
+      }
       if (q.hints.length > 0) {
         lines.push(`- Hint ladder (given ${state.hintsGiven} of ${q.hints.length}):`, bullets(q.hints));
       }
