@@ -4,7 +4,7 @@ import { ReviewBoard } from "@/components/ReviewBoard";
 import { INTERVIEW_TYPES } from "@/lib/interview/catalog";
 import { INTERVIEW_TYPE_IDS } from "@/lib/interview/types";
 
-export const metadata: Metadata = { title: "Question review · Steady" };
+export const metadata: Metadata = { title: "Question review · Pip" };
 
 /** For mentors, recruiters, and anyone who has run real interviews. */
 export default function ReviewPage() {

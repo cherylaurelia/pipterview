@@ -8,7 +8,7 @@ const overpassMono = Overpass_Mono({ variable: "--font-overpass-mono", subsets: 
 const cedarville = Cedarville_Cursive({ variable: "--font-cedarville", weight: "400", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Steady · Interview practice for nervous candidates",
+  title: "Pip · Interview practice for nervous candidates",
   description:
     "Practice technical, behavioral, and system design interviews out loud with an AI interviewer, at your own pace, until the nerves fade.",
 };
