@@ -3,17 +3,19 @@
 import { NATIVE_LANGUAGES, type CodeLanguage, type CodingSpec } from "./types";
 
 /**
- * Runs candidate code and checks it against a question's tests. Python and
- * JavaScript run in a Web Worker in the browser (Pyodide for Python); a run
- * that exceeds the time limit kills its worker, so infinite loops can't freeze
- * the page. Java and C++ compile and run on the server (/api/run).
+ * Runs candidate code and checks it against a question's tests. Python,
+ * JavaScript, and TypeScript run in a Web Worker in the browser (Pyodide for
+ * Python, the TypeScript compiler for TypeScript); a run that exceeds the time
+ * limit kills its worker, so infinite loops can't freeze the page. Java, C++,
+ * and C compile and run on the server (/api/run).
  */
 
 const TIME_LIMIT_MS = 5000;
-type BrowserLanguage = "python" | "javascript";
+type BrowserLanguage = "python" | "javascript" | "typescript";
 const WORKER_URLS: Record<BrowserLanguage, string> = {
   python: "/workers/python-runner.js",
   javascript: "/workers/js-runner.js",
+  typescript: "/workers/js-runner.js?lang=typescript",
 };
 
 export interface CaseResult {
@@ -69,7 +71,7 @@ function getWorker(language: BrowserLanguage) {
 
 /** Starts loading a runtime early (Pyodide takes a few seconds the first time). */
 export function preloadRunner(language: CodeLanguage) {
-  if (language === "python" || language === "javascript") void getWorker(language).ready;
+  if (!NATIVE_LANGUAGES.includes(language)) void getWorker(language as BrowserLanguage).ready;
 }
 
 const show = (value: unknown) => {

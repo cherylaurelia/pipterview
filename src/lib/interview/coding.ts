@@ -1,4 +1,12 @@
-import type { CodingSpec } from "../workspace/types";
+import type { CodeLanguage, CodingSpec } from "../workspace/types";
+import { cStarter, typescriptStarter } from "./starters";
+
+/** Languages whose entry names and starters are written by hand; TypeScript and C are derived from them. */
+type HandWritten = Exclude<CodeLanguage, "typescript" | "c">;
+type HandWrittenSpec = Omit<CodingSpec, "entry" | "starter"> & {
+  entry: Record<HandWritten, string>;
+  starter: Record<HandWritten, string>;
+};
 
 /**
  * Coding specs for the technical bank problems: starter code, tests, and how
@@ -6,7 +14,7 @@ import type { CodingSpec } from "../workspace/types";
  * Java and C++ follow LeetCode conventions (a Solution class, or the class
  * itself for design problems); `types` drives their generated test drivers.
  */
-export const CODING_SPECS: Record<string, CodingSpec> = {
+const HAND_WRITTEN: Record<string, HandWrittenSpec> = {
   "two-sum": {
     mode: "function",
     entry: { python: "two_sum", javascript: "twoSum", java: "twoSum", cpp: "twoSum" },
@@ -384,3 +392,17 @@ export const CODING_SPECS: Record<string, CodingSpec> = {
     ],
   },
 };
+
+/** TypeScript uses the JavaScript names; C uses the C++ names, LeetCode style. */
+function complete(spec: HandWrittenSpec): CodingSpec {
+  const withEntries = {
+    ...spec,
+    entry: { ...spec.entry, typescript: spec.entry.javascript, c: spec.entry.cpp },
+    starter: { ...spec.starter, typescript: "", c: "" },
+  };
+  return { ...withEntries, starter: { ...spec.starter, typescript: typescriptStarter(withEntries), c: cStarter(withEntries) } };
+}
+
+export const CODING_SPECS: Record<string, CodingSpec> = Object.fromEntries(
+  Object.entries(HAND_WRITTEN).map(([id, spec]) => [id, complete(spec)]),
+);

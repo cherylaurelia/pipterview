@@ -1,7 +1,25 @@
-// Runs candidate JavaScript code in a worker (no DOM access, killed on timeout).
+// Runs candidate JavaScript (or TypeScript, with ?lang=typescript) in a worker (no DOM access, killed on timeout).
 // Messages in:  { type: "init" } | { type: "run", id, code, harness }
 // Messages out: { type: "ready" } | { type: "result", id, results, stdout, error }
 // harness: null (just run the code) or { mode, entry, argTypes, tests: [{ args }] }
+
+const LANGUAGE = new URLSearchParams(self.location.search).get("lang") || "javascript";
+// The TypeScript compiler, loaded once (it's large) before this worker reports ready.
+const TYPESCRIPT_URL = "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.js";
+
+/** Strips TypeScript types; throws a readable error for syntax mistakes. */
+function transpile(source) {
+  const out = self.ts.transpileModule(source, {
+    compilerOptions: { target: self.ts.ScriptTarget.ES2020, module: self.ts.ModuleKind.None },
+    reportDiagnostics: true,
+  });
+  const problems = (out.diagnostics || []).map((d) => {
+    const where = d.file && d.start !== undefined ? `Line ${d.file.getLineAndCharacterOfPosition(d.start).line + 1}: ` : "";
+    return where + self.ts.flattenDiagnosticMessageText(d.messageText, "\n");
+  });
+  if (problems.length) throw new SyntaxError(problems.join("\n"));
+  return out.outputText;
+}
 
 function TreeNode(val, left, right) {
   this.val = val === undefined ? 0 : val;
@@ -39,6 +57,14 @@ const errorText = (err) => (err && err.name ? `${err.name}: ${err.message}` : St
 self.onmessage = (event) => {
   const message = event.data;
   if (message.type === "init") {
+    if (LANGUAGE === "typescript" && !self.ts) {
+      try {
+        importScripts(TYPESCRIPT_URL);
+      } catch (err) {
+        self.postMessage({ type: "ready", error: `Couldn't load TypeScript: ${err}` });
+        return;
+      }
+    }
     self.postMessage({ type: "ready" });
     return;
   }
@@ -59,7 +85,8 @@ self.onmessage = (event) => {
     const entry = harness && harness.entry;
     // entry comes from our own coding specs, never from candidate input.
     const lookup = entry ? `return typeof ${entry} === "undefined" ? undefined : ${entry};` : "return undefined;";
-    const program = new Function("console", "TreeNode", `"use strict";\n${code}\n;${lookup}`);
+    const source = LANGUAGE === "typescript" ? transpile(code) : code;
+    const program = new Function("console", "TreeNode", `"use strict";\n${source}\n;${lookup}`);
     const target = program(sandboxConsole, TreeNode);
 
     if (harness) {
