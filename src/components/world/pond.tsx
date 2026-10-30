@@ -1,13 +1,13 @@
 "use client";
 
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { isDrag } from "./controls";
 import { takeAction, type CritterKind, type CritterPick } from "./critters";
 import { BoxLantern, DOCK, POND, WATER_COMMON, WATER_END, groundY, isOpen, pondEdge, pondRadius, rng, tickWater, waterMaterial } from "./island";
 import { lilyPadTexture } from "./textures";
-import { swayingToon, toon } from "./toon";
+import { NOISE_GLSL, swayingToon, toon } from "./toon";
 
 // The pond, after a little painted diorama of a busy afternoon at a pond: teal water that's darker and cloudier in the
 // middle with petals drifting on it, a sandy shore fringed with reeds, cattails, pebbles and mossy rocks, lily pads with
@@ -100,51 +100,142 @@ function Splashes() {
 
 const POND_VERTEX = /* glsl */ `
   #include <fog_pars_vertex>
+  uniform mat4 uReflectMatrix;
   attribute float rim;
+  attribute float shore;
   varying float vRim;
+  varying float vToShore;
   varying vec2 vUv;
+  varying vec3 vWorld;
+  varying vec4 vReflect;
   void main() {
     vRim = rim;
+    vToShore = shore - length(position.xz); // metres in from the water's edge
     vUv = position.xz;
+    vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+    vReflect = uReflectMatrix * vec4(position, 1.0);
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     #include <fog_vertex>
   }`;
 
 const POND_FRAGMENT = /* glsl */ `${WATER_COMMON}
+  uniform sampler2D tReflect;
   varying float vRim;
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-  float noise(vec2 p) {
-    vec2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0)), f.x), f.y);
-  }
+  varying float vToShore;
+  varying vec3 vWorld;
+  varying vec4 vReflect;
+  ${NOISE_GLSL}
   void main() {
     // vUv is the position across the pond in metres; vRim is 0 in the middle and 1 past the shore
-    float cloud = noise(vUv * 0.8 + vec2(uTime * 0.03, 0.0)) * 0.6 + noise(vUv * 2.0 - vec2(0.0, uTime * 0.02)) * 0.4;
+    float cloud = pnNoise(vUv * 0.8 + vec2(uTime * 0.03, 0.0)) * 0.6 + pnNoise(vUv * 2.0 - vec2(0.0, uTime * 0.02)) * 0.4;
     float depth = smoothstep(0.98, 0.3, vRim) * (0.4 + 0.6 * cloud);
     vec3 col = mix(uShallow, uDeep, depth);
+
+    // the mirror image of the trees, reeds, ducks and sky, softened and rippled, and stronger at a glancing angle
+    vec2 ruv = vReflect.xy / vReflect.w;
+    ruv += (vec2(pnNoise(vUv * 3.0 + uTime * 0.4), pnNoise(vUv * 3.0 - uTime * 0.35)) - 0.5) * 0.018;
+    vec3 refl = vec3(0.0);
+    for (int i = 0; i < 5; i++) {
+      vec2 o = vec2(float(i - 2) * 0.0018, float((i * 3) % 5 - 2) * 0.0018);
+      refl += texture2D(tReflect, ruv + o).rgb;
+    }
+    refl /= 5.0;
+    float facing = max(dot(normalize(cameraPosition - vWorld), vec3(0.0, 1.0, 0.0)), 0.0);
+    float fresnel = 0.14 + 0.4 * pow(1.0 - facing, 4.0);
+    col = mix(col, mix(refl * 0.85, col, 0.3), fresnel); // tinted by the water, so the pond stays teal
+
     // drifting glints: short pale dashes across the surface, like brush strokes
-    float lines = smoothstep(0.93, 1.0, sin(vUv.y * 10.0 + noise(vUv * 1.3) * 5.0));
-    float dashes = smoothstep(0.55, 0.8, noise(vec2(vUv.x * 1.6 - uTime * 0.12, vUv.y * 7.0)));
+    float lines = smoothstep(0.93, 1.0, sin(vUv.y * 10.0 + pnNoise(vUv * 1.3) * 5.0));
+    float dashes = smoothstep(0.55, 0.8, pnNoise(vec2(vUv.x * 1.6 - uTime * 0.12, vUv.y * 7.0)));
     col = mix(col, vec3(1.0), lines * dashes * 0.5);
     // pale shallows where the water laps the sand
-    col = mix(col, uShallow * 1.06 + 0.05, smoothstep(0.82, 0.96, vRim) * 0.6);
+    col = mix(col, uShallow * 1.06 + 0.05, smoothstep(0.45, 0.0, vToShore) * 0.5);
+    // foam: a broken white line right at the water's edge, and a fainter one that laps in and out
+    float wob = (pnNoise(vUv * 4.0 + uTime * 0.3) - 0.5) * 0.06;
+    float edge = smoothstep(0.1, 0.02, vToShore + wob) * step(-0.05, vToShore);
+    float lap = smoothstep(0.03, 0.0, abs(vToShore - 0.2 - 0.06 * sin(uTime * 1.3) + wob)) * step(0.45, pnNoise(vUv * 6.0));
+    col = mix(col, vec3(1.0), clamp(edge * 0.8 + lap * 0.55, 0.0, 0.85));
     gl_FragColor = vec4(col, 1.0);
     ${WATER_END}
   }`;
 
+// the pond's mirror: a second, smaller view of the scene from below the water, rendered once a frame
+const REFLECT_SIZE = 512;
+
+/**
+ * The pond's water material, with a mirror: `render` (the water mesh's onBeforeRender) draws the scene as seen in the
+ * water just before the water itself is drawn, at most once per frame (call `tick` each frame): the camera mirrored in
+ * the water's plane, with everything below the surface clipped away (after three.js's Reflector).
+ */
+function createMirroredWater() {
+  const target = new THREE.WebGLRenderTarget(REFLECT_SIZE, REFLECT_SIZE, { type: THREE.HalfFloatType });
+  // (waterMaterial clones its uniforms, which can't carry a render target's texture: both are wired in afterwards)
+  const material = waterMaterial(POND_FRAGMENT, { tReflect: { value: null }, uReflectMatrix: { value: new THREE.Matrix4() } }, false, POND_VERTEX);
+  material.uniforms.tReflect.value = target.texture;
+  const matrix: THREE.Matrix4 = material.uniforms.uReflectMatrix.value;
+  const cam = new THREE.PerspectiveCamera(), rot = new THREE.Matrix4(), up = new THREE.Vector3(0, 1, 0);
+  const eye = new THREE.Vector3(), look = new THREE.Vector3(), plane = new THREE.Plane(), clip = new THREE.Vector4(), q = new THREE.Vector4();
+  let due = true;
+  function render(this: THREE.Object3D, renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
+    if (!due) return;
+    due = false;
+    eye.setFromMatrixPosition(camera.matrixWorld);
+    if (eye.y < WATER_Y) return;
+    rot.extractRotation(camera.matrixWorld);
+    look.set(0, 0, -1).applyMatrix4(rot).add(eye);
+    cam.position.set(eye.x, 2 * WATER_Y - eye.y, eye.z);
+    cam.up.set(0, 1, 0).applyMatrix4(rot).reflect(up);
+    cam.lookAt(look.x, 2 * WATER_Y - look.y, look.z);
+    cam.updateMatrixWorld();
+    cam.projectionMatrix.copy(camera.projectionMatrix);
+    matrix.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1).multiply(cam.projectionMatrix).multiply(cam.matrixWorldInverse).multiply(this.matrixWorld);
+    // an oblique near plane on the water's surface, so nothing under the water shows in the reflection
+    plane.set(up, -WATER_Y).applyMatrix4(cam.matrixWorldInverse);
+    clip.set(plane.normal.x, plane.normal.y, plane.normal.z, plane.constant);
+    const e = cam.projectionMatrix.elements;
+    q.set((Math.sign(clip.x) + e[8]) / e[0], (Math.sign(clip.y) + e[9]) / e[5], -1, (1 + e[10]) / e[14]);
+    clip.multiplyScalar(2 / clip.dot(q));
+    e[2] = clip.x;
+    e[6] = clip.y;
+    e[10] = clip.z + 1;
+    e[14] = clip.w;
+
+    this.visible = false;
+    const previous = renderer.getRenderTarget(), shadows = renderer.shadowMap.autoUpdate;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.setRenderTarget(target);
+    renderer.state.buffers.depth.setMask(true);
+    renderer.clear();
+    renderer.render(scene, cam); // the mirror camera only sees layer 0: the grass (GRASS_LAYER) is left out, to save time
+    renderer.setRenderTarget(previous);
+    renderer.shadowMap.autoUpdate = shadows;
+    this.visible = true;
+  }
+  return {
+    material,
+    render,
+    tick: () => void (due = true),
+    dispose: () => {
+      target.dispose();
+      material.dispose();
+    },
+  };
+}
+
 function Water() {
   const ref = useRef<THREE.Mesh>(null);
-  const material = useMemo(() => waterMaterial(POND_FRAGMENT, {}, false, POND_VERTEX), []);
+  const water = useMemo(() => createMirroredWater(), []);
+  useEffect(() => () => water.dispose(), [water]);
   const geometry = useMemo(() => {
     // rings out from the middle to just past the shore (the bank hides the overlap), so vRim can shade the depth
-    const RINGS = 14, SEG = 96, verts: number[] = [], rim: number[] = [], idx: number[] = [];
+    const RINGS = 14, SEG = 96, verts: number[] = [], rim: number[] = [], shore: number[] = [], idx: number[] = [];
     for (let k = 0; k <= RINGS; k++) {
       for (let j = 0; j < SEG; j++) {
-        const theta = (j / SEG) * Math.PI * 2, R = (pondRadius(theta) + 0.2) * (k / RINGS);
+        const theta = (j / SEG) * Math.PI * 2, edge = pondRadius(theta), R = (edge + 0.2) * (k / RINGS);
         verts.push(Math.cos(theta) * R, 0, Math.sin(theta) * R);
         rim.push(k / RINGS);
+        shore.push(edge);
       }
     }
     for (let k = 0; k < RINGS; k++) {
@@ -156,11 +247,15 @@ function Water() {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
     g.setAttribute("rim", new THREE.Float32BufferAttribute(rim, 1));
+    g.setAttribute("shore", new THREE.Float32BufferAttribute(shore, 1));
     g.setIndex(idx);
     return g;
   }, []);
-  useFrame(({ clock }) => tickWater(ref.current, clock.getElapsedTime()));
-  return <mesh ref={ref} position={[POND.x, WATER_Y, POND.z]} geometry={geometry} material={material} />;
+  useFrame(({ clock }) => {
+    tickWater(ref.current, clock.getElapsedTime());
+    water.tick();
+  });
+  return <mesh ref={ref} position={[POND.x, WATER_Y, POND.z]} geometry={geometry} material={water.material} onBeforeRender={water.render} />;
 }
 
 /** A point on the shore at angle `theta` round the pond, `offset` metres out from the water's edge. */

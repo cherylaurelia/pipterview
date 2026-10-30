@@ -9,12 +9,15 @@ import { daylight } from "./daylight";
 import { groundY, inView, Island, islandRadius, isOpen, nearGardenSlot, rng } from "./island";
 import { Pond } from "./pond";
 import { softDot } from "./textures";
-import { gradientMap, paleGradientMap, swayingToon, toon, wind } from "./toon";
+import { gradientMap, painterly, paleGradientMap, swayingToon, toon, wind } from "./toon";
 
 // The backdrop and the life around the floating island (see island.tsx for the island itself, pond.tsx for the pond),
 // in the look of a little painted diorama: a plain warm-cream backdrop that turns to sunset when you finish, puffy clay
 // clouds, bright painterly grass with a fuzzy edge and specks of wildflowers, puffy round bubble trees (a few of them
 // pink), butterflies and blossom petals by day, fireflies at dusk.
+
+/** The render layer the grass is on; the main camera sees it, the pond's reflection doesn't. */
+export const GRASS_LAYER = 1;
 
 export const COLORS = {
   fog: "#ece6dc",
@@ -95,6 +98,8 @@ function Grass() {
       }
       mesh.instanceMatrix.needsUpdate = true;
     };
+    // the grass lives on layer 1, which the pond's reflection (and click picking) skip: thousands of blades for little gain
+    for (const mesh of [blades.current, flowers.current, fringe.current]) mesh?.layers.set(GRASS_LAYER);
     if (blades.current) {
       const mesh = blades.current;
       scatter(mesh, BLADES, (i) => {
@@ -195,6 +200,8 @@ function puff(out: THREE.BufferGeometry[], r: () => number, at: THREE.Vector3, s
 // placed on open ground away from the table so the view from your seat stays clear. All the crowns are merged into one
 // mesh (and the trunks into another), so a forest of blobs is still only two draw calls.
 function Trees() {
+  // finer, stronger dabs than the ground, so the crowns read as leafy clumps of paint
+  const crownMaterial = useMemo(() => painterly(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradientMap() }), 2.2, 1.1, "dabs"), []);
   const { crowns, trunks } = useMemo(() => {
     const r = rng(42);
     // every crown placed so far (centre and how far its blobs reach), so no two grow into each other
@@ -228,9 +235,7 @@ function Trees() {
   return (
     <>
       <mesh geometry={trunks} material={toon("#9a6a46")} castShadow />
-      <mesh geometry={crowns} castShadow>
-        <meshToonMaterial vertexColors gradientMap={gradientMap()} />
-      </mesh>
+      <mesh geometry={crowns} material={crownMaterial} castShadow />
     </>
   );
 }

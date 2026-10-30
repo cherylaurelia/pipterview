@@ -5,7 +5,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { daylight } from "./daylight";
 import { softDot } from "./textures";
-import { gradientMap, toon } from "./toon";
+import { gradientMap, painterly, toon } from "./toon";
 
 // The floating island the table sits on, like a little diorama: a grassy top with a stream running across it (under a
 // stone bridge and off the edge in a waterfall), a big pond with a sandy shore and a wooden dock (see pond.tsx for the
@@ -162,6 +162,8 @@ const STONE_TOP = C("#e4dccd"), STONE = C("#cfc8bb"), STONE_DARK = C("#a8a4ab");
 
 /** The grassy top: a grid clamped to the island's outline, with the paths, banks and field painted in. */
 function IslandTop() {
+  // brush strokes over the grass and paths, so the ground looks painted rather than smooth
+  const topMaterial = useMemo(() => painterly(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradientMap() })), []);
   const geometry = useMemo(() => {
     const g = new THREE.PlaneGeometry(30, 30, 170, 170);
     g.rotateX(-Math.PI / 2);
@@ -196,7 +198,7 @@ function IslandTop() {
   }, []);
   return (
     <mesh geometry={geometry} receiveShadow>
-      <meshToonMaterial vertexColors gradientMap={gradientMap()} />
+      <primitive object={topMaterial} attach="material" />
     </mesh>
   );
 }
@@ -249,9 +251,10 @@ export function islandBodyGeometry(seed: number, carved = false) {
 
 function IslandBody() {
   const geometry = useMemo(() => islandBodyGeometry(5, true), []);
+  const bodyMaterial = useMemo(() => painterly(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradientMap(), side: THREE.DoubleSide }), 1.4, 0.8), []);
   return (
     <mesh geometry={geometry} castShadow receiveShadow>
-      <meshToonMaterial vertexColors gradientMap={gradientMap()} side={THREE.DoubleSide} />
+      <primitive object={bodyMaterial} attach="material" />
     </mesh>
   );
 }
