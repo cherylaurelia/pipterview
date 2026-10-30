@@ -1,11 +1,11 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { daylight } from "./daylight";
 import { softDot } from "./textures";
-import { gradientMap, painterly, toon } from "./toon";
+import { gradientMap, painterly, swayingToon, toon } from "./toon";
 
 // The floating island the table sits on, like a little diorama: a grassy top with a stream running across it (under a
 // stone bridge and off the edge in a waterfall), a big pond with a sandy shore and a wooden dock (see pond.tsx for the
@@ -67,11 +67,11 @@ export const BENCHES: { id: string; x: number; z: number; angle: number }[] = ((
   const pondTheta = 2.25, pondR = 2.6 * 1.05 + 1.6;
   const pond = { x: -5 + Math.cos(pondTheta) * pondR, z: 3.4 + Math.sin(pondTheta) * pondR };
   const cottage = place(COTTAGE.x, COTTAGE.z, COTTAGE_TURN, 1.95, 0.85);
-  const windmill = place(WINDMILL.x, WINDMILL.z, WINDMILL_TURN, 1.25, 1.05);
+  const windmill = place(WINDMILL.x, WINDMILL.z, WINDMILL_TURN, 1.45, -0.1); // round the side, not in front of the door
   return [
     { id: "pond", ...pond, angle: facing(pond.x, pond.z, -5, 3.4) },
     { id: "cottage", ...cottage, angle: COTTAGE_TURN },
-    { id: "windmill", ...windmill, angle: WINDMILL_TURN },
+    { id: "windmill", ...windmill, angle: WINDMILL_TURN + Math.PI / 2 },
   ];
 })();
 
@@ -184,7 +184,7 @@ export function walkable(x: number, z: number) {
   if (insideRadius(x, z) > 0.96) return false;
   if (onDock(x, z) || onBridge(x, z)) return true;
   if (pondEdge(x, z) < 0.05) return false;
-  if (distTo(STREAM_PTS, x, z) < 0.85) return false;
+  if (distTo(STREAM_PTS, x, z) < 1.25) return false;
   if (Math.hypot(x, z) < 0.95 || Math.hypot(x, z - 1.15) < 0.4 || Math.hypot(x, z + 1.15) < 0.4) return false; // table and chairs
   if (Math.hypot(x - COTTAGE.x, z - COTTAGE.z) < 1.7 || Math.hypot(x - WINDMILL.x, z - WINDMILL.z) < 0.85) return false;
   if (x > FIELD.x0 - 0.35 && x < FIELD.x1 + 0.35 && z > FIELD.z0 - 0.35 && z < FIELD.z1 + 0.35) return false; // the fenced wheat
@@ -225,13 +225,101 @@ export const nearGardenSlot = (x: number, z: number, pad: number) => GARDEN_SLOT
 
 const C = (hex: string) => new THREE.Color(hex);
 const GRASS = C("#8fcf4a"), GRASS_LIGHT = C("#b4df5c"), GRASS_DARK = C("#6fb843");
-const DIRT = C("#e2c48f"), BANK = C("#c9c3b4"), BED = C("#8fb0b4"), SOIL = C("#b58a57"), SAND = C("#ead6a6");
-const STONE_TOP = C("#e4dccd"), STONE = C("#cfc8bb"), STONE_DARK = C("#a8a4ab");
+const DIRT = C("#e8c992"), BANK = C("#d9caa6"), BED = C("#8fb0b4"), SOIL = C("#b58a57"), SAND = C("#eedbab");
+// warm sandstone, pale under the grass and deepening to a soft terracotta at the bottom
+const STONE_TOP = C("#efe1c8"), STONE = C("#e0c9a8"), STONE_DARK = C("#c8a088");
+
+/**
+ * A map of where the paths, the pond's sandy shore and the stream's banks are, painted onto a canvas (red, green and
+ * blue) at about 3 cm a pixel, so the ground can draw them with smooth, brushy edges rather than following its grid.
+ */
+function groundSplat() {
+  const S = 1024, k = S / 30, px = (v: number) => (v + 15) * k;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = S;
+  const g = canvas.getContext("2d")!;
+  g.fillStyle = "#000";
+  g.fillRect(0, 0, S, S);
+  g.globalCompositeOperation = "lighter";
+  g.lineCap = g.lineJoin = "round";
+  const line = (pts: THREE.Vector3[], width: number, color: string, blur: number) => {
+    g.filter = `blur(${blur}px)`;
+    g.strokeStyle = color;
+    g.lineWidth = width * k;
+    g.beginPath();
+    pts.forEach((p, i) => (i ? g.lineTo(px(p.x), px(p.z)) : g.moveTo(px(p.x), px(p.z))));
+    g.stroke();
+  };
+  // the pond's shore: its outline, grown by the width of the sand
+  g.filter = "blur(4px)";
+  g.fillStyle = "#00ff00";
+  g.beginPath();
+  for (let j = 0; j <= 96; j++) {
+    const theta = (j / 96) * Math.PI * 2, R = pondRadius(theta) + 0.42;
+    const x = px(POND.x + Math.cos(theta) * R), z = px(POND.z + Math.sin(theta) * R);
+    if (j) g.lineTo(x, z);
+    else g.moveTo(x, z);
+  }
+  g.fill();
+  line(STREAM_PTS, 3.1, "#0000ff", 4); // a pebbly strip each side, above the waterline
+  // the paths, then dabs of the brush along their edges so they don't look ruled
+  line(PATH_PTS, 1.1, "#ff0000", 2.5);
+  line(SPUR_PTS, 1.0, "#ff0000", 2.5);
+  g.filter = "blur(1px)";
+  g.fillStyle = "#ff0000";
+  const r = rng(29);
+  // dabs at irregular spacing and sizes, some pushing out and some biting in (black), so no rhythm shows
+  [...PATH_PTS, ...SPUR_PTS].forEach((p, i, all) => {
+    if (r() < 0.55) return;
+    const q = all[Math.min(i + 1, all.length - 1)], tx = q.x - p.x, tz = q.z - p.z, len = Math.hypot(tx, tz) || 1;
+    const side = r() > 0.5 ? 1 : -1, bite = r() < 0.35, out = bite ? 0.62 + r() * 0.1 : 0.4 + r() * 0.25;
+    g.globalCompositeOperation = bite ? "destination-out" : "lighter";
+    g.beginPath();
+    g.ellipse(px(p.x - (tz / len) * out * side), px(p.z + (tx / len) * out * side), (0.05 + r() * r() * 0.22) * k, (0.04 + r() * 0.1) * k, Math.atan2(tz, tx), 0, Math.PI * 2);
+    g.fill();
+  });
+  g.globalCompositeOperation = "lighter";
+  const t = new THREE.CanvasTexture(canvas);
+  t.flipY = false; // canvas rows run with +z, which is what the shader expects
+  t.anisotropy = 4;
+  return t;
+}
+
+/** The ground's material: painted brush strokes over everything, and the paths, sand and banks from `groundSplat`. */
+function groundMaterial() {
+  const m = painterly(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradientMap() }));
+  const strokes = m.onBeforeCompile, key = m.customProgramCacheKey;
+  const splat = groundSplat();
+  m.onBeforeCompile = (shader, renderer) => {
+    strokes(shader, renderer); // adds the world position and noise this uses, and the strokes, which paint over it
+    shader.uniforms.uSplat = { value: splat };
+    shader.uniforms.uDirt = { value: DIRT };
+    shader.uniforms.uSand = { value: SAND };
+    shader.uniforms.uBank = { value: BANK };
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform sampler2D uSplat;\nuniform vec3 uDirt, uSand, uBank;")
+      .replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+        {
+          vec4 sp = texture2D(uSplat, (vPaintPos.xz + 15.0) / 30.0);
+          // a wobble on the threshold, so every edge is a little ragged, like paint
+          float wob = (pnNoise(vPaintPos.xz * 3.5) - 0.5) * 0.4 + (pnNoise(vPaintPos.xz * 11.0) - 0.5) * 0.15;
+          float sand = smoothstep(0.38, 0.58, sp.g + wob), bank = smoothstep(0.38, 0.58, sp.b + wob), path = smoothstep(0.42, 0.6, sp.r + wob);
+          diffuseColor.rgb = mix(diffuseColor.rgb, uSand * (0.95 + 0.1 * pnNoise(vPaintPos.xz * 7.0)), sand);
+          diffuseColor.rgb = mix(diffuseColor.rgb, uBank * (0.9 + 0.2 * pnNoise(vPaintPos.xz * 9.0)), bank * (1.0 - sand));
+          diffuseColor.rgb = mix(diffuseColor.rgb, uDirt * (0.93 + 0.14 * pnNoise(vPaintPos.xz * 5.0)), path);
+        }`,
+      );
+  };
+  m.customProgramCacheKey = () => `${key()}-ground`;
+  return m;
+}
 
 /** The grassy top: a grid clamped to the island's outline, with the paths, banks and field painted in. */
 function IslandTop() {
-  // brush strokes over the grass and paths, so the ground looks painted rather than smooth
-  const topMaterial = useMemo(() => painterly(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradientMap() })), []);
+  // brush strokes over the grass, with the paths and shores painted on (see groundMaterial)
+  const topMaterial = useMemo(() => groundMaterial(), []);
   const geometry = useMemo(() => {
     const g = new THREE.PlaneGeometry(30, 30, 170, 170);
     g.rotateX(-Math.PI / 2);
@@ -253,10 +341,10 @@ function IslandTop() {
       const n = Math.sin(x * 0.35) * Math.cos(z * 0.3) * 0.5 + Math.sin(x * 0.11 + z * 0.17) * 0.5;
       c.copy(GRASS).lerp(n > 0 ? GRASS_LIGHT : GRASS_DARK, Math.abs(n) * 0.6);
       c.lerp(rand() > 0.5 ? GRASS_LIGHT : GRASS_DARK, rand() * 0.35); // a speckle of brush strokes, like painted grass
+      // under the water, the beds (the shores, banks and paths are painted on by the material)
       const ds = distTo(STREAM_PTS, x, z) - 0.65, dp = pondEdge(x, z);
-      if (ds < 0.45) c.copy(BANK).lerp(BED, smooth(0.25, -0.2, ds)); // stone banks into the stream bed
-      if (dp < 0.38) c.copy(SAND).lerp(BED, smooth(-0.05, -0.3, dp)); // a sandy shore round the pond
-      if (distTo(PATHS, x, z) < 0.55) c.copy(DIRT);
+      if (ds < 0) c.lerp(BED, smooth(0, -0.3, ds));
+      if (dp < -0.05) c.lerp(BED, smooth(-0.05, -0.35, dp));
       if (x > FIELD.x0 - 0.2 && x < FIELD.x1 + 0.2 && z > FIELD.z0 - 0.2 && z < FIELD.z1 + 0.2) c.copy(SOIL);
       colors.set([c.r, c.g, c.b], i * 3);
     }
@@ -317,13 +405,55 @@ export function islandBodyGeometry(seed: number, carved = false) {
   return flat;
 }
 
+/** Roots and trailing moss hanging from under the island's rim, swaying a little in the breeze. */
+function HangingRoots() {
+  const mesh = useRef<THREE.InstancedMesh>(null);
+  const COUNT = 90;
+  const geo = useMemo(() => new THREE.CylinderGeometry(0.035, 0.012, 1, 5).translate(0, -0.5, 0), []);
+  const roots = useMemo(() => {
+    const r = rng(81);
+    return Array.from({ length: COUNT }, () => {
+      const theta = r() * Math.PI * 2;
+      return { theta, len: 0.3 + r() * r() * 1.6, moss: r() > 0.45, lean: (r() - 0.5) * 0.3, phase: r() * 6 };
+    });
+  }, []);
+  const tmp = useMemo(() => new THREE.Object3D(), []);
+  useLayoutEffect(() => {
+    const c = new THREE.Color();
+    roots.forEach((root, i) => mesh.current?.setColorAt(i, c.set(root.moss ? "#6fae48" : "#8a6a4a")));
+    if (mesh.current?.instanceColor) mesh.current.instanceColor.needsUpdate = true;
+  }, [roots]);
+  useFrame(({ clock }) => {
+    const m = mesh.current;
+    if (!m) return;
+    const t = clock.getElapsedTime();
+    roots.forEach((root, i) => {
+      const R = islandRadius(root.theta) * 0.985;
+      tmp.position.set(Math.cos(root.theta) * R, root.moss ? -0.2 : -0.35, Math.sin(root.theta) * R);
+      tmp.rotation.set(Math.sin(t * 0.8 + root.phase) * 0.05 + root.lean, root.theta, Math.cos(t * 0.6 + root.phase) * 0.05);
+      tmp.scale.set(root.moss ? 1.4 : 1, root.len, root.moss ? 1.4 : 1);
+      tmp.updateMatrix();
+      m.setMatrixAt(i, tmp.matrix);
+    });
+    m.instanceMatrix.needsUpdate = true;
+  });
+  return (
+    <instancedMesh ref={mesh} args={[geo, undefined, COUNT]} castShadow>
+      <meshToonMaterial gradientMap={gradientMap()} />
+    </instancedMesh>
+  );
+}
+
 function IslandBody() {
   const geometry = useMemo(() => islandBodyGeometry(5, true), []);
   const bodyMaterial = useMemo(() => painterly(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradientMap(), side: THREE.DoubleSide }), 1.4, 0.8), []);
   return (
-    <mesh geometry={geometry} castShadow receiveShadow>
-      <primitive object={bodyMaterial} attach="material" />
-    </mesh>
+    <>
+      <mesh geometry={geometry} castShadow receiveShadow>
+        <primitive object={bodyMaterial} attach="material" />
+      </mesh>
+      <HangingRoots />
+    </>
   );
 }
 
@@ -375,11 +505,15 @@ export const WATER_END = /* glsl */ `
 const STREAM_FRAGMENT = /* glsl */ `${WATER_COMMON}
   void main() {
     // vUv.x runs downstream, vUv.y across
-    float across = smoothstep(0.0, 0.3, vUv.y) * smoothstep(1.0, 0.7, vUv.y);
-    vec3 col = mix(uShallow, uDeep, across * 0.75);
+    float across = smoothstep(0.0, 0.35, vUv.y) * smoothstep(1.0, 0.65, vUv.y);
+    vec3 col = mix(uShallow * 1.05 + 0.03, uDeep, across * 0.85);
     float a = sin(vUv.x * 260.0 - uTime * 3.0 + sin(vUv.y * 7.0 + vUv.x * 40.0) * 2.0) * 0.5 + 0.5;
     float b = sin(vUv.x * 150.0 - uTime * 2.2 + vUv.y * 11.0) * 0.5 + 0.5;
     col = mix(col, vec3(1.0), smoothstep(0.9, 1.0, a * b) * 0.6);
+    // foam where it laps the banks, broken up and drifting downstream
+    float edge = min(vUv.y, 1.0 - vUv.y);
+    float foam = smoothstep(0.07, 0.02, edge + sin(vUv.x * 90.0 - uTime * 2.0 + vUv.y * 20.0) * 0.012);
+    col = mix(col, vec3(1.0), foam * 0.75);
     gl_FragColor = vec4(col, 1.0);
     ${WATER_END}
   }`;
@@ -419,7 +553,7 @@ function waterfallGeometry() {
     const t = j / ROWS;
     const out = 0.05 + FALL_REACH * Math.sqrt(t) * 0.9 + t * 0.1;
     const y = -FALL_DROP * t * t - 0.02 * Math.sin(t * Math.PI);
-    const width = 1.35 + t * 0.9;
+    const width = 2.2 + t * 0.8;
     for (let i = 0; i <= COLS; i++) {
       const u = i / COLS;
       verts.push((u - 0.5) * width, y, out);
@@ -449,7 +583,7 @@ function Stream() {
   const { geometry, material } = useMemo(() => {
     const pts = STREAM_PTS.slice(0, FALL_INDEX + 1);
     pts[pts.length - 1] = new THREE.Vector3(FALL.x, 0, FALL.z);
-    const W = 1.35, Y = -0.13;
+    const W = 2.3, Y = -0.13; // out to where the banks rise past the water, so it meets them rather than leaving a ditch
     const verts: number[] = [], uvs: number[] = [], idx: number[] = [];
     pts.forEach((p, i) => {
       const next = pts[Math.min(i + 1, pts.length - 1)], prev = pts[Math.max(i - 1, 0)];
@@ -483,6 +617,7 @@ function Stream() {
   return (
     <>
       <mesh ref={ref} geometry={geometry} material={material} />
+      <StreamBanks />
       {/* mossy rocks where the stream bubbles up */}
       {[[0, 0, 0.55], [0.6, 0.35, 0.4], [-0.3, 0.6, 0.35], [0.4, -0.55, 0.3]].map(([dx, dz, s], i) => (
         <mesh key={i} position={[STREAM_PTS[0].x - 0.5 + dx, -0.1, STREAM_PTS[0].z + dz]} scale={[s, s * 0.7, s]} material={toon(i % 2 ? "#bfc0bb" : "#cfd0ca")} castShadow>
@@ -500,6 +635,53 @@ function Stream() {
           ))}
         </group>
       </group>
+    </>
+  );
+}
+
+/** Rocks and clumps of reeds along the stream's banks, leaving the bridge and the waterfall's lip clear. */
+function StreamBanks() {
+  const reeds = useRef<THREE.InstancedMesh>(null);
+  const REEDS = 260;
+  const reedGeo = useMemo(() => new THREE.ConeGeometry(0.02, 1, 3).translate(0, 0.5, 0), []);
+  const spots = useMemo(() => {
+    const r = rng(73), rocks: { x: number; z: number; s: number; rot: number; c: string }[] = [], clumps: { x: number; z: number }[] = [];
+    for (let i = 6; i < FALL_INDEX - 4; i += 5) {
+      const p = STREAM_PTS[i], q = STREAM_PTS[i + 1], tx = q.x - p.x, tz = q.z - p.z, len = Math.hypot(tx, tz) || 1;
+      const side = r() > 0.5 ? 1 : -1, out = 1.15 + r() * 0.35;
+      const x = p.x - (tz / len) * out * side, z = p.z + (tx / len) * out * side;
+      if (Math.hypot(x - BRIDGE.x, z - BRIDGE.z) < 2) continue;
+      if (r() < 0.45) rocks.push({ x, z, s: 0.1 + r() * 0.16, rot: r() * 6, c: ["#cfc8bf", "#bdb6ad", "#a9b49a"][Math.floor(r() * 3)] });
+      else clumps.push({ x, z });
+    }
+    return { rocks, clumps };
+  }, []);
+  useLayoutEffect(() => {
+    const mesh = reeds.current;
+    if (!mesh || !spots.clumps.length) return;
+    const r = rng(74), m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3(), c = new THREE.Color();
+    for (let i = 0; i < REEDS; i++) {
+      const at = spots.clumps[i % spots.clumps.length], a = r() * Math.PI * 2, d = r() * 0.25;
+      const x = at.x + Math.cos(a) * d, z = at.z + Math.sin(a) * d;
+      p.set(x, Math.max(groundY(x, z), -0.13) - 0.02, z);
+      e.set((r() - 0.5) * 0.5, r() * Math.PI, (r() - 0.5) * 0.5);
+      const k = 0.8 + r() * 0.5;
+      s.set(k, 0.3 + r() * 0.45, k);
+      m.compose(p, q.setFromEuler(e), s);
+      mesh.setMatrixAt(i, m);
+      mesh.setColorAt(i, c.setHSL(0.25 + r() * 0.04, 0.45 + r() * 0.15, 0.36 + r() * 0.12));
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  }, [spots]);
+  return (
+    <>
+      <instancedMesh ref={reeds} args={[reedGeo, swayingToon(), REEDS]} castShadow />
+      {spots.rocks.map((k, i) => (
+        <mesh key={i} position={[k.x, groundY(k.x, k.z) + k.s * 0.3, k.z]} rotation={[0, k.rot, 0]} scale={[k.s, k.s * 0.6, k.s * 0.85]} material={toon(k.c, true)} castShadow receiveShadow>
+          <dodecahedronGeometry args={[1, 1]} />
+        </mesh>
+      ))}
     </>
   );
 }
@@ -527,7 +709,7 @@ export function BoxLantern({ position, scale = 1 }: { position: [number, number,
 
 /** An arched stone footbridge where the path crosses the stream. */
 function Bridge() {
-  const L = BRIDGE_LENGTH, SEG = 11, stone = toon("#dedad1"), cap = toon("#cbc6bb");
+  const L = BRIDGE_LENGTH, SEG = 11, stone = toon("#eadfc9", true), cap = toon("#d8c8ad", true);
   const arch = (t: number) => 0.06 + 0.38 * Math.sin(Math.PI * t);
   return (
     <group position={[BRIDGE.x, 0, BRIDGE.z]} rotation={[0, BRIDGE.angle, 0]}>

@@ -80,7 +80,14 @@ function Grass() {
   const flowers = useRef<THREE.InstancedMesh>(null);
   const fringe = useRef<THREE.InstancedMesh>(null);
   const BLADES = 8000, FLOWERS = 2400, FRINGE = 2600;
-  const bladeGeo = useMemo(() => new THREE.ConeGeometry(0.028, 0.2, 3).translate(0, 0.1, 0), []);
+  // a soft four-sided blade, darker at the root and catching the light at the tip
+  const bladeGeo = useMemo(() => {
+    const g = new THREE.ConeGeometry(0.034, 0.2, 4).translate(0, 0.1, 0);
+    const pos = g.attributes.position, colors = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) colors.fill(0.62 + (pos.getY(i) / 0.2) * 0.55, i * 3, i * 3 + 3);
+    g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    return g;
+  }, []);
 
   useLayoutEffect(() => {
     const r = rng(7), m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), p = new THREE.Vector3();
@@ -117,7 +124,8 @@ function Grass() {
       scatter(mesh, FLOWERS, (i) => {
         e.set(0, 0, 0);
         p.y += 0.08 + r() * 0.08;
-        s.setScalar(0.5 + r() * 0.6);
+        const k = 0.5 + r() * 0.6;
+        s.set(k * 1.2, k * 0.4, k * 1.2); // flat little flower heads, not beads
         mesh.setColorAt(i, c.set(petals[Math.floor(r() * petals.length)]));
       });
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -155,8 +163,8 @@ function Grass() {
 
   return (
     <>
-      <instancedMesh ref={blades} args={[bladeGeo, swayingToon(), BLADES]} receiveShadow />
-      <instancedMesh ref={fringe} args={[bladeGeo, swayingToon(), FRINGE]} />
+      <instancedMesh ref={blades} args={[bladeGeo, swayingToon(true), BLADES]} receiveShadow />
+      <instancedMesh ref={fringe} args={[bladeGeo, swayingToon(true), FRINGE]} />
       <instancedMesh ref={flowers} args={[undefined, undefined, FLOWERS]}>
         <sphereGeometry args={[0.024, 8, 6]} />
         <meshToonMaterial gradientMap={gradientMap()} emissive="#fff3d0" emissiveIntensity={0.15} />
@@ -219,6 +227,14 @@ const PLANTS = (() => {
   place(14, 3.2, 0.3, false, 1.2, () => 0.45 + r() * 0.35);
   return out;
 })();
+
+/** The tree crowns, as balls, so the camera can keep out of them (see WorldScene). */
+export const CROWNS = [
+  // padded well past the leaves, so the camera doesn't even brush past one
+  ...PLANTS.filter((p) => p.tree).map((p) => ({ x: p.x, y: groundY(p.x, p.z) + 1.75 * p.s, z: p.z, r: 1.2 * p.s + 0.9 })),
+  { x: 0, y: 0.9, z: -1.15, r: 1.5 }, // Pip (wide, so the camera never hovers in Pip's face)
+  { x: 0, y: 0.6, z: 0, r: 1.3 }, // the table
+];
 
 /**
  * Walking about: if a body `r` metres round at (x, z) overlaps a trunk or a bush, it's nudged out to just touch it, so
