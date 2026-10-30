@@ -28,9 +28,9 @@ import type { WorldMode } from "./WorldScene";
 const WorldScene = dynamic(() => import("./WorldScene"), { ssr: false, loading: () => <div className="absolute inset-0 bg-[#dfe9f3]" /> });
 
 const PREP_BLURB: Record<PrepType, string> = {
-  behavioral: "Stories about teamwork, mistakes and what you've built.",
-  technical: "A coding problem, talked through out loud, with an editor.",
-  resume: "Questions about your own projects. Your resume is optional.",
+  behavioral: "The stories you've lived but haven't said out loud yet.",
+  technical: "One problem, a real editor, and room to think out loud.",
+  resume: "The random things on your resume you hope they skip.",
 };
 
 const PRESSURE: { value: Intensity; label: string }[] = [
@@ -498,20 +498,20 @@ export default function World() {
         }`}
       >
         <Panel title="" className="max-h-full w-[min(500px,100%)] [&>header]:hidden">
-          <div className="retro-scroll min-h-0 overflow-y-auto">
+          <div className="retro-scroll min-h-0 overflow-y-auto lowercase">
             <div className="flex gap-4 px-2 pt-2 pb-3">
               <PipLogo size={76} />
               <div className="min-w-0">
-                <h1 className="text-[30px] font-bold leading-none tracking-tight text-[#4a3424]">{GUIDE_NAME}</h1>
-                <p className="mt-1 font-script text-[22px] leading-tight text-[#8a6a4a]">Never feel unready again.</p>
+                <h1 className="text-[30px] font-bold leading-none tracking-tight text-[#4a3424]">pipterview <span className="text-[22px] font-normal text-[#c49a5a]">⋆⭒˚.⋆</span></h1>
+                <p className="mt-1 font-script text-[22px] leading-tight text-[#8a6a4a]">An extra view for your interviews.</p>
                 <p className="mt-2 text-[14.5px] leading-relaxed text-[#5a4430]">
-                  I&apos;m {GUIDE_NAME}. Practise interviews out loud with me, at a little table on a floating island. Talk or type;
-                  there&apos;s no rush.
+                  I&apos;m {GUIDE_NAME}. Starting is the biggest mountain, so let&apos;s climb it together: one practice interview, out
+                  loud, at a little table on a floating island. Nothing here is life or death.
                 </p>
               </div>
             </div>
             {step !== "pick" ? (
-              <div className="mx-1 mb-1 rounded-2xl bg-white/70">
+              <div className="mx-1 mb-1 rounded-2xl bg-white/70 normal-case">
                 <ResumeStep
                   draft={profileDraft}
                   onChange={setProfileDraft}
@@ -548,7 +548,7 @@ export default function World() {
                   </div>
                 )}
                 <div>
-                  <p className="px-1 pb-1 text-[12px] font-bold uppercase tracking-wide text-[#a08060]">Or choose a round</p>
+                  <p className="px-1 pb-1 text-[12.5px] font-bold text-[#a08060]">or choose a round</p>
                   <div className="grid gap-1.5 sm:grid-cols-3">
                     {PREP_TYPES.map((t) => (
                       <button
@@ -599,7 +599,7 @@ export default function World() {
         }`}
       >
         <div
-          className={`flex w-[min(420px,100%)] flex-col items-center gap-2 rounded-[22px] bg-[#fff8ec]/95 px-5 py-4 shadow-[0_12px_32px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] ${
+          className={`flex w-[min(420px,100%)] flex-col items-center gap-2 rounded-[22px] lowercase bg-[#fff8ec]/95 px-5 py-4 shadow-[0_12px_32px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] ${
             mode === "world" && arrived === "world" ? "pointer-events-auto" : ""
           }`}
         >
