@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Question } from "@/lib/interview/types";
 import { runCode, summarizeRun, type RunResult } from "@/lib/workspace/runner";
 import { CODE_LANGUAGES, LANGUAGE_LABELS, type CodeLanguage } from "@/lib/workspace/types";
-import { NavButton, sunken } from "./retro";
+import { NavButton, Portrait, sunken } from "./retro";
 import { GUIDE_NAME, STARTER_CODE } from "./script";
 import type { ChatMessage, ConvoStatus } from "./useConversation";
 
@@ -85,7 +85,10 @@ export function ChatPanel({
       <div ref={list} className="retro-scroll min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fbf8f2] px-4 py-4" style={sunken}>
         {messages.map((m, i) => (
           <div key={i} className={m.from === "you" ? "border-l-[3px] border-[#a9c8e6] pl-3" : ""}>
-            <p className={`mb-0.5 text-[12px] font-bold ${m.from === "guide" ? "text-[#1d2f5a]" : "text-[#2c5aa0]"}`}>{m.from === "guide" ? GUIDE_NAME : "You"}</p>
+            <p className={`mb-0.5 flex items-center gap-1.5 text-[12px] font-bold ${m.from === "guide" ? "text-[#1d2f5a]" : "text-[#2c5aa0]"}`}>
+              {m.from === "guide" && <Portrait size={18} />}
+              {m.from === "guide" ? GUIDE_NAME : "You"}
+            </p>
             <p className={`${m.from === "guide" ? "text-[15.5px]" : "text-[14.5px]"} leading-[1.65] text-[#1b1d22]`}>{m.text}</p>
           </div>
         ))}
@@ -178,28 +181,47 @@ export function ChatPanel({
   );
 }
 
-// navy editor: yellow keywords, light-blue strings and numbers
+// light notebook editor: warm ink on cream paper, orange keywords, olive types, brick strings, faded italic comments
 const defineTheme: BeforeMount = (monaco) => {
-  monaco.editor.defineTheme("extraview-navy", {
-    base: "vs-dark",
+  monaco.editor.defineTheme("pip-notebook", {
+    base: "vs",
     inherit: true,
     rules: [
-      { token: "keyword", foreground: "f5c84c" },
-      { token: "string", foreground: "a9d4f5" },
-      { token: "number", foreground: "a9d4f5" },
-      { token: "comment", foreground: "7f93b5", fontStyle: "italic" },
-      { token: "identifier", foreground: "e8eef7" },
+      { token: "", foreground: "3a2e26" },
+      { token: "keyword", foreground: "c9783e" },
+      { token: "type", foreground: "9a8a3a" },
+      { token: "type.identifier", foreground: "9a8a3a" },
+      { token: "string", foreground: "b5654a" },
+      { token: "number", foreground: "b5654a" },
+      { token: "comment", foreground: "a89a7a", fontStyle: "italic" },
+      { token: "identifier", foreground: "3a2e26" },
+      { token: "delimiter", foreground: "3a2e26" },
     ],
     colors: {
-      "editor.background": "#13233f",
-      "editor.lineHighlightBackground": "#1a2d4f",
-      "editorLineNumber.foreground": "#4f6385",
-      "editorLineNumber.activeForeground": "#f5c84c",
-      "editorCursor.foreground": "#f5c84c",
-      "editor.selectionBackground": "#2c4a78",
+      "editor.background": "#fffaf0",
+      "editor.foreground": "#3a2e26",
+      "editorGutter.background": "#fffaf0",
+      "editor.lineHighlightBackground": "#f6eed8",
+      "editor.lineHighlightBorder": "#f6eed8",
+      "editorLineNumber.foreground": "#d9cba0",
+      "editorLineNumber.activeForeground": "#b8a578",
+      "editorCursor.foreground": "#c9783e",
+      "editor.selectionBackground": "#f0dfb8",
+      "editor.inactiveSelectionBackground": "#f3e8cc",
+      // brackets in plain ink rather than Monaco's blue/green/brown pair colours
+      "editorBracketHighlight.foreground1": "#3a2e26",
+      "editorBracketHighlight.foreground2": "#3a2e26",
+      "editorBracketHighlight.foreground3": "#3a2e26",
+      "scrollbarSlider.background": "#eadfc499",
+      "scrollbarSlider.hoverBackground": "#d9cba0cc",
+      "scrollbarSlider.activeBackground": "#d9cba0",
     },
   });
 };
+
+// two friendly lines above the starter code, in each language's comment syntax
+const COMMENT: Record<CodeLanguage, string> = { python: "#", javascript: "//", typescript: "//", java: "//", cpp: "//", c: "//" };
+const NUDGE = ["Talk it through first — what's your first idea?", "(Brute force is a totally fine place to start!)"];
 
 const FILE_NAME: Record<CodeLanguage, string> = {
   python: "solution.py",
@@ -212,6 +234,11 @@ const FILE_NAME: Record<CodeLanguage, string> = {
 const FILE_TAG: Record<CodeLanguage, string> = { python: "py", javascript: "js", typescript: "ts", java: "java", cpp: "c++", c: "c" };
 
 function starterFor(question: Question | null, language: CodeLanguage) {
+  const nudge = NUDGE.map((line) => `${COMMENT[language]} ${line}`).join("\n") + "\n\n";
+  return nudge + baseStarter(question, language);
+}
+
+function baseStarter(question: Question | null, language: CodeLanguage) {
   if (question?.coding) return question.coding.starter[language];
   if (language === "python") return question ? "# Write your solution here\n" : STARTER_CODE;
   if (language === "javascript" || language === "typescript") return "// Write your solution here\n";
@@ -237,16 +264,22 @@ function shortResult(run: RunResult) {
 }
 
 /**
- * The code editor for technical rounds, with the problem above it. Run checks your code against the question's tests
- * (Python, JavaScript and TypeScript in the browser; Java, C++ and C on the server); your code and the latest results
- * go to the guide with each answer.
+ * The code editor for technical rounds, a notebook-style scratchpad under what Pip last said. "Try it" checks your code
+ * against the question's tests (Python, JavaScript and TypeScript in the browser; Java, C++ and C on the server); your
+ * code and the latest results go to the guide with each answer. "Ask Pip" asks the guide for a small hint.
  */
 export function CodePanel({
   question,
+  guideLine,
+  canAsk,
+  onAskHint,
   onChange,
   onRun,
 }: {
   question: Question | null;
+  guideLine?: string;
+  canAsk: boolean;
+  onAskHint: () => void;
   onChange: (code: string, language: CodeLanguage) => void;
   onRun: (summary: string, code: string, language: CodeLanguage) => void;
 }) {
@@ -269,41 +302,54 @@ export function CodePanel({
 
   const failing = result?.status === "ok" ? result.cases.find((c) => !c.passed && !c.hidden) : undefined;
   const example = exampleFor(question, language);
-  const [showProblem, setShowProblem] = useState(true);
+  // The panel remounts for each question (it's keyed by question id), and the question arrives together with the line
+  // that asked it, so the line showing at mount is the introduction. Later lines are follow-ups.
+  const [introLine] = useState(guideLine);
+  const followUp = question ? (guideLine && guideLine !== introLine && !guideLine.includes(question.prompt) ? guideLine : undefined) : guideLine;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* the problem, so you don't have to scroll back through the chat to reread it */}
+      {/* the problem, pinned, so it stays readable after Pip moves on to follow-ups */}
       {question && (
-        <div className="mb-[4px] bg-[#fbf8f2] px-2.5 py-1.5 text-[13px] leading-snug text-[#1b1d22]" style={sunken}>
-          <button onClick={() => setShowProblem((v) => !v)} className="flex w-full items-center gap-1.5 text-left text-[12px] font-bold text-[#1d2f5a]" aria-expanded={showProblem}>
-            <span className="inline-block w-2 text-[9px]">{showProblem ? "▼" : "▶"}</span> Problem
-          </button>
-          {showProblem && (
-            <div className="retro-scroll mt-1 max-h-24 overflow-y-auto">
-              <p>{question.prompt}</p>
-              {example && <p className="mt-1 font-mono text-[11.5px] text-[#55534e]">e.g. {example}</p>}
-            </div>
+        <div className="retro-scroll mb-2 max-h-32 shrink-0 overflow-y-auto rounded-2xl bg-white px-3 py-2 ring-1 ring-[#f0dfc2]">
+          <p className="text-[13.5px] leading-snug text-[#3d2a1c]">{question.prompt}</p>
+          {example && (
+            <p className="mt-1.5 inline-block rounded-full bg-[#f6eed8] px-2.5 py-0.5 font-mono text-[12px] text-[#5a4430] ring-1 ring-[#eadfc4]">{example}</p>
           )}
         </div>
       )}
-      <div className="min-h-0 flex-1 bg-[#13233f] pt-2" style={sunken}>
-        <Editor
-          key={language}
-          language={language}
-          defaultValue={code}
-          theme="extraview-navy"
-          beforeMount={defineTheme}
-          onChange={(v) => {
-            setBuffers((b) => ({ ...b, [language]: v ?? "" }));
-            onChange(v ?? "", language);
-          }}
-          onMount={(_editor, monaco) => {
-            // the brand mono font loads asynchronously; re-measure once it has, so the cursor lines up with the text
-            document.fonts.ready.then(() => monaco.editor.remeasureFonts());
-          }}
-          options={{ fontFamily: "var(--font-overpass-mono), monospace", minimap: { enabled: false }, fontSize: 14, lineHeight: 22, scrollBeyondLastLine: false, padding: { top: 8 }, renderLineHighlight: "line", overviewRulerLanes: 0, tabSize: language === "javascript" || language === "typescript" ? 2 : 4 }}
-        />
+      {/* what Pip last said, when it's more than the problem itself, so you can code without flipping back to the chat */}
+      {followUp && (
+        <div className="mb-2 flex shrink-0 gap-2.5">
+          <Portrait size={36} />
+          <div className="retro-scroll max-h-24 min-w-0 flex-1 overflow-y-auto rounded-2xl bg-white px-3 py-2 ring-1 ring-[#f0dfc2]">
+            <p className="text-[13.5px] leading-snug text-[#3d2a1c]">{followUp}</p>
+          </div>
+        </div>
+      )}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#eadfc4] bg-[#fffaf0]">
+        <div className="flex shrink-0 items-baseline justify-between gap-2 border-b border-[#eadfc4] px-3 py-1.5">
+          <span className="text-[13px] font-bold text-[#5a4430]">📝 my scratchpad</span>
+          <span className="truncate text-[12px] text-[#a08a70]">kept while you&apos;re at the table</span>
+        </div>
+        <div className="min-h-0 flex-1 pt-1">
+          <Editor
+            key={language}
+            language={language}
+            defaultValue={code}
+            theme="pip-notebook"
+            beforeMount={defineTheme}
+            onChange={(v) => {
+              setBuffers((b) => ({ ...b, [language]: v ?? "" }));
+              onChange(v ?? "", language);
+            }}
+            onMount={(_editor, monaco) => {
+              // the brand mono font loads asynchronously; re-measure once it has, so the cursor lines up with the text
+              document.fonts.ready.then(() => monaco.editor.remeasureFonts());
+            }}
+            options={{ fontFamily: "var(--font-overpass-mono), monospace", minimap: { enabled: false }, fontSize: 14, lineHeight: 22, scrollBeyondLastLine: false, padding: { top: 8 }, renderLineHighlight: "line", overviewRulerLanes: 0, tabSize: language === "javascript" || language === "typescript" ? 2 : 4 }}
+          />
+        </div>
       </div>
       {result && (
         <div className="retro-scroll mt-[4px] max-h-28 overflow-y-auto bg-[#fbf8f2] px-2.5 py-1.5 font-mono text-[12px] leading-snug text-[#1b1d22]" style={sunken}>
@@ -317,28 +363,28 @@ export function CodePanel({
           {result.stdout && <pre className="whitespace-pre-wrap text-[#55534e]">{result.stdout.slice(-600)}</pre>}
         </div>
       )}
-      <footer className="mt-[4px] flex items-center justify-between gap-2 px-1 pt-0.5">
-        <span className="rounded-md bg-[#1d2f5a] px-1.5 py-0.5 font-mono text-[11px] text-[#f2c94c]" title={FILE_NAME[language]}>
-          {FILE_TAG[language]}
-        </span>
-        <select
-          value={language}
-          onChange={(e) => setLanguage(e.target.value as CodeLanguage)}
-          className="bg-white px-1.5 py-1 text-[12.5px] text-[#1b1d22] outline-none"
-          style={sunken}
-          aria-label="Language"
-        >
-          {CODE_LANGUAGES.map((l) => (
-            <option key={l} value={l}>
-              {LANGUAGE_LABELS[l]}
-            </option>
-          ))}
-        </select>
-        <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-[#55534e]">
-          {question?.coding ? "Your code and test results go to the guide with each answer" : "Your code goes to the guide with each answer"}
-        </span>
-        <NavButton tone="yellow" onClick={() => void run()} disabled={running}>
-          {running ? "Running…" : "Run ▶"}
+      <footer className="mt-2 flex items-center gap-2 px-0.5">
+        <label className="flex shrink-0 items-center gap-1.5 rounded-full bg-white py-1 pr-2 pl-1.5 ring-1 ring-[#ead7b8]" title={FILE_NAME[language]}>
+          <span className="rounded-md bg-[#f3e6cf] px-1.5 font-mono text-[11px] text-[#8a6a4a]">{FILE_TAG[language]}</span>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as CodeLanguage)}
+            className="bg-transparent text-[13px] font-bold text-[#3d2a1c] outline-none"
+            aria-label="Language"
+          >
+            {CODE_LANGUAGES.map((l) => (
+              <option key={l} value={l}>
+                {LANGUAGE_LABELS[l]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-[#a08a70]">{GUIDE_NAME} sees your code each time you answer</span>
+        <NavButton onClick={onAskHint} disabled={!canAsk} className="shrink-0" title={`Ask ${GUIDE_NAME} for a small hint`}>
+          💡 Ask {GUIDE_NAME}
+        </NavButton>
+        <NavButton tone="yellow" onClick={() => void run()} disabled={running} className="shrink-0">
+          {running ? "Trying…" : "Try it ▶"}
         </NavButton>
       </footer>
     </div>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ReviewBoard } from "@/components/ReviewBoard";
 import { INTERVIEW_TYPES } from "@/lib/interview/catalog";
-import { INTERVIEW_TYPE_IDS } from "@/lib/interview/types";
+import { VISIBLE_INTERVIEW_TYPE_IDS } from "@/lib/interview/types";
 
 export const metadata: Metadata = { title: "Question review · Pip" };
 
@@ -22,7 +22,7 @@ export default function ReviewPage() {
             through, and the hints it gives.
           </p>
         </header>
-        <ReviewBoard types={INTERVIEW_TYPE_IDS.map((id) => INTERVIEW_TYPES[id])} />
+        <ReviewBoard types={VISIBLE_INTERVIEW_TYPE_IDS.map((id) => INTERVIEW_TYPES[id])} />
       </div>
     </main>
   );

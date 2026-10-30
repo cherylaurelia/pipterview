@@ -1,6 +1,7 @@
 "use client";
 
 import { GARDEN_ITEMS, gardenItem, type Garden } from "@/lib/garden";
+import { GardenIcon } from "../GardenIcon";
 
 /** Everything your island can grow, in order: what you've grown (and when), what's next, and what's still to come. */
 export function IslandPanel({ garden, streak }: { garden: Garden; streak: number }) {
@@ -15,7 +16,7 @@ export function IslandPanel({ garden, streak }: { garden: Garden; streak: number
       <div className="rounded-2xl bg-[#fff1d6] px-4 py-3">
         <p className="text-[12.5px] font-bold text-[#a07a4a]">Next on your island</p>
         <div className="mt-1 flex items-center gap-2.5">
-          <span className="h-6 w-6 shrink-0 rounded-lg" style={{ background: next.color }} aria-hidden />
+          <GardenIcon id={next.id} size={32} />
           <p className="text-[15px] font-bold text-[#3d2a1c]">{next.label}</p>
         </div>
         <p className="mt-1 text-[13px] text-[#6b5640]">Finish any round to grow it. Every finished session grows one thing.</p>
@@ -30,11 +31,7 @@ export function IslandPanel({ garden, streak }: { garden: Garden; streak: number
           return (
             <li key={item.id} className={`flex items-center gap-3 rounded-xl px-2 py-1.5 ${isNext ? "bg-white ring-1 ring-[#f0dfc2]" : ""}`}>
               <span className="w-5 text-right font-mono text-[11.5px] text-[#b8a080]">{i + 1}</span>
-              <span
-                className={`h-5 w-5 shrink-0 rounded-md ${grown ? "" : "border-2 border-dashed border-[#d9c3a0]"}`}
-                style={grown ? { background: item.color } : undefined}
-                aria-hidden
-              />
+              <GardenIcon id={item.id} size={32} grown={grown} />
               <span className={`flex-1 text-[14px] ${grown ? "font-bold text-[#3d2a1c]" : "text-[#8a6a4a]"}`}>{item.label}</span>
               <span className="text-[12px] text-[#a08a70]">{grown ? date(i) : isNext ? "Next" : `Session ${i + 1}`}</span>
             </li>

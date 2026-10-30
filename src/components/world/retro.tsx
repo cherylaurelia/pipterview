@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 
 // The overlay's UI kit, in the style of a cozy game's interface: soft cream cards with rounded corners and gentle
@@ -103,12 +104,17 @@ export function ChickIcon({ tone = "yellow", size = 16 }: { tone?: "yellow" | "b
 }
 
 /** Pip in a soft round badge. */
-export function Portrait({ tone = "yellow", size = 52 }: { tone?: "yellow" | "blue"; size?: number }) {
+export function Portrait({ size = 52 }: { size?: number }) {
   return (
-    <span className="grid shrink-0 place-items-center rounded-full bg-[#ffeec7] ring-2 ring-white" style={{ width: size, height: size }}>
-      <ChickIcon tone={tone} size={size * 0.74} />
+    <span className="block shrink-0 overflow-hidden rounded-full ring-2 ring-white" style={{ width: size, height: size }}>
+      <Image src="/design/logo/pip-badge.png" alt="" width={size} height={size} className="h-full w-full" />
     </span>
   );
+}
+
+/** The full Pip logo (the chick and its lettering), for the welcome card. */
+export function PipLogo({ size = 76 }: { size?: number }) {
+  return <Image src="/design/logo/pip-logo.png" alt="Pip" width={size} height={size} priority className="shrink-0" style={{ width: size, height: size }} />;
 }
 
 /** The wordmark, with the chick as its icon. */

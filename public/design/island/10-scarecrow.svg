@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512">
+<defs><filter id="hand" x="-10%" y="-10%" width="120%" height="120%">
+<feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="1" seed="52" result="w"/>
+<feDisplacementMap in="SourceGraphic" in2="w" scale="4.5" xChannelSelector="R" yChannelSelector="G" result="sw"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="12" result="t"/>
+<feDisplacementMap in="sw" in2="t" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="32" result="n"/>
+<feColorMatrix in="n" type="matrix" values="0.32 0 0 0 0.78  0.32 0 0 0 0.78  0.32 0 0 0 0.78  0 0 0 0 1" result="g"/>
+<feBlend in="d" in2="g" mode="multiply" result="m"/>
+<feComposite in="m" in2="d" operator="in"/></filter></defs>
+<g filter="url(#hand)" fill="none" stroke="#1f1814" stroke-width="3.0" stroke-linecap="round" stroke-linejoin="round">
+<path d="M64 52 V116 M24 66 H104" stroke="#a8734a" stroke-width="7"/>
+<path d="M64 52 V116 M24 66 H104" stroke-width="2" opacity=".0"/>
+<path d="M18 64 l-4 -4 M18 68 l-6 0 M18 72 l-4 4 M110 64 l4 -4 M110 68 l6 0 M110 72 l4 4" stroke="#d9b45a" stroke-width="3"/>
+<path d="M22 60 H106 V76 H86 L84 100 H44 L42 76 H22Z" fill="#9fc0d8"/>
+<path d="M54 60 V100 M74 60 V100 M42 86 H86" stroke="#6f93ad" stroke-width="2.4"/>
+<path d="M79.09 44.00 C79.30 45.73 79.43 47.75 78.91 49.43 C78.38 51.10 77.20 52.80 75.95 54.03 C74.70 55.26 72.98 56.12 71.40 56.83 C69.83 57.53 68.16 58.04 66.51 58.26 C64.86 58.48 63.12 58.45 61.50 58.15 C59.89 57.85 58.32 57.20 56.80 56.46 C55.29 55.73 53.72 54.89 52.42 53.72 C51.12 52.55 49.69 51.07 49.01 49.46 C48.33 47.84 48.16 45.75 48.34 44.00 C48.52 42.25 49.35 40.51 50.09 38.94 C50.83 37.37 51.70 35.89 52.78 34.58 C53.85 33.27 55.10 31.95 56.54 31.08 C57.98 30.21 59.75 29.66 61.42 29.37 C63.09 29.08 64.89 29.09 66.58 29.35 C68.27 29.60 70.09 30.06 71.56 30.90 C73.03 31.75 74.39 33.08 75.41 34.43 C76.43 35.78 77.06 37.43 77.67 39.02 C78.29 40.62 78.89 42.27 79.09 44.00 Z" fill="#ecd29c"/>
+<path d="M57 50 q7 5 14 0" stroke-width="2.4"/>
+<path d="M57 50 v2 M64 52 v2 M71 50 v2" stroke-width="1.8"/>
+<circle cx="58" cy="41" r="2.2" fill="#1f1814" stroke="none"/><circle cx="70" cy="41" r="2.2" fill="#1f1814" stroke="none"/>
+<path d="M88.89 31.00 C89.09 31.56 89.31 32.17 88.53 32.72 C87.76 33.26 86.19 33.84 84.24 34.27 C82.29 34.69 79.47 35.01 76.84 35.28 C74.21 35.55 71.38 35.75 68.47 35.88 C65.56 36.00 62.36 36.11 59.38 36.04 C56.40 35.97 53.22 35.76 50.60 35.46 C47.98 35.17 45.55 34.74 43.65 34.28 C41.74 33.83 40.03 33.29 39.17 32.74 C38.31 32.19 38.16 31.55 38.51 31.00 C38.87 30.45 40.18 29.92 41.30 29.41 C42.41 28.91 43.62 28.44 45.20 27.97 C46.78 27.50 48.43 26.95 50.77 26.59 C53.10 26.23 56.23 25.91 59.22 25.79 C62.22 25.67 65.70 25.73 68.72 25.85 C71.74 25.98 74.81 26.23 77.33 26.56 C79.86 26.88 82.18 27.33 83.85 27.80 C85.51 28.27 86.49 28.83 87.33 29.37 C88.17 29.90 88.69 30.44 88.89 31.00 Z" fill="#e3b860"/>
+<path d="M50 30 Q52 14 64 13 Q76 14 78 30Z" fill="#e3b860"/>
+<path d="M51 25 Q64 27 77 25" stroke="#d4675a" stroke-width="3.4"/>
+</g></svg>

@@ -12,6 +12,7 @@ import { FeedbackReport } from "./FeedbackReport";
 import { isTailored, toProfile, useSavedProfile } from "./ProfileForm";
 import { Breathing } from "./room/Breathing";
 import { RoundTimer } from "./room/RoundTimer";
+import { RoundIcon } from "./RoundIcon";
 import { SessionSetup, useSessionSettings, type VoiceMode } from "./room/SessionSetup";
 import { streamTurnRequest } from "@/lib/turn-client";
 import type { SceneState } from "./scene/types";
@@ -462,7 +463,10 @@ export function InterviewRoom({ typeId, label }: { typeId: InterviewTypeId; labe
       <div className="flex items-center gap-3">
         <Logo />
         <span className="hidden text-sm text-slate-400 sm:inline">/</span>
-        <span className="hidden text-sm font-medium text-slate-600 sm:inline">{label}</span>
+        <span className="hidden items-center gap-1.5 text-sm font-medium text-slate-600 sm:inline-flex">
+          <RoundIcon type={typeId} />
+          {label}
+        </span>
         {session?.questions.some((q) => q.tailoredReason) && (
           <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs text-teal-800 ring-1 ring-teal-100">Tailored to you</span>
         )}

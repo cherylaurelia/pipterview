@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512">
+<defs><filter id="hand" x="-10%" y="-10%" width="120%" height="120%">
+<feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="1" seed="45" result="w"/>
+<feDisplacementMap in="SourceGraphic" in2="w" scale="4.5" xChannelSelector="R" yChannelSelector="G" result="sw"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="5" result="t"/>
+<feDisplacementMap in="sw" in2="t" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="25" result="n"/>
+<feColorMatrix in="n" type="matrix" values="0.32 0 0 0 0.78  0.32 0 0 0 0.78  0.32 0 0 0 0.78  0 0 0 0 1" result="g"/>
+<feBlend in="d" in2="g" mode="multiply" result="m"/>
+<feComposite in="m" in2="d" operator="in"/></filter></defs>
+<g filter="url(#hand)" fill="none" stroke="#1f1814" stroke-width="3.0" stroke-linecap="round" stroke-linejoin="round">
+<path d="M87.82 36.00 C88.18 38.75 88.44 41.89 87.75 44.65 C87.07 47.40 85.61 50.44 83.69 52.52 C81.77 54.61 78.82 56.08 76.22 57.16 C73.61 58.23 70.77 58.64 68.05 58.98 C65.33 59.31 62.57 59.55 59.92 59.15 C57.26 58.76 54.44 57.93 52.11 56.60 C49.77 55.27 47.65 53.26 45.91 51.18 C44.17 49.10 42.65 46.65 41.68 44.12 C40.70 41.60 40.05 38.70 40.06 36.00 C40.08 33.30 40.83 30.48 41.76 27.91 C42.69 25.34 44.02 22.87 45.62 20.58 C47.23 18.29 49.07 15.78 51.39 14.16 C53.71 12.54 56.77 11.20 59.57 10.88 C62.37 10.56 65.55 11.35 68.19 12.25 C70.83 13.14 73.22 14.71 75.41 16.24 C77.60 17.78 79.63 19.48 81.32 21.47 C83.01 23.45 84.46 25.74 85.54 28.16 C86.62 30.58 87.45 33.25 87.82 36.00 Z" fill="#ffe9a8" stroke="none" opacity=".55"/>
+<path d="M60 56 H68 V106 H60Z" fill="#6b5a4a"/>
+<path d="M50 112 Q64 102 78 112Z" fill="#6b5a4a"/>
+<path d="M50 50 H78 L74 56 H54Z" fill="#6b5a4a"/>
+<rect x="50" y="26" width="28" height="24" rx="4" fill="#ffd77a"/>
+<path d="M64 26 V50" stroke-width="2.4"/>
+<path d="M64 46 q-5 -6 0 -12 q5 6 0 12z" fill="#ef9a52" stroke="none"/>
+<path d="M44 26 L64 12 L84 26Z" fill="#6b5a4a"/>
+<path d="M66.99 10.00 C67.03 10.34 67.03 10.73 66.92 11.06 C66.82 11.39 66.59 11.72 66.35 11.97 C66.12 12.23 65.82 12.45 65.51 12.62 C65.21 12.79 64.87 12.95 64.53 13.01 C64.19 13.07 63.81 13.07 63.47 13.00 C63.14 12.92 62.81 12.75 62.52 12.56 C62.23 12.38 61.97 12.15 61.75 11.89 C61.54 11.63 61.34 11.32 61.23 11.01 C61.13 10.69 61.10 10.33 61.10 10.00 C61.10 9.67 61.16 9.33 61.25 9.00 C61.34 8.67 61.44 8.31 61.63 8.01 C61.82 7.72 62.10 7.42 62.41 7.24 C62.71 7.06 63.11 6.97 63.46 6.94 C63.81 6.91 64.19 6.97 64.52 7.05 C64.85 7.14 65.19 7.28 65.47 7.46 C65.75 7.64 65.99 7.90 66.19 8.16 C66.40 8.42 66.55 8.72 66.69 9.02 C66.82 9.33 66.95 9.66 66.99 10.00 Z" fill="#6b5a4a"/>
+</g></svg>
