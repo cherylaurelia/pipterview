@@ -16,7 +16,7 @@ import { createAmbience, type Ambience } from "./sound";
 import { setVoiceVolume } from "@/lib/voice/speak";
 import { BookIcon, ChatIcon, CloseIcon, CodeIcon, HelpIcon, HomeIcon, IslandIcon, SpeakerIcon } from "./icons";
 import { askCritter, CRITTERS, type CritterAction, type CritterPick } from "./critters";
-import { flyTo, PLACES } from "./nav";
+import { goHomeSpot, type Nearby } from "./explore";
 import { IslandPanel } from "./islandpanel";
 import { StoryBook } from "./storybook";
 import { GardenIcon } from "../GardenIcon";
@@ -172,17 +172,57 @@ function useAmbience(state: { listening: boolean; speaking: boolean; evening: bo
 type PanelTab = "chat" | "code" | "island" | "stories" | "help";
 
 /** A button in the dock along the bottom: an icon and a word. */
-function DockButton({ icon, label, active = false, onClick, title }: { icon: ReactNode; label: string; active?: boolean; onClick: () => void; title?: string }) {
+function DockButton({ icon, label, active = false, compact = false, onClick, title }: { icon: ReactNode; label: string; active?: boolean; compact?: boolean; onClick: () => void; title?: string }) {
   return (
     <button
       onClick={onClick}
-      title={title}
+      title={compact ? label : title}
+      aria-label={compact ? label : undefined}
       aria-pressed={active}
-      className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13.5px] font-bold text-[#4a3424] transition-colors ${active ? "bg-[#ffe1a1]" : "hover:bg-[#fff0d4]"}`}
+      className={`flex items-center gap-1.5 rounded-full text-[13.5px] font-bold text-[#4a3424] transition-colors ${compact ? "p-2" : "px-3.5 py-2"} ${active ? "bg-[#ffe1a1]" : "hover:bg-[#fff0d4]"}`}
     >
       {icon}
-      {label}
+      {!compact && label}
     </button>
+  );
+}
+
+/** A keyboard key, drawn as a little cap. */
+function Key({ children }: { children: ReactNode }) {
+  return (
+    <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-md bg-white px-1.5 font-mono text-[12px] font-bold text-[#6b5640] shadow-[0_1.5px_0_#e2cfae] ring-1 ring-[#ead8b8]">
+      {children}
+    </kbd>
+  );
+}
+
+/** How to get about the island, in one line, for a few seconds after you arrive (and whenever you're idle at the start). */
+function IslandHint({ show, until }: { show: boolean; until: number }) {
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (!until) return;
+    const id = window.setInterval(() => setNow(Date.now()), 500);
+    return () => window.clearInterval(id);
+  }, [until]);
+  const visible = show && now < until;
+  return (
+    <div
+      className={`pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center px-3 transition-opacity duration-700 ${visible ? "opacity-100" : "opacity-0"}`}
+      aria-hidden={!visible}
+    >
+      <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-full bg-[#fff8ec]/90 px-4 py-2 text-[13px] text-[#6b5640] shadow-[0_6px_18px_rgba(70,45,20,0.15)] ring-1 ring-[#f0dfc2] backdrop-blur">
+        <span className="flex items-center gap-1">
+          <Key>W</Key>
+          <Key>A</Key>
+          <Key>S</Key>
+          <Key>D</Key> or click to walk
+        </span>
+        <span>drag to look</span>
+        <span>
+          {GUIDE_NAME} is at the table <span className="text-[#c49a5a]">◆</span>
+        </span>
+      </p>
+    </div>
   );
 }
 
@@ -233,7 +273,13 @@ export default function World() {
   const [poked, setPoked] = useState(false);
   // the pond creature you've clicked on; only on the island (it lets go when you sit down or go home)
   const [critter, setCritter] = useState<CritterPick | null>(null);
-  const picked = mode === "world" ? critter : null;
+  // what you've walked up to on the island (the table, a creature)
+  const [near, setNear] = useState<Nearby | null>(null);
+  // the creature whose actions are showing: the one you clicked on, or else the one you're standing by
+  const picked = mode === "world" ? (critter ?? (near?.type === "critter" ? near.pick : null)) : null;
+  const atTable = mode === "world" && near?.type === "table";
+  // the controls hint, shown when you first step onto the island and then fading away
+  const [hintUntil, setHintUntil] = useState(0);
   // first-visit help: which tour bubbles you've seen (null until loaded, so nothing flashes), the help window, and the
   // one-time "can I hear you?" before the browser's microphone prompt
   const [tourDone, setTourDone] = useState<TourStep[] | null>(null);
@@ -284,6 +330,7 @@ export default function World() {
   });
   const { start, reset, status } = convo;
   const seated = mode === "seated" && arrived === "seated";
+  const exploring = mode === "world";
   const tableTab: PanelTab = type === "technical" ? "code" : "chat"; // what the side panel shows when you sit down
   // the guide's body language: nods while you talk, tilts its head while thinking, bounces when you're done
   const mood: Mood =
@@ -369,6 +416,7 @@ export default function World() {
     askCritter(pick, action.label);
     sound.ambience.current?.critter(action.sound);
   };
+
   const pokePip = () => {
     sound.ambience.current?.chirp();
     setPoked(true);
@@ -386,6 +434,7 @@ export default function World() {
   const onArrive = useCallback(
     (m: WorldMode) => {
       setArrived(m);
+      if (m === "world") setHintUntil(Date.now() + 12000);
       if (m !== "seated" || status !== "idle") return;
       // the first time, ask about the microphone before the browser does; then the guide says hello
       const speech = "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
@@ -428,6 +477,7 @@ export default function World() {
     setMode("seated");
   };
   const standUp = () => {
+    goHomeSpot(); // back on your feet, just behind your chair
     reset();
     setElapsed(0);
     setArrived(null);
@@ -438,6 +488,28 @@ export default function World() {
     setStories(loadStories()); // the report just saved this session's stories
     setMode("world");
   };
+
+  // on the island: E or Enter by the table sits you down; 1, 2, 3 do the actions of the creature you're by
+  const keyAction = useRef<(e: KeyboardEvent) => void>(() => {});
+  useEffect(() => {
+    keyAction.current = (e: KeyboardEvent) => {
+      if (mode !== "world" || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      if ((e.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable]")) return;
+      const key = e.key.toLowerCase();
+      if ((key === "e" || key === "enter") && atTable) {
+        e.preventDefault();
+        sitDown();
+      } else if (picked && ["1", "2", "3"].includes(key)) {
+        const action = CRITTERS[picked.kind].actions[Number(key) - 1];
+        if (action) doCritter(picked, action);
+      }
+    };
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => keyAction.current(e);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const clock = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
   const gentle = settings.intensity === "gentle";
@@ -495,6 +567,7 @@ export default function World() {
           garden={{ count: viewingIsland ? garden.grown : garden.seen, freshFrom: garden.seen }}
           critter={picked}
           onPickCritter={setCritter}
+          onNear={setNear}
           onPokePip={pokePip}
           onSit={sitDown}
           onArrive={onArrive}
@@ -603,53 +676,23 @@ export default function World() {
         </Panel>
       </div>
 
-      {/* 2. on the island: one big way to sit down (clicking the table works too) */}
-      <div
-        className={`pointer-events-none absolute inset-x-0 bottom-24 z-10 flex justify-center px-4 transition-opacity duration-500 ${
-          mode === "world" && arrived === "world" ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        <div
-          className={`flex w-[min(420px,100%)] flex-col items-center gap-2 rounded-[22px] lowercase bg-[#fff8ec]/95 px-5 py-4 shadow-[0_12px_32px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] ${
-            mode === "world" && arrived === "world" ? "pointer-events-auto" : ""
-          }`}
-        >
-          <p className="text-[15px] font-bold text-[#4a3424]">Ready when you are</p>
-          <p className="-mt-1 flex items-center gap-1.5 text-[13px] text-[#6b5640]">
-            <GardenIcon id={nextItem.id} size={20} />
-            Finish this session to grow: <b className="text-[#3d2a1c]">{nextItem.label}</b>
-          </p>
-          <NavButton tone="yellow" onClick={sitDown} className="w-full py-2.5 text-[16px]">
-            Sit down with {GUIDE_NAME}
-          </NavButton>
-          <p className="flex flex-wrap items-center justify-center gap-x-2 text-center text-[12.5px] text-[#8a6a4a]">
-            Drag to turn · right-drag or WASD to move · scroll to zoom ·
-            <button onClick={goHome} className="font-bold text-[#b0702a] underline underline-offset-2">
-              Change round
-            </button>
-          </p>
-        </div>
-      </div>
-
-      {/* getting about the island: jump to a place (double-click anywhere works too) */}
-      <nav
-        aria-label="Go to"
-        className={`absolute top-1/2 left-3 z-10 hidden -translate-y-1/2 flex-col gap-0.5 rounded-[20px] bg-[#fff8ec]/95 p-1.5 shadow-[0_8px_24px_rgba(70,45,20,0.18)] ring-1 ring-[#f0dfc2] transition-opacity duration-500 sm:flex ${
-          mode === "world" && arrived === "world" ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      >
-        <span className="px-2.5 pt-1 pb-0.5 text-[11.5px] font-bold text-[#a08060]">Go to</span>
-        {PLACES.map((place) => (
+      {/* 2. on the island the world is the interface: just a word about how to get about, when you first arrive, and a
+          prompt when you walk up to the table (the creatures' actions show below, when you're by one) */}
+      <IslandHint show={mode === "world" && arrived === "world" && !picked && !atTable} until={hintUntil} />
+      {atTable && !picked && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-3">
           <button
-            key={place.id}
-            onClick={() => flyTo(place)}
-            className="rounded-full px-3 py-1.5 text-left text-[13.5px] font-bold text-[#4a3424] transition-colors hover:bg-[#fff0d4] active:bg-[#ffe1a1]"
+            onClick={sitDown}
+            className="pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#fff8ec]/95 py-2 pr-5 pl-2 text-[15px] font-bold text-[#4a3424] shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur transition-colors hover:bg-[#fff0d4]"
           >
-            {place.label}
+            <Key>E</Key>
+            Sit down with {GUIDE_NAME}
+            <span className="flex items-center gap-1 text-[12.5px] font-normal text-[#8a6a4a]">
+              · grows <GardenIcon id={nextItem.id} size={18} /> {nextItem.label.toLowerCase()}
+            </span>
           </button>
-        ))}
-        <span className="max-w-[7.5rem] px-2.5 pt-1 pb-1 text-[11px] leading-snug text-[#a08060]">Or double-click anywhere. R to come back.</span>
-      </nav>
+        </div>
+      )}
 
       {/* 3. the side panel: chat and code at the table (kept mounted, so switching tabs loses nothing); stories and help any time */}
       {showPanel && (
@@ -826,37 +869,44 @@ export default function World() {
         </div>
       )}
 
-      {/* the creature you clicked on at the pond, and what it can do (at the top, clear of the cards below) */}
+      {/* the creature you're by (or clicked on), and what it can do: click, or press its number */}
       {picked && (
-        <div className="pointer-events-none absolute inset-x-0 top-4 z-20 flex justify-center px-3">
+        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-3">
           <div className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-[#fff8ec]/95 p-1.5 shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur">
             <span className="px-2.5 text-[13px] text-[#8a6a4a]">{CRITTERS[picked.kind].name}</span>
-            {CRITTERS[picked.kind].actions.map((action) => (
+            {CRITTERS[picked.kind].actions.map((action, i) => (
               <button
                 key={action.label}
                 onClick={() => doCritter(picked, action)}
-                className="rounded-full px-3.5 py-2 text-[13.5px] font-bold text-[#4a3424] transition-colors hover:bg-[#fff0d4] active:bg-[#ffe1a1]"
+                className="flex items-center gap-1.5 rounded-full py-1.5 pr-3.5 pl-1.5 text-[13.5px] font-bold text-[#4a3424] transition-colors hover:bg-[#fff0d4] active:bg-[#ffe1a1]"
               >
+                <Key>{i + 1}</Key>
                 {action.label}
               </button>
             ))}
-            <button onClick={() => setCritter(null)} title="Let go" aria-label="Let go" className="rounded-full p-2 text-[#8a6a4a] transition-colors hover:bg-[#fff0d4]">
-              <CloseIcon />
-            </button>
+            {critter && (
+              <button onClick={() => setCritter(null)} title="Let go" aria-label="Let go" className="rounded-full p-2 text-[#8a6a4a] transition-colors hover:bg-[#fff0d4]">
+                <CloseIcon />
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {/* the dock: home, your stories, help and sound, always in the same place */}
-      <nav className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center px-3">
+      {/* the dock: home, your stories, help and sound. Out exploring it shrinks to a row of icons in the corner, out of the
+          way of the view */}
+      <nav
+        className={`pointer-events-none absolute z-20 flex px-3 ${exploring ? "top-3 left-0 justify-start" : "inset-x-0 bottom-3 justify-center"}`}
+      >
         <div className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-[#fff8ec]/95 p-1.5 shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur">
-          <DockButton icon={<HomeIcon />} label="Home" active={mode === "splash"} onClick={goHome} title="Back to the start" />
-          <DockButton icon={<IslandIcon />} label="Island" active={panel === "island"} onClick={() => toggleTab("island")} title="What you've grown, and what's next" />
-          <DockButton icon={<BookIcon />} label={`Stories${stories.length ? ` (${stories.length})` : ""}`} active={panel === "stories"} onClick={() => toggleTab("stories")} />
-          <DockButton icon={<HelpIcon />} label="Help" active={panel === "help"} onClick={() => toggleTab("help")} />
+          <DockButton icon={<HomeIcon />} label="Home" compact={exploring} active={mode === "splash"} onClick={goHome} title="Back to the start" />
+          <DockButton icon={<IslandIcon />} label="Island" compact={exploring} active={panel === "island"} onClick={() => toggleTab("island")} title="What you've grown, and what's next" />
+          <DockButton icon={<BookIcon />} label={`Stories${stories.length ? ` (${stories.length})` : ""}`} compact={exploring} active={panel === "stories"} onClick={() => toggleTab("stories")} title="Your stories" />
+          <DockButton icon={<HelpIcon />} label="Help" compact={exploring} active={panel === "help"} onClick={() => toggleTab("help")} title="Help" />
           <DockButton
             icon={<SpeakerIcon off={!sound.enabled} />}
             label={sound.enabled ? `Sound ${Math.round(sound.levels.music * 100)}%` : "Sound off"}
+            compact={exploring}
             active={soundOpen}
             onClick={() => setSoundOpen((v) => !v)}
             title="Volume"
