@@ -5,13 +5,14 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { isDrag } from "./controls";
 import { takeAction, type CritterKind, type CritterPick } from "./critters";
-import { DOCK, POND, WATER_COMMON, WATER_END, groundY, pondEdge, pondRadius, rng, tickWater, waterMaterial } from "./island";
+import { BoxLantern, DOCK, POND, WATER_COMMON, WATER_END, groundY, isOpen, pondEdge, pondRadius, rng, tickWater, waterMaterial } from "./island";
 import { lilyPadTexture } from "./textures";
 import { swayingToon, toon } from "./toon";
 
 // The pond, after a little painted diorama of a busy afternoon at a pond: teal water that's darker and cloudier in the
-// middle, a sandy shore fringed with reeds, cattails and pebbles, lily pads with pink lotus, a wooden dock, and its
-// residents: a frog on a lily pad, two ducks paddling about and three koi. Click one (on the island, not at the table)
+// middle with petals drifting on it, a sandy shore fringed with reeds, cattails, pebbles and mossy rocks, lily pads with
+// pink and white lotus, a wooden dock with a bucket and a lantern, and its residents: a frog on a lily pad, two ducks
+// paddling about and two more pottering on the grass, three koi, a little school of minnows and two dragonflies. Click one (on the island, not at the table)
 // and it shows what it can do (see critters.ts); each action plays out here, with ripples and splashes.
 
 const WATER_Y = -0.11;
@@ -210,6 +211,15 @@ function Shore() {
         out.push({ ...p, s: 0.07 + r() * 0.09, rot: r() * 6, c: ["#d3cdd6", "#bfb8c6", "#e4ded9"][Math.floor(r() * 3)] });
       }
     }
+    // and a few bigger mossy rocks out on the grass
+    for (let k = 0; k < 4; k++) {
+      const theta = 1.9 + k * 1.15 + r() * 0.3;
+      for (let j = 0; j < 2 + Math.floor(r() * 2); j++) {
+        const p = shore(theta + (r() - 0.5) * 0.18, 0.75 + r() * 0.45);
+        if (dockDist(p.x, p.z) < 1 || !isOpen(p.x, p.z)) continue;
+        out.push({ ...p, s: j === 0 ? 0.2 + r() * 0.1 : 0.1 + r() * 0.08, rot: r() * 6, c: ["#c9c3cf", "#b5b0bd", "#a9b49a"][Math.floor(r() * 3)] });
+      }
+    }
     return out;
   }, []);
 
@@ -284,7 +294,7 @@ const PADS: Pad[] = (() => {
     const x = POND.x + Math.cos(theta) * d, z = POND.z + Math.sin(theta) * d, s = 0.26 + r() * 0.2;
     if (pondEdge(x, z) > -0.35 - s || dockDist(x, z) < s + 0.5) continue;
     if (out.some((p) => Math.hypot(p.x - x, p.z - z) < p.s + s + 0.18)) continue;
-    out.push({ x, z, s, rot: r() * Math.PI * 2, lotus: r() > 0.55 });
+    out.push({ x, z, s, rot: r() * Math.PI * 2, lotus: r() > 0.45 });
   }
   return out;
 })();
@@ -296,20 +306,20 @@ const FROG_PADS = PADS.map((p, i) => ({ i, d: Math.hypot(p.x - DOCK_TIP.x, p.z -
   .map((p) => p.i);
 FROG_PADS.forEach((i) => (PADS[i].lotus = false));
 
-/** A pink lotus: an outer ring of petals opening out, an inner ring cupped up, and a golden middle. */
-function Lotus() {
+/** A lotus (pink, or a white water lily): an outer ring of petals opening out, an inner ring cupped up, and a golden middle. */
+function Lotus({ white = false }: { white?: boolean }) {
   return (
     <group>
       {Array.from({ length: 8 }, (_, k) => (
         <group key={k} rotation={[0, (k / 8) * Math.PI * 2, 0]}>
-          <mesh position={[0, 0.03, 0.05]} rotation={[-0.75, 0, 0]} scale={[0.032, 0.012, 0.07]} material={toon("#f6a2c4", true)}>
+          <mesh position={[0, 0.03, 0.05]} rotation={[-0.75, 0, 0]} scale={[0.032, 0.012, 0.07]} material={toon(white ? "#fbf7f0" : "#f6a2c4", true)}>
             <sphereGeometry args={[1, 10, 8]} />
           </mesh>
         </group>
       ))}
       {Array.from({ length: 5 }, (_, k) => (
         <group key={k} rotation={[0, (k / 5) * Math.PI * 2 + 0.3, 0]}>
-          <mesh position={[0, 0.06, 0.025]} rotation={[-0.3, 0, 0]} scale={[0.025, 0.012, 0.055]} material={toon("#ffd0e2", true)}>
+          <mesh position={[0, 0.06, 0.025]} rotation={[-0.3, 0, 0]} scale={[0.025, 0.012, 0.055]} material={toon(white ? "#fff3dc" : "#ffd0e2", true)}>
             <sphereGeometry args={[1, 10, 8]} />
           </mesh>
         </group>
@@ -332,7 +342,7 @@ function LilyPads() {
           </mesh>
           {p.lotus && (
             <group position={[p.s * 0.25, 0, -p.s * 0.2]}>
-              <Lotus />
+              <Lotus white={i % 3 === 0} />
             </group>
           )}
         </group>
@@ -358,6 +368,22 @@ function Dock() {
           <boxGeometry args={[0.07, 0.07, L - START]} />
         </mesh>
       ))}
+      {/* a tin bucket, and a lantern on a post at the end that glows at dusk */}
+      <group position={[0.22, TOP + 0.025, L - 0.45]}>
+        <mesh position={[0, 0.07, 0]} material={toon("#9fb4c4", true)} castShadow>
+          <cylinderGeometry args={[0.085, 0.065, 0.14, 16, 1, true]} />
+        </mesh>
+        <mesh position={[0, 0.005, 0]} material={toon("#8aa0b0")}>
+          <cylinderGeometry args={[0.065, 0.065, 0.01, 16]} />
+        </mesh>
+        <mesh position={[0, 0.12, 0]} rotation={[0, 0, 0]} material={toon("#6f8090")}>
+          <torusGeometry args={[0.085, 0.006, 6, 20, Math.PI]} />
+        </mesh>
+      </group>
+      <mesh position={[-0.36, TOP + 0.25, L - 0.06]} material={toon("#7d5638")} castShadow>
+        <cylinderGeometry args={[0.03, 0.035, 0.5, 8]} />
+      </mesh>
+      <BoxLantern position={[-0.36, TOP + 0.5, L - 0.06]} scale={0.8} />
       {[0.55, 1.25, L - 0.06].flatMap((z) =>
         [-0.38, 0.38].map((x) => (
           <mesh key={`${z}${x}`} position={[x, z > L - 0.1 ? -0.12 : -0.17, z]} material={toon("#7d5638")} castShadow>
@@ -591,6 +617,55 @@ export function duckPath(i: number, t: number) {
   return { x, z, heading };
 }
 
+
+/** A duck (facing +z): cream body, brown back and wings, a dark brown head that can bob, and feet if it's on land. */
+function DuckModel({ body, head, wings, feet = false }: { body: React.Ref<THREE.Group>; head: React.Ref<THREE.Group>; wings: React.Ref<THREE.Group>; feet?: boolean }) {
+  return (
+    <group ref={body}>
+      <mesh position={[0, 0.05, 0]} scale={[0.15, 0.11, 0.21]} material={toon("#f4ede0", true)} castShadow>
+        <sphereGeometry args={[1, 20, 14]} />
+      </mesh>
+      <mesh position={[0, 0.1, -0.03]} scale={[0.12, 0.06, 0.15]} material={toon("#9a6a46")} castShadow>
+        <sphereGeometry args={[1, 16, 12]} />
+      </mesh>
+      <mesh position={[0, 0.11, -0.2]} rotation={[-2.3, 0, 0]} scale={[1, 1, 0.5]} material={toon("#7a5236")}>
+        <coneGeometry args={[0.05, 0.12, 8]} />
+      </mesh>
+      <group ref={wings}>
+        {[-1, 1].map((side) => (
+          <group key={side} position={[side * 0.12, 0.1, -0.02]}>
+            <mesh position={[side * 0.02, 0, 0]} scale={[0.035, 0.06, 0.13]} material={toon("#8d6040")} castShadow>
+              <sphereGeometry args={[1, 12, 10]} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+      <group ref={head} position={[0, 0.13, 0.13]}>
+        <mesh position={[0, 0.03, 0.01]} material={toon("#f4ede0", true)}>
+          <cylinderGeometry args={[0.045, 0.055, 0.1, 12]} />
+        </mesh>
+        <mesh position={[0, 0.1, 0.03]} material={toon("#6e4630")} castShadow>
+          <sphereGeometry args={[0.075, 16, 12]} />
+        </mesh>
+        <mesh position={[0, 0.09, 0.11]} scale={[0.036, 0.016, 0.05]} material={toon("#f2a144")}>
+          <sphereGeometry args={[1, 12, 8]} />
+        </mesh>
+        {[-1, 1].map((side) => (
+          <mesh key={side} position={[side * 0.052, 0.12, 0.07]} material={toon("#1f1a17")}>
+            <sphereGeometry args={[0.011, 8, 6]} />
+          </mesh>
+        ))}
+      </group>
+      {feet &&
+        [-1, 1].map((side) => (
+          <mesh key={side} position={[side * 0.06, -0.045, 0.04]} scale={[0.035, 0.01, 0.05]} material={toon("#f2a144")}>
+            <sphereGeometry args={[1, 10, 6]} />
+          </mesh>
+        ))}
+    </group>
+  );
+}
+
 /** A duck paddling round the pond. Quack: bobs its head. Dive: tips up, tail in the air. Flap: rises and flaps. */
 function Duck({ index, ...props }: PickProps & { index: number }) {
   const outer = useRef<THREE.Group>(null);
@@ -628,44 +703,225 @@ function Duck({ index, ...props }: PickProps & { index: number }) {
   return (
     <group ref={outer} {...handlers}>
       <PickRing on={isPicked(props.picked, "duck", index)} r={0.36} />
-      <group ref={body}>
-        <mesh position={[0, 0.05, 0]} scale={[0.15, 0.11, 0.21]} material={toon("#f4ede0", true)} castShadow>
-          <sphereGeometry args={[1, 20, 14]} />
-        </mesh>
-        <mesh position={[0, 0.1, -0.03]} scale={[0.12, 0.06, 0.15]} material={toon("#9a6a46")} castShadow>
-          <sphereGeometry args={[1, 16, 12]} />
-        </mesh>
-        <mesh position={[0, 0.11, -0.2]} rotation={[-2.3, 0, 0]} scale={[1, 1, 0.5]} material={toon("#7a5236")}>
-          <coneGeometry args={[0.05, 0.12, 8]} />
-        </mesh>
-        <group ref={wings}>
-          {[-1, 1].map((side) => (
-            <group key={side} position={[side * 0.12, 0.1, -0.02]}>
-              <mesh position={[side * 0.02, 0, 0]} scale={[0.035, 0.06, 0.13]} material={toon("#8d6040")} castShadow>
-                <sphereGeometry args={[1, 12, 10]} />
-              </mesh>
-            </group>
-          ))}
-        </group>
-        <group ref={head} position={[0, 0.13, 0.13]}>
-          <mesh position={[0, 0.03, 0.01]} material={toon("#f4ede0", true)}>
-            <cylinderGeometry args={[0.045, 0.055, 0.1, 12]} />
-          </mesh>
-          <mesh position={[0, 0.1, 0.03]} material={toon("#6e4630")} castShadow>
-            <sphereGeometry args={[0.075, 16, 12]} />
-          </mesh>
-          <mesh position={[0, 0.09, 0.11]} scale={[0.036, 0.016, 0.05]} material={toon("#f2a144")}>
-            <sphereGeometry args={[1, 12, 8]} />
-          </mesh>
-          {[-1, 1].map((side) => (
-            <mesh key={side} position={[side * 0.052, 0.12, 0.07]} material={toon("#1f1a17")}>
-              <sphereGeometry args={[0.011, 8, 6]} />
-            </mesh>
-          ))}
-        </group>
-      </group>
+      <DuckModel body={body} head={head} wings={wings} />
       <HitArea r={0.26} y={0.1} />
     </group>
+  );
+}
+
+/** Where the ducks on the grass potter about: a few spots in a band of grass round the pond, clear of the dock. */
+const GRASS_SPOTS = (() => {
+  const r = rng(88), out: { x: number; z: number }[] = [];
+  for (let tries = 0; out.length < 14 && tries < 600; tries++) {
+    const p = shore(1.6 + r() * 3.6, 0.6 + r() * 0.6);
+    if (dockDist(p.x, p.z) > 1.2 && isOpen(p.x, p.z)) out.push(p);
+  }
+  return out;
+})();
+
+/**
+ * A duck out on the grass by the pond. It pecks at the ground and waddles to a new spot now and then on its own.
+ * Quack: bobs its head. Peck: pecks the ground. Waddle: wanders off to somewhere new.
+ */
+function GrassDuck({ index, ...props }: PickProps & { index: number }) {
+  const outer = useRef<THREE.Group>(null);
+  const body = useRef<THREE.Group>(null);
+  const head = useRef<THREE.Group>(null);
+  const wings = useRef<THREE.Group>(null);
+  const state = useRef({
+    spot: index * 7,
+    from: { x: 0, z: 0 },
+    walk: -10,
+    walkFor: 1,
+    peck: -10,
+    quack: -10,
+    heading: index * 2,
+    nextIdle: 3 + index * 2.5,
+  });
+  useFrame(({ clock }, dt) => {
+    const t = clock.getElapsedTime(), s = state.current, g = outer.current;
+    if (!g || !body.current || GRASS_SPOTS.length < 2) return;
+    const here = GRASS_SPOTS[s.spot % GRASS_SPOTS.length];
+    const walking = t - s.walk < s.walkFor;
+    const waddle = () => {
+      if (walking) return;
+      const cur = g.position;
+      s.from = { x: cur.x, z: cur.z };
+      s.spot = (s.spot + 1 + Math.floor(Math.random() * 3)) % GRASS_SPOTS.length;
+      const to = GRASS_SPOTS[s.spot];
+      s.walkFor = Math.max(1, Math.hypot(to.x - cur.x, to.z - cur.z) / 0.3); // a slow 0.3 m/s
+      s.walk = t;
+    };
+    const action = takeAction("grassDuck", index);
+    if (action === "Quack") s.quack = t;
+    if (action === "Peck") s.peck = t;
+    if (action === "Waddle") waddle();
+    if (t > s.nextIdle) {
+      // left to itself: mostly pecking, sometimes a little walk
+      if (Math.random() < 0.35) waddle();
+      else s.peck = t;
+      s.nextIdle = t + 4 + Math.random() * 5;
+    }
+
+    let x = here.x, z = here.z;
+    if (t - s.walk < s.walkFor) {
+      const k = (t - s.walk) / s.walkFor;
+      x = s.from.x + (here.x - s.from.x) * k;
+      z = s.from.z + (here.z - s.from.z) * k;
+      s.heading = turn(s.heading, Math.atan2(here.x - s.from.x, here.z - s.from.z), Math.min(1, dt * 8));
+    } else if (s.walk < 0) {
+      s.from = { x, z };
+    }
+    const stepping = t - s.walk < s.walkFor;
+    g.position.set(x, groundY(x, z) + 0.045, z);
+    g.rotation.y = s.heading;
+    body.current.rotation.z = stepping ? Math.sin(t * 11) * 0.14 : 0; // the waddle
+    const pk = (t - s.peck) / 0.9;
+    body.current.rotation.x = pk >= 0 && pk < 1 ? Math.abs(Math.sin(pk * Math.PI * 2)) * 0.75 : 0;
+    body.current.position.y = stepping ? Math.abs(Math.sin(t * 11)) * 0.02 : 0;
+    const qk = (t - s.quack) / 0.7;
+    if (head.current) head.current.rotation.x = qk >= 0 && qk < 1 ? Math.sin(qk * Math.PI * 4) * 0.4 * (1 - qk) : 0;
+  });
+
+  return (
+    <group ref={outer} {...pickHandlers(props, "grassDuck", index)}>
+      <PickRing on={isPicked(props.picked, "grassDuck", index)} r={0.36} />
+      <DuckModel body={body} head={head} wings={wings} feet />
+      <HitArea r={0.26} y={0.1} />
+    </group>
+  );
+}
+
+/** A little school of minnows darting about together just under the surface. */
+function Minnows() {
+  const group = useRef<THREE.Group>(null);
+  const COUNT = 7;
+  const offsets = useMemo(() => {
+    const r = rng(29);
+    return Array.from({ length: COUNT }, () => ({ a: r() * Math.PI * 2, d: 0.08 + r() * 0.18, speed: 0.8 + r() * 0.8 }));
+  }, []);
+  const schoolRef = useRef({ x: POND.x, z: POND.z, heading: 0, goal: { x: POND.x, z: POND.z }, next: 0 });
+  useFrame(({ clock }, dt) => {
+    const t = clock.getElapsedTime(), school = schoolRef.current;
+    if (t > school.next) {
+      // every couple of seconds the school darts off somewhere new in the open water
+      for (let tries = 0; tries < 20; tries++) {
+        const a = Math.random() * Math.PI * 2, d = Math.random() * 1.6;
+        const x = POND.x + Math.cos(a) * d, z = POND.z + Math.sin(a) * d;
+        if (pondEdge(x, z) < -0.5 && dockDist(x, z) > 0.6) {
+          school.goal = { x, z };
+          break;
+        }
+      }
+      school.next = t + 1.5 + Math.random() * 2.5;
+    }
+    const px = school.x, pz = school.z, f = Math.min(1, dt * 1.8);
+    school.x += (school.goal.x - school.x) * f;
+    school.z += (school.goal.z - school.z) * f;
+    if (Math.hypot(school.x - px, school.z - pz) > 1e-4) school.heading = turn(school.heading, Math.atan2(school.x - px, school.z - pz), Math.min(1, dt * 6));
+    group.current?.children.forEach((fish, i) => {
+      const o = offsets[i], a = o.a + Math.sin(t * o.speed + i) * 0.5;
+      fish.position.set(school.x + Math.cos(a) * o.d, WATER_Y - 0.012, school.z + Math.sin(a) * o.d);
+      fish.rotation.y = school.heading + Math.sin(t * 9 + i) * 0.15;
+    });
+  });
+  return (
+    <group ref={group}>
+      {offsets.map((_, i) => (
+        <mesh key={i} scale={[0.022, 0.016, 0.065]} material={toon("#c9d4da", true)}>
+          <sphereGeometry args={[1, 10, 8]} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/** Two dragonflies, hovering over the water and darting from spot to spot. */
+function Dragonflies() {
+  const group = useRef<THREE.Group>(null);
+  const fliesRef = useRef(
+    [0, 1].map((i) => ({ pos: new THREE.Vector3(POND.x + i - 0.5, 0.4, POND.z), goal: new THREE.Vector3(POND.x, 0.4, POND.z), heading: 0, next: i * 1.3 })),
+  );
+  useFrame(({ clock }, dt) => {
+    const t = clock.getElapsedTime(), flies = fliesRef.current;
+    flies.forEach((f, i) => {
+      if (t > f.next) {
+        const a = Math.random() * Math.PI * 2, d = Math.random() * (POND.r + 0.3);
+        f.goal.set(POND.x + Math.cos(a) * d, 0.25 + Math.random() * 0.45, POND.z + Math.sin(a) * d);
+        f.next = t + 1.2 + Math.random() * 2.2;
+      }
+      const px = f.pos.x, pz = f.pos.z;
+      f.pos.lerp(f.goal, Math.min(1, dt * 3.5));
+      if (Math.hypot(f.pos.x - px, f.pos.z - pz) > 1e-3) f.heading = turn(f.heading, Math.atan2(f.pos.x - px, f.pos.z - pz), Math.min(1, dt * 10));
+      const fly = group.current?.children[i];
+      if (!fly) return;
+      fly.position.set(f.pos.x, f.pos.y + Math.sin(t * 7 + i) * 0.01, f.pos.z);
+      fly.rotation.y = f.heading;
+      // the wings shimmer
+      fly.children.forEach((w, j) => j > 1 && (w.rotation.z = (j % 2 ? 1 : -1) * (0.15 + Math.sin(t * 70 + j) * 0.25)));
+    });
+  });
+  const wing = useMemo(() => new THREE.MeshBasicMaterial({ color: "#eaf6ff", transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }), []);
+  return (
+    <group ref={group}>
+      {[0, 1].map((i) => (
+        <group key={i}>
+          <mesh rotation={[Math.PI / 2, 0, 0]} material={toon(i ? "#3fa7c9" : "#5b8fd8")}>
+            <capsuleGeometry args={[0.009, 0.13, 3, 6]} />
+          </mesh>
+          <mesh position={[0, 0, 0.08]} material={toon("#2c5f86")}>
+            <sphereGeometry args={[0.016, 8, 6]} />
+          </mesh>
+          {[0.035, 0.005].flatMap((z) =>
+            [-1, 1].map((side) => (
+              <mesh key={`${z}${side}`} position={[side * 0.045, 0.006, z]} rotation={[-Math.PI / 2, 0, 0]} material={wing}>
+                <planeGeometry args={[0.08, 0.018]} />
+              </mesh>
+            )),
+          )}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/** Blossom petals and tiny flowers that have fallen on the water, drifting slowly round the pond. */
+function FloatingPetals() {
+  const mesh = useRef<THREE.InstancedMesh>(null);
+  const COUNT = 30;
+  const petals = useMemo(() => {
+    const r = rng(47);
+    return Array.from({ length: COUNT }, () => {
+      const theta = r() * Math.PI * 2;
+      return { theta, d: (0.2 + r() * 0.75) * (pondRadius(theta) - 0.35), speed: (0.01 + r() * 0.02) * (r() > 0.5 ? 1 : -1), spin: r() * 6, s: 0.7 + r() * 0.6 };
+    });
+  }, []);
+  const tmp = useMemo(() => new THREE.Object3D(), []);
+  useLayoutEffect(() => {
+    const colors = ["#ffc4d6", "#ffffff", "#ffd9e4", "#ffe680"];
+    const c = new THREE.Color();
+    petals.forEach((_, i) => mesh.current?.setColorAt(i, c.set(colors[i % colors.length])));
+    if (mesh.current?.instanceColor) mesh.current.instanceColor.needsUpdate = true;
+  }, [petals]);
+  useFrame(({ clock }) => {
+    const m = mesh.current;
+    if (!m) return;
+    const t = clock.getElapsedTime();
+    petals.forEach((p, i) => {
+      const a = p.theta + t * p.speed;
+      tmp.position.set(POND.x + Math.cos(a) * p.d, WATER_Y + 0.003, POND.z + Math.sin(a) * p.d);
+      tmp.rotation.set(-Math.PI / 2, 0, p.spin + t * p.speed * 4);
+      tmp.scale.setScalar(p.s);
+      tmp.updateMatrix();
+      m.setMatrixAt(i, tmp.matrix);
+    });
+    m.instanceMatrix.needsUpdate = true;
+  });
+  return (
+    <instancedMesh ref={mesh} args={[undefined, undefined, COUNT]} frustumCulled={false}>
+      <circleGeometry args={[0.028, 8]} />
+      <meshBasicMaterial />
+    </instancedMesh>
   );
 }
 
@@ -688,7 +944,7 @@ function Koi(props: PickProps) {
   const tails = useRef<(THREE.Group | null)[]>([]);
   const pellets = useRef<THREE.Group>(null);
   const fish = useMemo(
-    () => KOI.map((_, i) => ({ pos: new THREE.Vector3(koiPath(i, 0).x, 0, koiPath(i, 0).z), heading: 0, clock: 0, dash: -10, jump: -10, landed: true })),
+    () => KOI.map((_, i) => ({ pos: new THREE.Vector3(koiPath(i, 0).x, 0, koiPath(i, 0).z), heading: 0, clock: 0, dash: -10, jump: -10, landed: true, nextRipple: 2 + i * 1.7 })),
     [],
   );
   const feed = useRef({ t0: -100, x: 0, z: 0 });
@@ -724,6 +980,11 @@ function Koi(props: PickProps) {
 
       const jk = (t - k.jump) / 1.0;
       const jumping = jk >= 0 && jk < 1;
+      if (t > k.nextRipple) {
+        // now and then a koi noses the surface
+        if (!jumping) ripple(k.pos.x + Math.sin(k.heading) * 0.15, k.pos.z + Math.cos(k.heading) * 0.15, 0.45);
+        k.nextRipple = t + 3 + Math.random() * 4;
+      }
       if (!jumping && !k.landed) {
         k.landed = true;
         splash(k.pos.x, k.pos.z, 10, 0.7);
@@ -802,6 +1063,12 @@ export function Pond(props: PickProps) {
         <Duck key={i} index={i} {...props} />
       ))}
       <Koi {...props} />
+      {[0, 1].map((i) => (
+        <GrassDuck key={i} index={i} {...props} />
+      ))}
+      <Minnows />
+      <Dragonflies />
+      <FloatingPetals />
     </>
   );
 }
