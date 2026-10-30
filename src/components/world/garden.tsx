@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { gardenItem, type GardenItemId } from "@/lib/garden";
 import { BoxLantern, GARDEN_SLOTS, POND, groundY } from "./island";
 import { duckPath } from "./pond";
+import { Bench } from "./village";
 import { toon } from "./toon";
 
 // The things your island grows as you practise (one per finished session; see lib/garden.ts). Each is a little toy
@@ -149,24 +150,6 @@ function BlossomTree({ blossom, fruit }: { blossom: string[]; fruit?: string }) 
   );
 }
 
-function Bench() {
-  const wood = toon("#b07a4f"), dark = toon("#7a5a40");
-  return (
-    <group>
-      <mesh position={[0, 0.42, 0]} material={wood} castShadow>
-        <boxGeometry args={[1.3, 0.07, 0.4]} />
-      </mesh>
-      <mesh position={[0, 0.72, -0.18]} rotation={[-0.15, 0, 0]} material={wood} castShadow>
-        <boxGeometry args={[1.3, 0.3, 0.06]} />
-      </mesh>
-      {[-0.55, 0.55].map((x) => (
-        <mesh key={x} position={[x, 0.2, 0]} material={dark}>
-          <boxGeometry args={[0.08, 0.42, 0.36]} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
 
 function Beehive() {
   const bees = useRef<THREE.Group>(null);
@@ -336,7 +319,7 @@ const MODELS: Record<GardenItemId, () => ReactNode> = {
   sunflowers: () => <Sunflowers />,
   lanternpost: () => <LanternPost />,
   cherry: () => <BlossomTree blossom={["#ffc4d8", "#ffb0cb", "#ffd6e4"]} />,
-  bench: () => <Bench />,
+  bench: () => <Bench id="garden-bench" />, // one you can sit on, like the others
   beehive: () => <Beehive />,
   ducks: () => <Ducks />,
   mushrooms: () => <Mushrooms />,
