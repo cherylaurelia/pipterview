@@ -134,6 +134,49 @@ export function isOpen(x: number, z: number, pad = 0) {
   return true;
 }
 
+/** (x, z) in a frame set at (ox, oz) and turned by `angle` (as a group with rotation-y `angle` would be). */
+function local(x: number, z: number, ox: number, oz: number, angle: number) {
+  const dx = x - ox, dz = z - oz;
+  return { x: dx * Math.cos(angle) - dz * Math.sin(angle), z: dx * Math.sin(angle) + dz * Math.cos(angle) };
+}
+
+const BRIDGE_LENGTH = 2.9;
+const onBridge = (x: number, z: number) => {
+  const p = local(x, z, BRIDGE.x, BRIDGE.z, BRIDGE.angle);
+  return Math.abs(p.x) < 0.5 && Math.abs(p.z) < BRIDGE_LENGTH / 2 + 0.1 ? p : null;
+};
+const onDock = (x: number, z: number) => {
+  const p = local(x, z, DOCK.x, DOCK.z, DOCK.angle);
+  return Math.abs(p.x) < 0.36 && p.z > -0.5 && p.z < DOCK.length - 0.05;
+};
+
+/**
+ * Whether you can stand at (x, z) when walking about the island: on it, out of the pond (unless you're on the dock)
+ * and the stream (unless you're on the bridge), and not inside the buildings, the wheat or the table and chairs.
+ * Trees are left to the caller (see landscape.tsx).
+ */
+export function walkable(x: number, z: number) {
+  if (insideRadius(x, z) > 0.96) return false;
+  if (onDock(x, z) || onBridge(x, z)) return true;
+  if (pondEdge(x, z) < 0.05) return false;
+  if (distTo(STREAM_PTS, x, z) < 0.85) return false;
+  if (Math.hypot(x, z) < 0.95 || Math.hypot(x, z - 1.15) < 0.4 || Math.hypot(x, z + 1.15) < 0.4) return false; // table and chairs
+  if (Math.hypot(x - COTTAGE.x, z - COTTAGE.z) < 1.7 || Math.hypot(x - WINDMILL.x, z - WINDMILL.z) < 0.85) return false;
+  if (x > FIELD.x0 - 0.1 && x < FIELD.x1 + 0.1 && z > FIELD.z0 - 0.1 && z < FIELD.z1 + 0.1) return false;
+  return true;
+}
+
+/** The height you stand at, at (x, z): the ground, the dock's boards or the bridge's arch. */
+export function surfaceY(x: number, z: number) {
+  if (onDock(x, z)) return 0.095;
+  const b = onBridge(x, z);
+  if (b) {
+    const t = Math.min(1, Math.max(0, b.z / BRIDGE_LENGTH + 0.5));
+    return Math.max(groundY(x, z), 0.06 + 0.38 * Math.sin(Math.PI * t) + 0.11);
+  }
+  return groundY(x, z);
+}
+
 // The world view looks at the table from the +x/+z side; keep tall things out of that line of sight.
 const VIEW_BEARING = Math.atan2(9.5, 8.5);
 export const inView = (x: number, z: number) => Math.abs(Math.atan2(z, x) - VIEW_BEARING) < 0.85;
@@ -459,7 +502,7 @@ export function BoxLantern({ position, scale = 1 }: { position: [number, number,
 
 /** An arched stone footbridge where the path crosses the stream. */
 function Bridge() {
-  const L = 2.9, SEG = 11, stone = toon("#dedad1"), cap = toon("#cbc6bb");
+  const L = BRIDGE_LENGTH, SEG = 11, stone = toon("#dedad1"), cap = toon("#cbc6bb");
   const arch = (t: number) => 0.06 + 0.38 * Math.sin(Math.PI * t);
   return (
     <group position={[BRIDGE.x, 0, BRIDGE.z]} rotation={[0, BRIDGE.angle, 0]}>
