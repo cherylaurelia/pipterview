@@ -91,6 +91,16 @@ function withImages(text: string, work: WorkspaceSnapshot[]): Anthropic.Beta.Bet
   return blocks;
 }
 
+/** What the interviewer has already asked on the current question (follow-ups and hints), most recent last. */
+function askedOnQuestion(state: SessionState, transcript: TranscriptEntry[]) {
+  const id = currentQuestion(state)?.id;
+  if (!id) return [];
+  return transcript
+    .filter((e) => e.role === "interviewer" && e.questionId === id && (e.action === "follow_up" || e.action === "hint"))
+    .slice(-4)
+    .map((e) => e.text.slice(0, 220));
+}
+
 /** Whether the candidate has shared code for the question currently being asked. */
 function codeSharedFor(state: SessionState, transcript: TranscriptEntry[]) {
   const id = currentQuestion(state)?.id;
@@ -117,6 +127,7 @@ export async function interviewerTurn(
   const context: DirectiveContext = {
     codeShared: codeSharedFor(state, transcript),
     stress: last?.role === "candidate" ? last.stressSignals : undefined,
+    asked: askedOnQuestion(state, transcript),
   };
   const adapted = Boolean(stressGuidance(state, context.stress)) && state.settings.intensity !== "realistic";
   if (MOCK_ENABLED) {
@@ -181,12 +192,12 @@ async function streamMockSay(text: string, onSay: (text: string) => void, signal
  * Builds a new session. With a resume or job description, Claude writes
  * questions for this candidate; otherwise they come from the bank.
  */
-export async function startSession(typeId: InterviewTypeId, settings?: SessionSettings, profile?: Profile): Promise<SessionState> {
-  if (!profile) return createSession(typeId, { settings });
+export async function startSession(typeId: InterviewTypeId, settings?: SessionSettings, profile?: Profile, avoid: string[] = []): Promise<SessionState> {
+  if (!profile) return createSession(typeId, { settings, avoid });
   if (!hasTailoringMaterial(profile)) {
-    return createSession(typeId, { settings, candidate: { role: profile.role, summary: "No resume or job description provided." } });
+    return createSession(typeId, { settings, avoid, candidate: { role: profile.role, summary: "No resume or job description provided." } });
   }
-  if (MOCK_ENABLED) return createSession(typeId, { settings, ...mockTailoring(typeId, profile, questionCount(typeId, settings)) });
+  if (MOCK_ENABLED) return createSession(typeId, { settings, ...mockTailoring(typeId, profile, questionCount(typeId, settings), avoid) });
 
   const content: Anthropic.Beta.BetaContentBlockParam[] = [];
   if (profile.resumePdf) {
@@ -210,13 +221,13 @@ export async function startSession(typeId: InterviewTypeId, settings?: SessionSe
   const { candidateSummary, questions } = response.parsed_output;
   return createSession(typeId, {
     settings,
-    questions: fillQuestions(typeId, questions, questionCount(typeId, settings)),
+    questions: fillQuestions(typeId, questions, questionCount(typeId, settings), avoid),
     candidate: { role: profile.role, summary: candidateSummary.slice(0, 2000) },
   });
 }
 
 /** Keeps tailored questions within the session schema's limits, topping up from the bank if too few came back. */
-function fillQuestions(typeId: InterviewTypeId, generated: Question[], wanted: number): Question[] {
+function fillQuestions(typeId: InterviewTypeId, generated: Question[], wanted: number, avoid: string[] = []): Question[] {
   const seen = new Set<string>();
   const cleaned = generated.slice(0, wanted).map((q, i) => {
     const id = seen.has(q.id) || !q.id ? `tailored-${i + 1}` : q.id.slice(0, 80);
@@ -232,7 +243,7 @@ function fillQuestions(typeId: InterviewTypeId, generated: Question[], wanted: n
       coding: typeId === "technical" ? CODING_SPECS[id] : undefined,
     };
   });
-  const extras = pickBankQuestions(typeId, Math.random, wanted).filter((q) => !seen.has(q.id));
+  const extras = pickBankQuestions(typeId, Math.random, wanted, avoid).filter((q) => !seen.has(q.id));
   return [...cleaned, ...extras].slice(0, wanted);
 }
 

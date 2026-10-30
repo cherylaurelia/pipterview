@@ -117,4 +117,6 @@ export const StartRequestSchema = z.object({
   typeId: z.enum(INTERVIEW_TYPE_IDS),
   settings: SettingsSchema.optional(),
   profile: ProfileSchema.optional(),
+  /** Questions this candidate has had recently, to skip while there are others. */
+  avoid: z.array(z.string().max(80)).max(60).optional(),
 });
