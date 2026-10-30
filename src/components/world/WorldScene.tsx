@@ -7,7 +7,7 @@ import type { CritterPick } from "./critters";
 import { daylight } from "./daylight";
 import { Effects } from "./effects";
 import { Garden } from "./garden";
-import { COLORS, GRASS_LAYER, Landscape } from "./landscape";
+import { COLORS, CROWNS, GRASS_LAYER, Landscape } from "./landscape";
 import { goHomeSpot, held, player, walkTo, type Nearby } from "./explore";
 import { surfaceY } from "./island";
 import { Figure, RoundTable, type Mood } from "./people";
@@ -38,6 +38,20 @@ interface UserView {
 
 const clamp = (v: number, [lo, hi]: readonly [number, number]) => Math.min(hi, Math.max(lo, v));
 
+/** How far along from `from` to `to` (0 to 1) the line first enters a tree crown or other camera blocker; 1 if never. */
+function blockedAt(from: THREE.Vector3, to: THREE.Vector3) {
+  const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z, len2 = dx * dx + dy * dy + dz * dz;
+  let nearest = 1;
+  for (const c of CROWNS) {
+    const ox = from.x - c.x, oy = from.y - c.y, oz = from.z - c.z;
+    const b = (ox * dx + oy * dy + oz * dz) / len2, cc = (ox * ox + oy * oy + oz * oz - c.r * c.r) / len2, disc = b * b - cc;
+    if (disc <= 0) continue;
+    const t = -b - Math.sqrt(disc);
+    if (t > 0 && t < nearest) nearest = t;
+  }
+  return nearest;
+}
+
 function goalFor(mode: WorldMode, t: number, view: UserView, aside: number, pos: THREE.Vector3, look: THREE.Vector3) {
   if (mode === "splash") {
     const a = 0.55 + t * 0.03 + view.spin;
@@ -48,7 +62,16 @@ function goalFor(mode: WorldMode, t: number, view: UserView, aside: number, pos:
   if (mode === "world") {
     const { az, el, dist } = view;
     look.set(player.pos.x, surfaceY(player.pos.x, player.pos.z) + ISLAND.lift, player.pos.z);
-    pos.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(dist).add(look);
+    // if a tree (or Pip, or the table) is between you and the camera, the camera rises over it, and only if that's not
+    // enough does it come in closer, rather than sitting inside the leaves
+    let nearest = 1;
+    for (const lift of [0, 0.18, 0.36, 0.54]) {
+      const e = Math.min(LIMITS.el[1], el + lift);
+      pos.set(Math.sin(az) * Math.cos(e), Math.sin(e), Math.cos(az) * Math.cos(e)).multiplyScalar(dist).add(look);
+      nearest = blockedAt(look, pos);
+      if (nearest >= 1) break;
+    }
+    if (nearest < 1) pos.lerpVectors(look, pos, Math.max(0.3, nearest - 0.06));
     return ISLAND.fov;
   }
   const p = SEATED.pitch + view.pitch;
@@ -213,12 +236,12 @@ function CameraRig({ mode, aside, onArrive }: { mode: WorldMode; aside: number; 
 // golden afternoon → sunset, for the lights and fog. The colours are chosen as pairs: a warm sun against a cool,
 // lavender sky light, so lit sides glow gold and shaded sides fall to soft violet-blue (the shader-pack look).
 const DAY = {
-  sky: new THREE.Color("#b8c4f2"), ground: new THREE.Color("#b3c27a"), sun: new THREE.Color("#ffd9a6"), fill: new THREE.Color("#ffd8cc"), fog: new THREE.Color(COLORS.fog),
+  sky: new THREE.Color("#d2d3ee"), ground: new THREE.Color("#c2c98a"), sun: new THREE.Color("#ffd9a6"), fill: new THREE.Color("#ffd8cc"), fog: new THREE.Color(COLORS.fog),
 };
 const SUNSET = {
   sky: new THREE.Color("#c7a6e6"), ground: new THREE.Color("#a07a6a"), sun: new THREE.Color("#ffab78"), fill: new THREE.Color("#ffb6c2"), fog: new THREE.Color(COLORS.fogSunset),
 };
-const SUN_POS = new THREE.Vector3(-11, 10, -13); // low, behind the guide: long shadows, warm rim light
+const SUN_POS = new THREE.Vector3(-11, 15, -13); // fairly low, behind the guide: soft shadows that don't swallow the island, warm rim light
 
 /** The sun, sky light and fog, easing from afternoon to sunset (over ~4 s) and back. */
 function DayCycle({ evening }: { evening: boolean }) {
@@ -232,11 +255,11 @@ function DayCycle({ evening }: { evening: boolean }) {
     if (hemi.current) {
       hemi.current.color.copy(DAY.sky).lerp(SUNSET.sky, e);
       hemi.current.groundColor.copy(DAY.ground).lerp(SUNSET.ground, e);
-      hemi.current.intensity = 1.1 - e * 0.15;
+      hemi.current.intensity = 1.4 - e * 0.25; // a strong, warm sky light, so shade stays soft rather than murky
     }
     if (sun.current) {
       sun.current.color.copy(DAY.sun).lerp(SUNSET.sun, e);
-      sun.current.intensity = 2.3 - e * 0.5;
+      sun.current.intensity = 2.0 - e * 0.4;
       sun.current.position.set(SUN_POS.x, SUN_POS.y - e * 6, SUN_POS.z); // lower still at sunset, longer shadows
     }
     if (fill.current) {
@@ -247,12 +270,12 @@ function DayCycle({ evening }: { evening: boolean }) {
   });
   return (
     <>
-      <hemisphereLight ref={hemi} args={[DAY.sky, DAY.ground, 1.1]} />
+      <hemisphereLight ref={hemi} args={[DAY.sky, DAY.ground, 1.4]} />
       {/* the low sun, behind the guide, so the figures get a warm rim and shadows fall towards you */}
       <directionalLight
         ref={sun}
         position={SUN_POS.toArray()}
-        intensity={2.3}
+        intensity={2.0}
         color={DAY.sun}
         castShadow
         shadow-mapSize={[4096, 4096]}

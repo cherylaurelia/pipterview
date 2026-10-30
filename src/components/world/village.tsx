@@ -263,12 +263,12 @@ function Windmill() {
       <mesh position={[0, 2.0, 0]} rotation={[Math.PI / 2, 0, 0]} material={wood}>
         <torusGeometry args={[0.78, 0.022, 5, 32]} />
       </mesh>
-      {/* the door, and two little windows above it */}
+      {/* the door, and a little window above it */}
       <mesh position={[0, 0.65, 0.63]} rotation={[-0.09, 0, 0]} material={toon("#8a5a3c")}>
         <boxGeometry args={[0.34, 0.62, 0.06]} />
       </mesh>
-      {[1.25, 2.3].map((y, i) => (
-        <group key={y} position={[0, y, 0.6 - i * 0.1]} rotation={[-0.09, 0, 0]}>
+      {[1.25].map((y) => (
+        <group key={y} position={[0, y, 0.6]} rotation={[-0.09, 0, 0]}>
           <mesh material={toon("#fff6e6", true)}>
             <boxGeometry args={[0.24, 0.26, 0.05]} />
           </mesh>
@@ -278,9 +278,13 @@ function Windmill() {
         </group>
       ))}
       {/* sails: a stock and a lattice of bars for each, with cloth over most of it */}
-      <group ref={sails} position={[0, 2.4, 0.62]}>
+      {/* the shaft out from the cap, so the sails turn clear in front of the balcony */}
+      <mesh position={[0, 2.72, 0.7]} rotation={[Math.PI / 2, 0, 0]} material={wood}>
+        <cylinderGeometry args={[0.05, 0.05, 0.6, 8]} />
+      </mesh>
+      <group ref={sails} position={[0, 2.72, 1.0]}>
         <mesh material={wood} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.09, 0.09, 0.2, 10]} />
+          <cylinderGeometry args={[0.1, 0.1, 0.16, 10]} />
         </mesh>
         {[0, 1, 2, 3].map((k) => (
           <group key={k} rotation={[0, 0, (k * Math.PI) / 2]}>
@@ -335,9 +339,9 @@ function WheatField() {
       return g.toNonIndexed();
     };
     const parts = [
-      paint(new THREE.CylinderGeometry(0.006, 0.009, 0.8, 4).translate(0, 0.4, 0), "#c9a446"),
-      paint(new THREE.CapsuleGeometry(0.022, 0.12, 2, 6).translate(0, 0.86, 0), "#f0c95c"),
-      paint(new THREE.ConeGeometry(0.004, 0.1, 3).translate(0.01, 0.98, 0), "#e8c45a"),
+      paint(new THREE.CylinderGeometry(0.006, 0.009, 0.8, 4).translate(0, 0.4, 0), "#e4c862"),
+      paint(new THREE.CapsuleGeometry(0.024, 0.13, 2, 6).translate(0, 0.86, 0), "#ffdc72"),
+      paint(new THREE.ConeGeometry(0.004, 0.1, 3).translate(0.01, 0.98, 0), "#fbe39a"),
     ];
     const merged = new THREE.BufferGeometry();
     for (const name of ["position", "normal", "color"]) {
@@ -365,7 +369,7 @@ function WheatField() {
       s.setScalar(0.65 + r() * 0.3);
       m.compose(p, q.setFromEuler(e), s);
       mesh.setMatrixAt(i, m);
-      mesh.setColorAt(i, c.setScalar(0.85 + r() * 0.2));
+      mesh.setColorAt(i, c.setScalar(0.95 + r() * 0.12));
     }
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -382,7 +386,7 @@ function WheatField() {
   const { x0, x1, z0, z1 } = posts, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
   return (
     <group>
-      <instancedMesh ref={stalks} args={[geometry, swayingToon(true), COUNT]} castShadow />
+      <instancedMesh ref={stalks} args={[geometry, swayingToon(true, true), COUNT]} castShadow />
       {posts.out.map((p, i) => (
         <mesh key={i} position={[p.x, groundY(p.x, p.z) + 0.25, p.z]} material={post} castShadow>
           <cylinderGeometry args={[0.035, 0.04, 0.5, 6]} />

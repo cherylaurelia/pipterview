@@ -118,10 +118,11 @@ export function Player({ active, visible, onNear }: { active: boolean; visible: 
 /** A little lantern-gold marker bobbing over the table, so you can always find your way back to Pip. */
 export function TableMarker({ visible }: { visible: boolean }) {
   const ref = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
+  useFrame(({ clock, camera }) => {
     const g = ref.current;
     if (!g) return;
-    const far = Math.hypot(player.pos.x, player.pos.z) > 3.5;
+    // only when you're away from the table, and never right in front of the camera
+    const far = Math.hypot(player.pos.x, player.pos.z) > 3.5 && camera.position.distanceTo(g.position) > 5;
     g.visible = visible && far;
     const t = clock.getElapsedTime();
     g.position.y = 2.3 + Math.sin(t * 2) * 0.12;
@@ -129,9 +130,9 @@ export function TableMarker({ visible }: { visible: boolean }) {
   });
   return (
     <group ref={ref} position={[0, 2.3, 0]}>
-      <mesh scale={[0.16, 0.24, 0.16]}>
+      <mesh scale={[0.11, 0.17, 0.11]}>
         <octahedronGeometry args={[1, 0]} />
-        <meshStandardMaterial color="#ffd27a" emissive="#ffb34d" emissiveIntensity={1.2} />
+        <meshStandardMaterial color="#ffe2a0" emissive="#ffb34d" emissiveIntensity={1.1} flatShading />
       </mesh>
     </group>
   );
