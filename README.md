@@ -41,7 +41,7 @@ hold to talk ─▶ speech-to-text ─▶ POST /api/interview/turn ─▶ Claude
 
 | Variable | |
 |---|---|
-| `ANTHROPIC_API_KEY` | Claude API key. |
+| `ANTHROPIC_API_KEY` | Claude API key |
 | `MOCK_AI=1` | Scripted interviewer and placeholder feedback; no key or credits needed. |
 | `CLAUDE_MODEL` | Optional model override (default `claude-opus-5-5`). |
 | `ELEVENLABS_API_KEY` | Optional natural interviewer voice; falls back to the browser voice. |
