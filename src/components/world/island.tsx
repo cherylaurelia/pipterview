@@ -51,6 +51,30 @@ export const COTTAGE = { x: 5.4, z: -9.6 };
 export const WINDMILL = { x: -3.2, z: -9.4 };
 export const FIELD = { x0: -7.6, x1: -4.6, z0: -8.8, z1: -6.8 };
 
+/** Where (x, z) lands in the frame of something at (ox, oz) turned by `angle`, turned back into the world's frame. */
+const place = (ox: number, oz: number, angle: number, lx: number, lz: number) => ({
+  x: ox + lx * Math.cos(angle) + lz * Math.sin(angle),
+  z: oz - lx * Math.sin(angle) + lz * Math.cos(angle),
+});
+export const COTTAGE_TURN = -0.5, WINDMILL_TURN = 0.5;
+
+/**
+ * The benches you can sit on (see village.tsx): one looking out over the pond, one by the cottage door and one at the
+ * foot of the windmill. Each faces `angle` (its seat looks along +z when turned by it).
+ */
+export const BENCHES: { id: string; x: number; z: number; angle: number }[] = (() => {
+  const facing = (x: number, z: number, tx: number, tz: number) => Math.atan2(tx - x, tz - z);
+  const pondTheta = 2.25, pondR = 2.6 * 1.05 + 1.6;
+  const pond = { x: -5 + Math.cos(pondTheta) * pondR, z: 3.4 + Math.sin(pondTheta) * pondR };
+  const cottage = place(COTTAGE.x, COTTAGE.z, COTTAGE_TURN, 1.95, 0.85);
+  const windmill = place(WINDMILL.x, WINDMILL.z, WINDMILL_TURN, 1.25, 1.05);
+  return [
+    { id: "pond", ...pond, angle: facing(pond.x, pond.z, -5, 3.4) },
+    { id: "cottage", ...cottage, angle: COTTAGE_TURN },
+    { id: "windmill", ...windmill, angle: WINDMILL_TURN },
+  ];
+})();
+
 const insideRadius = (x: number, z: number) => Math.hypot(x, z) / islandRadius(Math.atan2(z, x));
 
 /** The pond's edge, as a radius from its centre at each angle: a lopsided kidney shape rather than a circle. */
@@ -131,6 +155,7 @@ export function isOpen(x: number, z: number, pad = 0) {
   if (x > FIELD.x0 - 0.3 - pad && x < FIELD.x1 + 0.3 + pad && z > FIELD.z0 - 0.3 - pad && z < FIELD.z1 + 0.3 + pad) return false;
   if (Math.hypot(x - COTTAGE.x, z - COTTAGE.z) < 2.1 + pad) return false;
   if (Math.hypot(x - WINDMILL.x, z - WINDMILL.z) < 1.4 + pad) return false;
+  if (BENCHES.some((b) => Math.hypot(x - b.x, z - b.z) < 1 + pad)) return false;
   return true;
 }
 
@@ -162,7 +187,7 @@ export function walkable(x: number, z: number) {
   if (distTo(STREAM_PTS, x, z) < 0.85) return false;
   if (Math.hypot(x, z) < 0.95 || Math.hypot(x, z - 1.15) < 0.4 || Math.hypot(x, z + 1.15) < 0.4) return false; // table and chairs
   if (Math.hypot(x - COTTAGE.x, z - COTTAGE.z) < 1.7 || Math.hypot(x - WINDMILL.x, z - WINDMILL.z) < 0.85) return false;
-  if (x > FIELD.x0 - 0.1 && x < FIELD.x1 + 0.1 && z > FIELD.z0 - 0.1 && z < FIELD.z1 + 0.1) return false;
+  if (x > FIELD.x0 - 0.35 && x < FIELD.x1 + 0.35 && z > FIELD.z0 - 0.35 && z < FIELD.z1 + 0.35) return false; // the fenced wheat
   return true;
 }
 
@@ -533,98 +558,6 @@ function Bridge() {
   );
 }
 
-/** A little cottage with a pitched red roof, a chimney, and windows that light up at sunset. */
-function Cottage() {
-  const windows = useRef<THREE.MeshStandardMaterial>(null);
-  useFrame(() => {
-    if (windows.current) windows.current.emissiveIntensity = 0.1 + daylight.evening * 1.6;
-  });
-  const roof = useMemo(() => {
-    const shape = new THREE.Shape([new THREE.Vector2(-1.25, 0), new THREE.Vector2(1.25, 0), new THREE.Vector2(0, 1.05)]);
-    return new THREE.ExtrudeGeometry(shape, { depth: 2.3, bevelEnabled: false }).translate(0, 0, -1.15);
-  }, []);
-  return (
-    <group position={[COTTAGE.x, groundY(COTTAGE.x, COTTAGE.z), COTTAGE.z]} rotation={[0, -0.5, 0]}>
-      <mesh position={[0, 0.65, 0]} material={toon("#f6ecdc")} castShadow receiveShadow>
-        <boxGeometry args={[2.1, 1.3, 2.0]} />
-      </mesh>
-      <mesh position={[0, 1.3, 0]} geometry={roof} material={toon("#c8644c")} castShadow />
-      <mesh position={[0.55, 1.95, -0.3]} material={toon("#b6a898")} castShadow>
-        <boxGeometry args={[0.25, 0.6, 0.25]} />
-      </mesh>
-      {/* the door and windows, facing the path */}
-      <mesh position={[0, 0.4, 1.01]} material={toon("#8a5a3c")}>
-        <boxGeometry args={[0.42, 0.8, 0.04]} />
-      </mesh>
-      {[-0.65, 0.65].map((x) => (
-        <mesh key={x} position={[x, 0.75, 1.01]}>
-          <boxGeometry args={[0.36, 0.34, 0.04]} />
-          <meshStandardMaterial ref={x < 0 ? windows : undefined} color="#ffe7b0" emissive="#ffb34d" emissiveIntensity={0.1} />
-        </mesh>
-      ))}
-      <BoxLantern position={[0.38, 0.85, 1.07]} scale={0.8} />
-    </group>
-  );
-}
-
-/** A windmill whose sails turn slowly in the breeze. */
-function Windmill() {
-  const sails = useRef<THREE.Group>(null);
-  useFrame((_, dt) => {
-    if (sails.current) sails.current.rotation.z += dt * 0.5;
-  });
-  return (
-    <group position={[WINDMILL.x, groundY(WINDMILL.x, WINDMILL.z), WINDMILL.z]} rotation={[0, 0.5, 0]}>
-      <mesh position={[0, 1.2, 0]} material={toon("#efe6d6")} castShadow receiveShadow>
-        <cylinderGeometry args={[0.45, 0.7, 2.4, 8]} />
-      </mesh>
-      <mesh position={[0, 2.75, 0]} material={toon("#c8644c")} castShadow>
-        <coneGeometry args={[0.62, 0.8, 8]} />
-      </mesh>
-      <mesh position={[0, 0.35, 0.66]} material={toon("#8a5a3c")}>
-        <boxGeometry args={[0.32, 0.6, 0.06]} />
-      </mesh>
-      <group ref={sails} position={[0, 2.25, 0.62]}>
-        <mesh material={toon("#7a5a40")}>
-          <cylinderGeometry args={[0.08, 0.08, 0.16, 10]} />
-        </mesh>
-        {[0, 1, 2, 3].map((k) => (
-          <group key={k} rotation={[0, 0, (k * Math.PI) / 2]}>
-            <mesh position={[0, 0.75, 0]} material={toon("#7a5a40")}>
-              <boxGeometry args={[0.05, 1.5, 0.04]} />
-            </mesh>
-            <mesh position={[0.12, 0.85, 0.01]} material={toon("#f3ede2")}>
-              <boxGeometry args={[0.2, 1.1, 0.02]} />
-            </mesh>
-          </group>
-        ))}
-      </group>
-    </group>
-  );
-}
-
-/** Rows of golden wheat, in raised bundles like the reference. */
-function WheatField() {
-  const bundles = useMemo(() => {
-    const r = rng(91), out: { x: number; z: number; w: number; d: number; h: number; c: string }[] = [];
-    for (let x = FIELD.x0 + 0.35; x < FIELD.x1; x += 0.75) {
-      for (let z = FIELD.z0 + 0.3; z < FIELD.z1; z += 0.62) {
-        out.push({ x: x + (r() - 0.5) * 0.08, z: z + (r() - 0.5) * 0.08, w: 0.62, d: 0.5, h: 0.22 + r() * 0.1, c: ["#efc85d", "#e3b54e", "#f3d474"][Math.floor(r() * 3)] });
-      }
-    }
-    return out;
-  }, []);
-  return (
-    <group>
-      {bundles.map((b, i) => (
-        <mesh key={i} position={[b.x, b.h / 2, b.z]} material={toon(b.c)} castShadow receiveShadow>
-          <boxGeometry args={[b.w, b.h, b.d]} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
 /** Two or three little islands floating far off in the haze, each with a puffy tree, for depth. */
 function FarIslands() {
   const islands = useMemo(
@@ -670,9 +603,6 @@ export function Island() {
       <IslandBody />
       <Stream />
       <Bridge />
-      <Cottage />
-      <Windmill />
-      <WheatField />
       <FarIslands />
     </>
   );

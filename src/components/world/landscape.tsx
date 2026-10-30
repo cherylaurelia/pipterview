@@ -6,8 +6,9 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CritterPick } from "./critters";
 import { daylight } from "./daylight";
-import { groundY, inView, Island, islandRadius, isOpen, nearGardenSlot, rng } from "./island";
+import { groundY, Island, islandRadius, isOpen, nearGardenSlot, rng } from "./island";
 import { Pond } from "./pond";
+import { Village } from "./village";
 import { softDot } from "./textures";
 import { gradientMap, painterly, paleGradientMap, swayingToon, toon, wind } from "./toon";
 
@@ -196,30 +197,43 @@ function puff(out: THREE.BufferGeometry[], r: () => number, at: THREE.Vector3, s
   }
 }
 
-// Where the trees and bushes stand: on open ground away from the table so the view from your seat stays clear, and
-// never growing into each other. Worked out once, so walking about can bump into the trunks (see `byTree`).
+// Where the trees and bushes stand: on open ground away from the table, spread out over the whole island with a good
+// gap between them (so it reads as a few trees dotted about, not a wood). Worked out once, so walking about can slide
+// round them (see `slideRoundPlants`).
 const PLANTS = (() => {
   const r = rng(42);
   const out: { x: number; z: number; s: number; tree: boolean; pink: boolean; tone: number }[] = [];
   // every crown placed so far (centre and how far its blobs reach), so no two grow into each other
   const taken: { x: number; z: number; reach: number }[] = [];
-  const place = (count: number, minR: number, pad: number, tree: boolean, sizes: () => number) => {
-    for (let placed = 0, tries = 0; placed < count && tries < count * 80; tries++) {
+  const place = (count: number, minR: number, pad: number, tree: boolean, gap: number, sizes: () => number) => {
+    for (let placed = 0, tries = 0; placed < count && tries < count * 120; tries++) {
       const x = (r() - 0.5) * 28, z = (r() - 0.5) * 28, s = sizes(), reach = (tree ? s : s * 0.55) * 1.2;
-      if (Math.hypot(x, z) <= minR || !isOpen(x, z, pad) || inView(x, z) || nearGardenSlot(x, z, 1.6)) continue;
-      if (taken.some((t) => Math.hypot(t.x - x, t.z - z) < t.reach + reach + 0.15)) continue;
+      if (Math.hypot(x, z) <= minR || !isOpen(x, z, pad) || nearGardenSlot(x, z, 1.6)) continue;
+      if (taken.some((t) => Math.hypot(t.x - x, t.z - z) < t.reach + reach + gap)) continue;
       taken.push({ x, z, reach });
       out.push({ x, z, s, tree, pink: tree && r() < 0.17, tone: Math.floor(r() * 3) });
       placed++;
     }
   };
-  place(18, 6, 1, true, () => 0.75 + r() * 0.5);
-  place(16, 3.2, 0.3, false, () => 0.45 + r() * 0.35);
+  place(16, 6, 1, true, 2.4, () => 0.75 + r() * 0.5);
+  place(14, 3.2, 0.3, false, 1.2, () => 0.45 + r() * 0.35);
   return out;
 })();
 
-/** Whether (x, z) is inside a tree trunk or a bush, for walking about. */
-export const byTree = (x: number, z: number) => PLANTS.some((p) => Math.hypot(p.x - x, p.z - z) < (p.tree ? 0.3 * p.s : 0.4 * p.s));
+/**
+ * Walking about: if a body `r` metres round at (x, z) overlaps a trunk or a bush, it's nudged out to just touch it, so
+ * you glide round the curve instead of catching on it.
+ */
+export function slideRoundPlants(x: number, z: number, r: number) {
+  for (const p of PLANTS) {
+    const reach = (p.tree ? 0.16 * p.s : 0.42 * p.s) + r, dx = x - p.x, dz = z - p.z, d = Math.hypot(dx, dz);
+    if (d >= reach) continue;
+    const k = d > 1e-4 ? reach / d : 0;
+    x = d > 1e-4 ? p.x + dx * k : p.x + reach;
+    z = d > 1e-4 ? p.z + dz * k : p.z;
+  }
+  return { x, z };
+}
 
 // Puffy bubble trees and bushes, as in the reference diorama: mostly green with a few pink ones, on short trunks. All
 // the crowns are merged into one mesh (and the trunks into another), so a forest of blobs is still only two draw calls.
@@ -423,6 +437,7 @@ export function Landscape({ critters }: { critters: { interactive: boolean; pick
       <Clouds />
       <Island />
       <Pond {...critters} />
+      <Village />
       <Grass />
       <Trees />
       <Butterflies />
