@@ -1,4 +1,5 @@
-import type { CodingSpec, Signature, ValueType } from "../workspace/types";
+import { isClassTypes } from "../interview/starters";
+import type { CodingSpec, ValueType } from "../workspace/types";
 
 /**
  * Generates Java and C++ test drivers for a coding spec. Each test prints one
@@ -8,8 +9,6 @@ import type { CodingSpec, Signature, ValueType } from "../workspace/types";
  */
 export const RESULT_MARKER = "@@RESULT@@";
 
-type ClassTypes = { constructor: ValueType[]; methods: Record<string, Signature> };
-const isClassTypes = (t: CodingSpec["types"]): t is ClassTypes => "methods" in t;
 
 const int = (v: unknown) => {
   if (typeof v !== "number" || !Number.isInteger(v)) throw new Error(`Expected an integer test value, got ${JSON.stringify(v)}`);
@@ -289,6 +288,171 @@ export function cppDriver(spec: CodingSpec): string {
   return `${CPP_HELPERS}
 int main() {
     using namespace mi_driver;
+${blocks.join("\n")}
+    return 0;
+}
+`;
+}
+
+// ---------- C ----------
+
+/** Everything before the candidate's C code: headers and TreeNode. */
+export const C_PRELUDE = `#include <limits.h>
+#include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct TreeNode {
+    int val;
+    struct TreeNode *left;
+    struct TreeNode *right;
+};
+`;
+
+const C_HELPERS = `
+static void mi_q(const char* s) {
+    putchar('"');
+    for (; *s; s++) {
+        if (*s == '"' || *s == '\\\\') { putchar('\\\\'); putchar(*s); }
+        else if ((unsigned char)*s < 0x20) printf("\\\\u%04x", *s);
+        else putchar(*s);
+    }
+    putchar('"');
+}
+static void mi_ints(const int* v, int n) {
+    putchar('[');
+    for (int i = 0; i < n; i++) printf(i ? ",%d" : "%d", v[i]);
+    putchar(']');
+}
+static void mi_grid(int** v, int n, const int* cols) {
+    putchar('[');
+    for (int i = 0; i < n; i++) { if (i) putchar(','); mi_ints(v[i], cols ? cols[i] : 0); }
+    putchar(']');
+}
+static struct TreeNode* mi_build(const int* vals, const bool* isNull, int n) {
+    if (n == 0 || isNull[0]) return NULL;
+    struct TreeNode** nodes = calloc((size_t)n, sizeof *nodes);
+    for (int i = 0; i < n; i++) {
+        if (isNull[i]) continue;
+        nodes[i] = calloc(1, sizeof **nodes);
+        nodes[i]->val = vals[i];
+    }
+    int child = 1;
+    for (int i = 0; i < n && child < n; i++) {
+        if (!nodes[i]) continue;
+        if (child < n) nodes[i]->left = nodes[child++];
+        if (child < n) nodes[i]->right = nodes[child++];
+    }
+    return nodes[0];
+}
+static void mi_begin(void) { printf("\\n${RESULT_MARKER} {\\"ok\\":true,\\"value\\":"); }
+static void mi_end(void) { printf("}\\n"); fflush(stdout); }
+`;
+
+/** Declarations for one argument (arrays get a size variable, LeetCode style). Returns the call arguments. */
+function cArg(v: unknown, t: ValueType, name: string, lines: string[]): string[] {
+  switch (t) {
+    case "int":
+      lines.push(`int ${name} = ${int(v)};`);
+      return [name];
+    case "bool":
+      lines.push(`bool ${name} = ${v ? "true" : "false"};`);
+      return [name];
+    case "string":
+      lines.push(`char ${name}[] = ${str(v)};`);
+      return [name];
+    case "int[]": {
+      const values = v as unknown[];
+      lines.push(`int ${name}[${Math.max(1, values.length)}] = {${values.length ? ints(values) : "0"}};`);
+      lines.push(`int ${name}Size = ${values.length};`);
+      return [name, `${name}Size`];
+    }
+    case "int[][]": {
+      const rows = v as unknown[][];
+      rows.forEach((row, r) => lines.push(`int ${name}_${r}[${Math.max(1, row.length)}] = {${row.length ? ints(row) : "0"}};`));
+      lines.push(`int* ${name}[${Math.max(1, rows.length)}] = {${rows.length ? rows.map((_, r) => `${name}_${r}`).join(", ") : "NULL"}};`);
+      lines.push(`int ${name}Cols[${Math.max(1, rows.length)}] = {${rows.length ? rows.map((row) => row.length).join(", ") : "0"}};`);
+      lines.push(`int ${name}Size = ${rows.length};`);
+      return [name, `${name}Size`, `${name}Cols`];
+    }
+    case "tree": {
+      const values = v as (number | null)[];
+      lines.push(`int ${name}v[${Math.max(1, values.length)}] = {${values.length ? values.map((x) => (x === null ? "0" : int(x))).join(", ") : "0"}};`);
+      lines.push(`bool ${name}n[${Math.max(1, values.length)}] = {${values.length ? values.map((x) => (x === null ? "true" : "false")).join(", ") : "false"}};`);
+      lines.push(`struct TreeNode* ${name} = mi_build(${name}v, ${name}n, ${values.length});`);
+      return [name];
+    }
+    case "void":
+      throw new Error("void argument");
+  }
+}
+
+/** Calls fn(args) and prints its result as JSON, handling C's out-parameters for returned arrays. */
+function cCallAndPrint(call: (extra: string[]) => string, returns: ValueType, lines: string[]) {
+  switch (returns) {
+    case "int":
+      lines.push(`int r = ${call([])};`, "mi_begin(); printf(\"%d\", r); mi_end();");
+      break;
+    case "bool":
+      lines.push(`bool r = ${call([])};`, 'mi_begin(); printf(r ? "true" : "false"); mi_end();');
+      break;
+    case "string":
+      lines.push(`char* r = ${call([])};`, 'mi_begin(); if (r) mi_q(r); else printf("null"); mi_end();');
+      break;
+    case "int[]":
+      lines.push("int rs = 0;", `int* r = ${call(["&rs"])};`, "mi_begin(); mi_ints(r, r ? rs : 0); mi_end();", "free(r);");
+      break;
+    case "int[][]":
+      lines.push(
+        "int rs = 0;",
+        "int* rc = NULL;",
+        `int** r = ${call(["&rs", "&rc"])};`,
+        "mi_begin(); mi_grid(r, r ? rs : 0, rc); mi_end();",
+        "if (r) { for (int i = 0; i < rs; i++) free(r[i]); free(r); }",
+        "free(rc);",
+      );
+      break;
+    case "tree":
+    case "void":
+      throw new Error(`C driver can't return ${returns}`);
+  }
+}
+
+export function cDriver(spec: CodingSpec): string {
+  const blocks = spec.tests.map((test, i) => {
+    const lines: string[] = [];
+    if (spec.mode === "class") {
+      if (!isClassTypes(spec.types)) throw new Error("Class problems need constructor and method types");
+      const types = spec.types;
+      const name = spec.entry.c;
+      const prefix = name.charAt(0).toLowerCase() + name.slice(1);
+      const [ops, args] = test.args as [string[], unknown[][]];
+      const ctorArgs = args[0].flatMap((a, k) => cArg(a, types.constructor[k], `c${k}`, lines));
+      lines.push(`${name}* obj = ${prefix}Create(${ctorArgs.join(", ")});`, 'mi_begin(); printf("[null");');
+      ops.slice(1).forEach((op, k) => {
+        const sig = types.methods[op];
+        if (!sig) throw new Error(`No types for method ${op}`);
+        const callArgs = args[k + 1].flatMap((a, n) => cArg(a, sig.params[n], `m${k}_${n}`, lines));
+        const fn = `${prefix}${op.charAt(0).toUpperCase()}${op.slice(1)}`;
+        if (sig.returns === "void") lines.push(`${fn}(${["obj", ...callArgs].join(", ")}); printf(",null");`);
+        else if (sig.returns === "int") lines.push(`printf(",%d", ${fn}(${["obj", ...callArgs].join(", ")}));`);
+        else if (sig.returns === "bool") lines.push(`printf(${fn}(${["obj", ...callArgs].join(", ")}) ? ",true" : ",false");`);
+        else throw new Error(`C driver can't return ${sig.returns} from a method`);
+      });
+      lines.push('printf("]"); mi_end();', `${prefix}Free(obj);`);
+    } else {
+      if (isClassTypes(spec.types)) throw new Error("Function problems need a signature");
+      const sig = spec.types;
+      const callArgs = test.args.flatMap((a, k) => cArg(a, sig.params[k], `a${k}`, lines));
+      cCallAndPrint((extra) => `${spec.entry.c}(${[...callArgs, ...extra].join(", ")})`, sig.returns, lines);
+    }
+    return `    // Test ${i + 1}\n    {\n        ${lines.join("\n        ")}\n    }`;
+  });
+  return `${C_HELPERS}
+int main(void) {
 ${blocks.join("\n")}
     return 0;
 }
