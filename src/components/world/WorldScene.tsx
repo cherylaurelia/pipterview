@@ -3,6 +3,7 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import type { CritterPick } from "./critters";
 import { daylight } from "./daylight";
 import { Effects } from "./effects";
 import { Garden } from "./garden";
@@ -233,6 +234,8 @@ export default function WorldScene({
   evening,
   aside = 0,
   garden,
+  critter,
+  onPickCritter,
   onPokePip,
   onSit,
   onArrive,
@@ -248,6 +251,9 @@ export default function WorldScene({
   aside?: number;
   /** What you've grown on the island by practising; items from `freshFrom` on pop in. */
   garden: { count: number; freshFrom: number };
+  /** The pond creature you've clicked on (on the island only), if any. */
+  critter: CritterPick | null;
+  onPickCritter: (pick: CritterPick) => void;
   onPokePip: () => void;
   onSit: () => void;
   onArrive: (mode: WorldMode) => void;
@@ -265,7 +271,7 @@ export default function WorldScene({
       <fog attach="fog" args={[COLORS.fog, 45, 170]} />
       <DayCycle evening={evening} />
 
-      <Landscape />
+      <Landscape critters={{ interactive: mode === "world", picked: critter, onPick: onPickCritter }} />
       <Garden count={garden.count} freshFrom={garden.freshFrom} />
       <RoundTable interactive={mode === "world"} yourTurn={yourTurn || evening} onSelect={onSit} />
       <Figure position={[0, 0, -1.15]} rotationY={0} outfit="guide" mood={mood} onPoke={onPokePip} />
