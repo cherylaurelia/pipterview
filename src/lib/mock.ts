@@ -89,7 +89,7 @@ function describeWork(work: WorkspaceSnapshot) {
 }
 
 // Rough STAR detection for mock stories: enough to exercise the story bank without the model.
-const ACTION = /\bI\s+(built|led|wrote|organi[sz]ed|made|decided|talked|created|designed|fixed|started|helped|set up|ran|reached out)\b/i;
+const ACTION = /\bI\s+(built|led|wrote|rewrote|implemented|refactored|organi[sz]ed|made|decided|talked|created|designed|fixed|started|helped|set up|ran|reached out|shipped)\b/i;
 const RESULT = /\b(result|in the end|finally|shipped|launched|passed|won|improved|increased|reduced|saved|\d+\s?%)/i;
 const TASK = /\b(needed to|had to|my job|goal was|responsible for|was asked to)\b/i;
 const SKILLS: [RegExp, string][] = [
