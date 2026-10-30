@@ -196,40 +196,49 @@ function puff(out: THREE.BufferGeometry[], r: () => number, at: THREE.Vector3, s
   }
 }
 
-// Puffy bubble trees and bushes, as in the reference diorama: mostly green with a few pink ones, on short trunks,
-// placed on open ground away from the table so the view from your seat stays clear. All the crowns are merged into one
-// mesh (and the trunks into another), so a forest of blobs is still only two draw calls.
+// Where the trees and bushes stand: on open ground away from the table so the view from your seat stays clear, and
+// never growing into each other. Worked out once, so walking about can bump into the trunks (see `byTree`).
+const PLANTS = (() => {
+  const r = rng(42);
+  const out: { x: number; z: number; s: number; tree: boolean; pink: boolean; tone: number }[] = [];
+  // every crown placed so far (centre and how far its blobs reach), so no two grow into each other
+  const taken: { x: number; z: number; reach: number }[] = [];
+  const place = (count: number, minR: number, pad: number, tree: boolean, sizes: () => number) => {
+    for (let placed = 0, tries = 0; placed < count && tries < count * 80; tries++) {
+      const x = (r() - 0.5) * 28, z = (r() - 0.5) * 28, s = sizes(), reach = (tree ? s : s * 0.55) * 1.2;
+      if (Math.hypot(x, z) <= minR || !isOpen(x, z, pad) || inView(x, z) || nearGardenSlot(x, z, 1.6)) continue;
+      if (taken.some((t) => Math.hypot(t.x - x, t.z - z) < t.reach + reach + 0.15)) continue;
+      taken.push({ x, z, reach });
+      out.push({ x, z, s, tree, pink: tree && r() < 0.17, tone: Math.floor(r() * 3) });
+      placed++;
+    }
+  };
+  place(18, 6, 1, true, () => 0.75 + r() * 0.5);
+  place(16, 3.2, 0.3, false, () => 0.45 + r() * 0.35);
+  return out;
+})();
+
+/** Whether (x, z) is inside a tree trunk or a bush, for walking about. */
+export const byTree = (x: number, z: number) => PLANTS.some((p) => Math.hypot(p.x - x, p.z - z) < (p.tree ? 0.3 * p.s : 0.4 * p.s));
+
+// Puffy bubble trees and bushes, as in the reference diorama: mostly green with a few pink ones, on short trunks. All
+// the crowns are merged into one mesh (and the trunks into another), so a forest of blobs is still only two draw calls.
 function Trees() {
   // finer, stronger dabs than the ground, so the crowns read as leafy clumps of paint
   const crownMaterial = useMemo(() => painterly(new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradientMap() }), 2.2, 1.1, "dabs"), []);
   const { crowns, trunks } = useMemo(() => {
-    const r = rng(42);
-    // every crown placed so far (centre and how far its blobs reach), so no two grow into each other
-    const taken: { x: number; z: number; reach: number }[] = [];
-    const place = (count: number, minR: number, pad: number, sizes: () => number, make: (x: number, z: number, s: number) => void) => {
-      for (let placed = 0, tries = 0; placed < count && tries < count * 80; tries++) {
-        const x = (r() - 0.5) * 28, z = (r() - 0.5) * 28, s = sizes(), reach = s * 1.2;
-        if (Math.hypot(x, z) <= minR || !isOpen(x, z, pad) || inView(x, z) || nearGardenSlot(x, z, 1.6)) continue;
-        if (taken.some((t) => Math.hypot(t.x - x, t.z - z) < t.reach + reach + 0.15)) continue;
-        taken.push({ x, z, reach });
-        make(x, z, s);
-        placed++;
-      }
-    };
+    const r = rng(43);
     const greens = [["#4f9c3c", "#9ad65a"], ["#58a842", "#a6dc63"], ["#468f37", "#8fce52"]].map(([a, b]) => [new THREE.Color(a), new THREE.Color(b)]);
     const pink = [new THREE.Color("#d9739a"), new THREE.Color("#ffb3cc")];
     const crownParts: THREE.BufferGeometry[] = [], trunkParts: THREE.BufferGeometry[] = [];
     const at = new THREE.Vector3();
-    place(18, 6, 1, () => 0.75 + r() * 0.5, (x, z, s) => {
-      const [base, light] = r() < 0.17 ? pink : greens[Math.floor(r() * 3)], y = groundY(x, z);
-      trunkParts.push(new THREE.CapsuleGeometry(0.13 * s, 0.9 * s, 4, 8).translate(x, y + 0.55 * s, z));
-      puff(crownParts, r, at.set(x, y + 1.75 * s, z), 1.05 * s, base, light, 12);
-    });
-    // bushes are about half a tree's crown across, so they're sized (for spacing) at half
-    place(16, 3.2, 0.3, () => (0.45 + r() * 0.35) * 0.55, (x, z, half) => {
-      const s = half / 0.55, [base, light] = greens[Math.floor(r() * 3)];
-      puff(crownParts, r, at.set(x, groundY(x, z) + 0.32 * s, z), 0.55 * s, base, light, 7, 0.85);
-    });
+    for (const p of PLANTS) {
+      const [base, light] = p.pink ? pink : greens[p.tone], y = groundY(p.x, p.z), s = p.s;
+      if (p.tree) {
+        trunkParts.push(new THREE.CapsuleGeometry(0.13 * s, 0.9 * s, 4, 8).translate(p.x, y + 0.55 * s, p.z));
+        puff(crownParts, r, at.set(p.x, y + 1.75 * s, p.z), 1.05 * s, base, light, 12);
+      } else puff(crownParts, r, at.set(p.x, y + 0.32 * s, p.z), 0.55 * s, base, light, 7, 0.85);
+    }
     return { crowns: mergeGeometries(crownParts), trunks: mergeGeometries(trunkParts) };
   }, []);
   return (

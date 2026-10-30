@@ -4,7 +4,7 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { isDrag } from "./controls";
-import { takeAction, type CritterKind, type CritterPick } from "./critters";
+import { reportSpot, takeAction, type CritterKind, type CritterPick } from "./critters";
 import { BoxLantern, DOCK, POND, WATER_COMMON, WATER_END, groundY, isOpen, pondEdge, pondRadius, rng, tickWater, waterMaterial } from "./island";
 import { lilyPadTexture } from "./textures";
 import { NOISE_GLSL, swayingToon, toon } from "./toon";
@@ -595,6 +595,7 @@ function Frog(props: PickProps) {
       }
     }
     g.position.set(x, WATER_Y + 0.012 + lift, z);
+    reportSpot("frog", 0, x, z);
 
     // the fly loops round the frog's pad, unless it's just been caught
     const home = padAt(s.pad);
@@ -778,6 +779,7 @@ function Duck({ index, ...props }: PickProps & { index: number }) {
     const p = duckPath(index, t);
     g.position.set(p.x, WATER_Y - 0.02, p.z);
     g.rotation.y = p.heading;
+    reportSpot("duck", index, p.x, p.z);
     if (t > s.nextRipple) {
       ripple(p.x, p.z, 0.55);
       s.nextRipple = t + 1.5;
@@ -869,6 +871,7 @@ function GrassDuck({ index, ...props }: PickProps & { index: number }) {
     }
     const stepping = t - s.walk < s.walkFor;
     g.position.set(x, groundY(x, z) + 0.045, z);
+    reportSpot("grassDuck", index, x, z);
     g.rotation.y = s.heading;
     body.current.rotation.z = stepping ? Math.sin(t * 11) * 0.14 : 0; // the waddle
     const pk = (t - s.peck) / 0.9;
@@ -1085,6 +1088,7 @@ function Koi(props: PickProps) {
         splash(k.pos.x, k.pos.z, 10, 0.7);
       }
       const outer = outers.current[i], inner = inners.current[i];
+      reportSpot("koi", i, k.pos.x, k.pos.z);
       if (outer) {
         outer.position.set(k.pos.x, WATER_Y, k.pos.z);
         outer.rotation.y = k.heading;

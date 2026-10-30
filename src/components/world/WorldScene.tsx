@@ -8,26 +8,26 @@ import { daylight } from "./daylight";
 import { Effects } from "./effects";
 import { Garden } from "./garden";
 import { COLORS, GRASS_LAYER, Landscape } from "./landscape";
-import { takeFlight } from "./nav";
+import { goHomeSpot, held, player, walkTo, type Nearby } from "./explore";
+import { surfaceY } from "./island";
 import { Figure, RoundTable, type Mood } from "./people";
+import { Player, TableMarker } from "./player";
 
 export type WorldMode = "splash" | "world" | "seated";
 
 // Where the camera is for each mode, plus whatever you've done with it. Splash slowly circles the whole floating
-// island (drag to spin it); on the island you orbit, zoom and move about freely (drag to orbit, right-drag or
-// shift-drag to move, WASD or the arrow keys to walk, Q and E to turn, double-click to go somewhere, R to come back to
-// the table, or the "Go to" buttons); seated is your own eyes across the table from the guide, and you can look around
-// (it drifts back to the guide when you let go).
+// island (drag to spin it). On the island you walk about as your own chick (see player.tsx) and the camera follows
+// just behind and above you: drag to look round, scroll to come closer or stand back. Seated is your own eyes across
+// the table from the guide, and you can look around (it drifts back to the guide when you let go).
 const SPLASH = { radius: 36, height: 21, fov: 38 };
-const ISLAND = { target: new THREE.Vector3(0, 0.2, -0.8), az: 0.69, el: 0.47, dist: 15, fov: 40 };
+const ISLAND = { az: 0.37, el: 0.42, dist: 6.5, fov: 45, lift: 0.7 };
 const SEATED = { pos: new THREE.Vector3(0, 1.5, 1.45), pitch: -0.15, reach: 2.6, fov: 46 };
-const LIMITS = { el: [0.12, 1.32], dist: [4, 42], yaw: 1.2, pitch: [-0.5, 0.55], zoom: [0.6, 1.25], reach: 11 } as const;
+const LIMITS = { el: [0.12, 1.25], dist: [2.5, 18], yaw: 1.2, pitch: [-0.5, 0.55], zoom: [0.6, 1.25] } as const;
 
 /** What you've done with the camera (kept across mode changes, so the island stays how you left it). */
 interface UserView {
   spin: number; // splash: extra turn
-  target: THREE.Vector3; // island: the spot on the ground you're looking at, which you can move about
-  az: number; // island: orbit around the target
+  az: number; // island: orbit around you
   el: number;
   dist: number;
   yaw: number; // seated: looking around
@@ -46,9 +46,9 @@ function goalFor(mode: WorldMode, t: number, view: UserView, aside: number, pos:
     return SPLASH.fov;
   }
   if (mode === "world") {
-    const { az, el, dist, target } = view;
-    look.copy(target);
-    pos.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(dist).add(target);
+    const { az, el, dist } = view;
+    look.set(player.pos.x, surfaceY(player.pos.x, player.pos.z) + ISLAND.lift, player.pos.z);
+    pos.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(dist).add(look);
     return ISLAND.fov;
   }
   const p = SEATED.pitch + view.pitch;
@@ -58,55 +58,43 @@ function goalFor(mode: WorldMode, t: number, view: UserView, aside: number, pos:
   return SEATED.fov * view.zoom;
 }
 
-/** Moves the island view's target by (right, forward) metres as seen from the camera, keeping it on the island. */
-function moveTarget(v: UserView, right: number, forward: number) {
-  const fx = -Math.sin(v.az), fz = -Math.cos(v.az); // towards the target, along the ground
-  v.target.x += Math.cos(v.az) * right + fx * forward;
-  v.target.z += -Math.sin(v.az) * right + fz * forward;
-  const d = Math.hypot(v.target.x, v.target.z);
-  if (d > LIMITS.reach) v.target.multiplyScalar(LIMITS.reach / d).setY(ISLAND.target.y);
-}
-
 const typing = () => {
   const el = document.activeElement;
   return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || (el as HTMLElement).isContentEditable);
 };
 
+const WALK_KEYS = ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "shift"];
+
 /**
- * Drag to orbit (or look around, when seated), scroll to zoom; on the island also right-drag or shift-drag to move,
- * keys to walk and turn, and double-click to go to a spot. Clicks still reach the scene: see `isDrag`. Returns the
- * keys held down, for the camera's frame loop.
+ * Drag to look around, scroll to zoom. On the island, the walking keys go to your chick (R takes you back to the
+ * table), and a click or tap on the ground (not a drag, and not on something clickable) walks you there: see
+ * `clickToWalk`, which the canvas calls when a click misses everything clickable.
  */
 function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
   const canvas = useThree((s) => s.gl.domElement);
   const camera = useThree((s) => s.camera);
-  const held = useRef(new Set<string>());
   const modeRef = useRef(mode);
   useEffect(() => {
     modeRef.current = mode;
-    document.body.style.cursor = mode === "world" ? "grab" : "";
+    document.body.style.cursor = "";
+    if (mode !== "world") held.clear();
   }, [mode, canvas]);
   useEffect(() => {
-    let down: { x: number; y: number; pan: boolean } | null = null;
+    let down: { x: number; y: number } | null = null, pressedAt = { x: 0, y: 0 };
     const onDown = (e: PointerEvent) => {
-      down = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey };
+      down = { x: e.clientX, y: e.clientY };
+      pressedAt = { ...down };
     };
     const onMove = (e: PointerEvent) => {
       if (!down) return;
       const dx = e.clientX - down.x, dy = e.clientY - down.y;
-      down = { ...down, x: e.clientX, y: e.clientY };
+      down = { x: e.clientX, y: e.clientY };
       const v = view.current, m = modeRef.current;
       v.lastDrag = performance.now();
       if (m === "splash") v.spin -= dx * 0.004;
-      else if (m === "world" && down.pan) {
-        // grab the ground and slide it: the further out you are, the further it moves
-        const k = v.dist * 0.0016;
-        moveTarget(v, -dx * k, dy * k);
-        document.body.style.cursor = "grabbing";
-      } else if (m === "world") {
+      else if (m === "world") {
         v.az -= dx * 0.006;
         v.el = clamp(v.el + dy * 0.004, LIMITS.el);
-        document.body.style.cursor = "grabbing";
       } else {
         v.yaw = Math.min(LIMITS.yaw, Math.max(-LIMITS.yaw, v.yaw - dx * 0.004));
         v.pitch = clamp(v.pitch - dy * 0.003, LIMITS.pitch);
@@ -114,7 +102,6 @@ function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
     };
     const onUp = () => {
       down = null;
-      if (modeRef.current === "world") document.body.style.cursor = "grab";
     };
     const onWheel = (e: WheelEvent) => {
       const v = view.current, m = modeRef.current;
@@ -124,73 +111,52 @@ function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
         v.lastDrag = performance.now();
       }
     };
-    const noMenu = (e: MouseEvent) => e.preventDefault(); // right-drag moves, so no right-click menu over the island
-    // double-click: go to that spot on the ground
     const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), ray = new THREE.Raycaster(), hit = new THREE.Vector3();
-    const onDoubleClick = (e: MouseEvent) => {
-      if (modeRef.current !== "world") return;
+    clickToWalk.current = (e: MouseEvent) => {
+      if (modeRef.current !== "world" || Math.hypot(e.clientX - pressedAt.x, e.clientY - pressedAt.y) > 6) return;
       const r = canvas.getBoundingClientRect();
       ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
-      if (!ray.ray.intersectPlane(ground, hit)) return;
-      const v = view.current;
-      v.target.set(hit.x, ISLAND.target.y, hit.z);
-      moveTarget(v, 0, 0); // keeps it on the island
-      v.dist = Math.min(v.dist, 10);
+      if (ray.ray.intersectPlane(ground, hit) && Math.hypot(hit.x, hit.z) < 13) walkTo(hit.x, hit.z);
     };
     const onKey = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
-      if (e.type === "keyup") return void held.current.delete(key);
+      if (e.type === "keyup") return void held.delete(key);
       if (modeRef.current !== "world" || typing() || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (!["w", "a", "s", "d", "q", "e", "arrowup", "arrowdown", "arrowleft", "arrowright", "r", "+", "=", "-"].includes(key)) return;
+      if (key === "r") return goHomeSpot();
+      if (!WALK_KEYS.includes(key)) return;
       e.preventDefault();
-      if (key === "r") {
-        const v = view.current;
-        v.target.copy(ISLAND.target);
-        v.az = ISLAND.az;
-        v.el = ISLAND.el;
-        v.dist = ISLAND.dist;
-      } else held.current.add(key);
+      held.add(key);
     };
-    const onBlur = () => held.current.clear();
+    const onBlur = () => held.clear();
     canvas.addEventListener("pointerdown", onDown);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     canvas.addEventListener("wheel", onWheel, { passive: true });
-    canvas.addEventListener("contextmenu", noMenu);
-    canvas.addEventListener("dblclick", onDoubleClick);
     window.addEventListener("keydown", onKey);
     window.addEventListener("keyup", onKey);
     window.addEventListener("blur", onBlur);
     return () => {
+      clickToWalk.current = null;
       canvas.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("wheel", onWheel);
-      canvas.removeEventListener("contextmenu", noMenu);
-      canvas.removeEventListener("dblclick", onDoubleClick);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKey);
       window.removeEventListener("blur", onBlur);
     };
   }, [canvas, camera, view]);
-  return held;
 }
 
-/** Walks, turns and zooms the island view while keys are held. */
-function applyKeys(v: UserView, keys: Set<string>, dt: number) {
-  if (!keys.size) return;
-  const step = v.dist * 0.45 * dt, has = (...k: string[]) => k.some((x) => keys.has(x));
-  moveTarget(v, (has("d", "arrowright") ? step : 0) - (has("a", "arrowleft") ? step : 0), (has("w", "arrowup") ? step : 0) - (has("s", "arrowdown") ? step : 0));
-  v.az += ((has("q") ? 1 : 0) - (has("e") ? 1 : 0)) * 1.3 * dt;
-  v.dist = clamp(v.dist * (1 + ((has("-") ? 1 : 0) - (has("+", "=") ? 1 : 0)) * 1.2 * dt), LIMITS.dist);
-}
+/** Set by the controls (inside the canvas), called by the canvas when a click lands on nothing clickable. */
+const clickToWalk: { current: ((e: MouseEvent) => void) | null } = { current: null };
 
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 function CameraRig({ mode, aside, onArrive }: { mode: WorldMode; aside: number; onArrive: (mode: WorldMode) => void }) {
   const look = useRef(new THREE.Vector3(0, 0.9, 0));
-  const view = useRef<UserView>({ spin: 0, target: ISLAND.target.clone(), az: ISLAND.az, el: ISLAND.el, dist: ISLAND.dist, yaw: 0, pitch: 0, zoom: 1, lastDrag: 0 });
-  const keys = useViewControls(mode, view);
+  const view = useRef<UserView>({ spin: 0, az: ISLAND.az, el: ISLAND.el, dist: ISLAND.dist, yaw: 0, pitch: 0, zoom: 1, lastDrag: 0 });
+  useViewControls(mode, view);
   const camera = useThree((s) => s.camera);
   useEffect(() => void camera.layers.enable(GRASS_LAYER), [camera]);
   const goal = useRef({ pos: new THREE.Vector3(), look: new THREE.Vector3() });
@@ -210,12 +176,6 @@ function CameraRig({ mode, aside, onArrive }: { mode: WorldMode; aside: number; 
     const cam = camera as THREE.PerspectiveCamera;
     const g = goal.current;
     const v = view.current;
-    const flight = takeFlight();
-    if (flight && mode === "world") {
-      v.target.set(flight.x, ISLAND.target.y, flight.z);
-      v.dist = flight.dist;
-    }
-    if (mode === "world") applyKeys(v, keys.current, Math.min(dt, 0.05));
     // seated: a few seconds after you stop looking around, your gaze drifts back to the guide
     if (mode === "seated" && performance.now() - v.lastDrag > 4000) {
       const f = Math.min(1, dt * 1.5);
@@ -239,7 +199,7 @@ function CameraRig({ mode, aside, onArrive }: { mode: WorldMode; aside: number; 
         arrive.current(mode);
       }
     } else {
-      const f = 1 - Math.exp(-Math.min(dt, 0.05) * 3.5);
+      const f = 1 - Math.exp(-Math.min(dt, 0.05) * (mode === "world" ? 6 : 3.5)); // follows you closely when walking
       cam.position.lerp(g.pos, f);
       look.current.lerp(g.look, f);
       cam.fov += (fov - cam.fov) * f;
@@ -321,6 +281,7 @@ export default function WorldScene({
   garden,
   critter,
   onPickCritter,
+  onNear,
   onPokePip,
   onSit,
   onArrive,
@@ -339,6 +300,8 @@ export default function WorldScene({
   /** The pond creature you've clicked on (on the island only), if any. */
   critter: CritterPick | null;
   onPickCritter: (pick: CritterPick) => void;
+  /** What you've walked up to (the table, a creature), or nothing. */
+  onNear: (near: Nearby | null) => void;
   onPokePip: () => void;
   onSit: () => void;
   onArrive: (mode: WorldMode) => void;
@@ -351,7 +314,10 @@ export default function WorldScene({
       gl={{ toneMapping: THREE.NeutralToneMapping }}
       dpr={[1, 1.5]} // the effects chain is per pixel; 1.5x is plenty
       camera={{ position: [Math.sin(0.55) * SPLASH.radius, SPLASH.height, Math.cos(0.55) * SPLASH.radius], fov: SPLASH.fov, near: 0.05, far: 900 }}
-      onPointerMissed={() => (document.body.style.cursor = "")}
+      onPointerMissed={(e) => {
+        document.body.style.cursor = "";
+        clickToWalk.current?.(e);
+      }}
     >
       <fog attach="fog" args={[COLORS.fog, 45, 170]} />
       <DayCycle evening={evening} />
@@ -360,7 +326,10 @@ export default function WorldScene({
       <Garden count={garden.count} freshFrom={garden.freshFrom} />
       <RoundTable interactive={mode === "world"} yourTurn={yourTurn || evening} onSelect={onSit} />
       <Figure position={[0, 0, -1.15]} rotationY={0} outfit="guide" mood={mood} onPoke={onPokePip} />
-      <Figure position={[0, 0, 1.15]} rotationY={Math.PI} outfit="you" firstPerson />
+      {/* your chair: you're in it at the table, otherwise it waits empty while you walk about as your chick */}
+      <Figure position={[0, 0, 1.15]} rotationY={Math.PI} outfit="you" firstPerson occupied={mode === "seated"} />
+      <Player active={mode === "world"} visible={mode !== "seated"} onNear={onNear} />
+      <TableMarker visible={mode === "world"} />
 
       <CameraRig mode={mode} aside={aside} onArrive={onArrive} />
       <Effects />

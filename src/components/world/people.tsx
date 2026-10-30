@@ -158,6 +158,12 @@ export interface FigureProps {
   firstPerson?: boolean;
   /** Clicking the chick pokes it. */
   onPoke?: () => void;
+  /** On its chair (the default), or standing on its own feet with no chair, out walking. */
+  seated?: boolean;
+  /** False: just the empty chair (you're off walking about the island). */
+  occupied?: boolean;
+  /** How fast it's walking, 0 (still) to 1 (walking) or more (running), for its waddle. */
+  gait?: React.RefObject<number>;
 }
 
 // gentle, never-repeating drift: a few sines at unrelated rates
@@ -166,7 +172,7 @@ const drift = (t: number, seed: number) => Math.sin(t * 0.31 + seed) * 0.5 + Mat
 /** What the guide is doing, for its body language. */
 export type Mood = "idle" | "speaking" | "listening" | "thinking" | "happy";
 
-export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson = false, onPoke }: FigureProps) {
+export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson = false, onPoke, seated = true, occupied = true, gait }: FigureProps) {
   const chick = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const jaw = useRef<THREE.Group>(null);
@@ -190,9 +196,11 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
       // bounces: little ones of emphasis while talking, big happy ones; squash at the bottom, stretch at the top
       const bounce = k * Math.abs(Math.sin(t * 6.5)) * 0.015 + hp * Math.abs(Math.sin(t * 4.5)) * 0.07;
       const stretch = k * (Math.abs(Math.sin(t * 6.5)) - 0.5) * 0.04 + hp * (Math.abs(Math.sin(t * 4.5)) - 0.5) * 0.14 + Math.sin(t * 1.3 + seed) * 0.012;
+      // walking: a waddle from foot to foot, with a little hop each step
+      const g = gait?.current ?? 0, step = Math.sin(t * (10 + g * 3));
       body.current.scale.set(1 - stretch * 0.5, 1 + stretch, 1 - stretch * 0.5);
-      body.current.position.y = bounce;
-      body.current.rotation.z = drift(t * 0.5, seed) * 0.04 + th * 0.14; // a slow sway; a curious tilt while thinking
+      body.current.position.y = bounce + Math.abs(step) * 0.05 * Math.min(1, g);
+      body.current.rotation.z = drift(t * 0.5, seed) * 0.04 + th * 0.14 + step * 0.13 * Math.min(1, g); // a slow sway; a curious tilt while thinking
       // listening: an encouraging nod every couple of seconds
       const nodding = n * Math.pow(Math.max(0, Math.sin(t * 2.4)), 6) * 0.09;
       body.current.rotation.x = k * 0.05 + nodding + drift(t * 0.4, seed + 2) * 0.02;
@@ -207,10 +215,12 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
     wings.forEach((w, i) => {
       if (!w.current) return;
       const side = i ? 1 : -1;
-      w.current.rotation.z = side * (0.08 + k * (0.15 + 0.2 * Math.sin(t * 5 + i)) + hp * (0.5 + 0.4 * Math.sin(t * 9)));
+      const g = Math.min(1, gait?.current ?? 0);
+      w.current.rotation.z = side * (0.08 + k * (0.15 + 0.2 * Math.sin(t * 5 + i)) + hp * (0.5 + 0.4 * Math.sin(t * 9)) + g * (0.25 + 0.15 * Math.sin(t * 13)));
     });
     if (chick.current) {
-      if (firstPerson) {
+      if (!occupied) chick.current.visible = false;
+      else if (firstPerson) {
         const w = chick.current.getWorldPosition(world.current);
         w.y += 0.5;
         chick.current.visible = w.distanceTo(camera.position) > 1.0;
@@ -222,10 +232,11 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
   const beakAt = surface(0, BEAK_Y, -0.004);
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
-      <WoodChair cushion={pal.cushion} />
+      {seated && <WoodChair cushion={pal.cushion} />}
       <group
         ref={chick}
-        position={[0, SEAT_Y, 0.04]}
+        visible={occupied}
+        position={seated ? [0, SEAT_Y, 0.04] : [0, 0, -0.1]}
         onClick={(e) => {
           if (!onPoke || isDrag(e.delta)) return; // dragging to look around isn't a poke
           e.stopPropagation();
