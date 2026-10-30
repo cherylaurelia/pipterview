@@ -49,8 +49,8 @@ export function saveMicChoice(choice: "mic" | "typing") {
 const TOUR_TEXT: Record<TourStep, ReactNode> = {
   welcome: (
     <>
-      Hi, I&apos;m {GUIDE_NAME}! I&apos;ll help you practise interviews out loud, at your own pace. Press <b>Start practising</b> for a gentle
-      warm-up, or choose a round.
+      Hi, I&apos;m {GUIDE_NAME}! Getting yourself to prep is the hard part, so we&apos;ll start small. Press <b>Start practising</b> for a
+      gentle warm-up, or choose a round.
     </>
   ),
   island: (
@@ -66,8 +66,8 @@ const TOUR_TEXT: Record<TourStep, ReactNode> = {
   ),
   grow: (
     <>
-      You did it! Every session grows something on our island. Your stories are saved under <b>Stories</b> too. See you
-      tomorrow?
+      You did it, and starting was the hardest part. Every session grows something on our island, and your stories are saved
+      under <b>Stories</b>. An extra view a day keeps the spirals away. See you tomorrow?
     </>
   ),
 };
@@ -76,7 +76,7 @@ const TOUR_TEXT: Record<TourStep, ReactNode> = {
 export function TourBubble({ step, onNext, onSkip, className = "" }: { step: TourStep; onNext: () => void; onSkip: () => void; className?: string }) {
   const last = step === "grow";
   return (
-    <Panel title={`${GUIDE_NAME} says`} tone="active" className={`w-[min(340px,calc(100vw-2rem))] ${className}`}>
+    <Panel title={`${GUIDE_NAME} says`} tone="active" className={`w-[min(340px,calc(100vw-2rem))] lowercase ${className}`}>
       <div className="flex gap-2.5 px-2 pt-2 pb-2.5">
         <Portrait size={44} />
         <p className="text-[13.5px] leading-snug text-[#1b1d22]">{TOUR_TEXT[step]}</p>
@@ -103,7 +103,7 @@ export function MicPrimer({ onMic, onType }: { onMic: () => void; onType: () => 
         <div className="flex gap-3 px-3 pt-3 pb-2">
           <Portrait size={56} />
           <div className="space-y-2 text-[13.5px] leading-snug text-[#1b1d22]">
-            <p>Interviews are spoken, so practising out loud helps most. Your browser will ask to use your microphone next.</p>
+            <p>Knowing the answer is one thing; saying it out loud is another. That&apos;s what we practise here. Your browser will ask to use your microphone next.</p>
             <p className="text-[12.5px] text-[#55534e]">
               Your browser turns speech into text (Chrome uses Google&apos;s speech service); {GUIDE_NAME} only sees the text. Headphones
               help, so {GUIDE_NAME}&apos;s voice doesn&apos;t end up in your answer.

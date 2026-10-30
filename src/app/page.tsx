@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import World from "@/components/world/World";
 
 export const metadata: Metadata = {
-  title: "Pip · Interview practice",
+  title: "pipterview ⋆⭒˚.⋆ an extra view for your interviews",
 };
 
 /** The island is the app: pick a round, sit down with Pip, practise out loud. */

@@ -8,9 +8,9 @@ const overpassMono = Overpass_Mono({ variable: "--font-overpass-mono", subsets: 
 const cedarville = Cedarville_Cursive({ variable: "--font-cedarville", weight: "400", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Pip · Interview practice for nervous candidates",
+  title: "pipterview ⋆⭒˚.⋆ an extra view for your interviews",
   description:
-    "Practice technical and behavioral interviews out loud with an AI interviewer, at your own pace, until the nerves fade.",
+    "Mock interviews out loud with Pip, on a cozy little island. For students in tech who know they should prep but can't bring themselves to start.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
