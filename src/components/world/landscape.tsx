@@ -75,7 +75,7 @@ function Grass() {
   const blades = useRef<THREE.InstancedMesh>(null);
   const flowers = useRef<THREE.InstancedMesh>(null);
   const fringe = useRef<THREE.InstancedMesh>(null);
-  const BLADES = 12000, FLOWERS = 2400, FRINGE = 2600;
+  const BLADES = 8000, FLOWERS = 2400, FRINGE = 2600;
   const bladeGeo = useMemo(() => new THREE.ConeGeometry(0.028, 0.2, 3).translate(0, 0.1, 0), []);
 
   useLayoutEffect(() => {
@@ -197,25 +197,30 @@ function puff(out: THREE.BufferGeometry[], r: () => number, at: THREE.Vector3, s
 function Trees() {
   const { crowns, trunks } = useMemo(() => {
     const r = rng(42);
-    const place = <T,>(count: number, minR: number, pad: number, make: (x: number, z: number) => T) => {
-      const out: T[] = [];
-      for (let tries = 0; out.length < count && tries < count * 60; tries++) {
-        const x = (r() - 0.5) * 28, z = (r() - 0.5) * 28;
-        if (Math.hypot(x, z) > minR && isOpen(x, z, pad) && !inView(x, z) && !nearGardenSlot(x, z, 1.6)) out.push(make(x, z));
+    // every crown placed so far (centre and how far its blobs reach), so no two grow into each other
+    const taken: { x: number; z: number; reach: number }[] = [];
+    const place = (count: number, minR: number, pad: number, sizes: () => number, make: (x: number, z: number, s: number) => void) => {
+      for (let placed = 0, tries = 0; placed < count && tries < count * 80; tries++) {
+        const x = (r() - 0.5) * 28, z = (r() - 0.5) * 28, s = sizes(), reach = s * 1.2;
+        if (Math.hypot(x, z) <= minR || !isOpen(x, z, pad) || inView(x, z) || nearGardenSlot(x, z, 1.6)) continue;
+        if (taken.some((t) => Math.hypot(t.x - x, t.z - z) < t.reach + reach + 0.15)) continue;
+        taken.push({ x, z, reach });
+        make(x, z, s);
+        placed++;
       }
-      return out;
     };
     const greens = [["#4f9c3c", "#9ad65a"], ["#58a842", "#a6dc63"], ["#468f37", "#8fce52"]].map(([a, b]) => [new THREE.Color(a), new THREE.Color(b)]);
     const pink = [new THREE.Color("#d9739a"), new THREE.Color("#ffb3cc")];
     const crownParts: THREE.BufferGeometry[] = [], trunkParts: THREE.BufferGeometry[] = [];
     const at = new THREE.Vector3();
-    place(18, 6, 1, (x, z) => {
-      const s = 0.75 + r() * 0.5, [base, light] = r() < 0.17 ? pink : greens[Math.floor(r() * 3)], y = groundY(x, z);
+    place(18, 6, 1, () => 0.75 + r() * 0.5, (x, z, s) => {
+      const [base, light] = r() < 0.17 ? pink : greens[Math.floor(r() * 3)], y = groundY(x, z);
       trunkParts.push(new THREE.CapsuleGeometry(0.13 * s, 0.9 * s, 4, 8).translate(x, y + 0.55 * s, z));
       puff(crownParts, r, at.set(x, y + 1.75 * s, z), 1.05 * s, base, light, 12);
     });
-    place(16, 3.2, 0.3, (x, z) => {
-      const s = 0.45 + r() * 0.35, [base, light] = greens[Math.floor(r() * 3)];
+    // bushes are about half a tree's crown across, so they're sized (for spacing) at half
+    place(16, 3.2, 0.3, () => (0.45 + r() * 0.35) * 0.55, (x, z, half) => {
+      const s = half / 0.55, [base, light] = greens[Math.floor(r() * 3)];
       puff(crownParts, r, at.set(x, groundY(x, z) + 0.32 * s, z), 0.55 * s, base, light, 7, 0.85);
     });
     return { crowns: mergeGeometries(crownParts), trunks: mergeGeometries(trunkParts) };
