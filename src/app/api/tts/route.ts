@@ -9,9 +9,10 @@ import { rateLimited } from "@/lib/server/rate-limit";
  * The client sends one sentence at a time (so speech starts before the reply has finished streaming) along with the
  * sentence before it, which ElevenLabs uses to keep the intonation flowing across sentences.
  */
-const VOICE_ID = process.env.ELEVENLABS_VOICE_ID ?? "21m00Tcm4TlvDq8ikWAM";
-const MODEL_ID = process.env.ELEVENLABS_MODEL_ID ?? "eleven_flash_v2_5"; // the low-latency model
-const SPEED = Number(process.env.ELEVENLABS_SPEED ?? "1");
+// `||`, not `??`: an empty line in .env.local (ELEVENLABS_VOICE_ID=) should fall back too
+const VOICE_ID = process.env.ELEVENLABS_VOICE_ID?.trim() || "21m00Tcm4TlvDq8ikWAM";
+const MODEL_ID = process.env.ELEVENLABS_MODEL_ID?.trim() || "eleven_flash_v2_5"; // the low-latency model
+const SPEED = Number(process.env.ELEVENLABS_SPEED?.trim() || "1");
 
 // Warm and a little expressive (lower stability), still clearly the same voice. Style exaggeration stays off: it adds latency.
 const VOICE_SETTINGS = { stability: 0.4, similarity_boost: 0.8, style: 0, use_speaker_boost: true, speed: Number.isFinite(SPEED) ? SPEED : 1 };
