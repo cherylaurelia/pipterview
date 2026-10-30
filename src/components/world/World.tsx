@@ -16,6 +16,7 @@ import { createAmbience, type Ambience } from "./sound";
 import { setVoiceVolume } from "@/lib/voice/speak";
 import { BookIcon, ChatIcon, CloseIcon, CodeIcon, HelpIcon, HomeIcon, IslandIcon, SpeakerIcon } from "./icons";
 import { askCritter, CRITTERS, type CritterAction, type CritterPick } from "./critters";
+import { flyTo, PLACES } from "./nav";
 import { IslandPanel } from "./islandpanel";
 import { StoryBook } from "./storybook";
 import { GardenIcon } from "../GardenIcon";
@@ -621,14 +622,34 @@ export default function World() {
           <NavButton tone="yellow" onClick={sitDown} className="w-full py-2.5 text-[16px]">
             Sit down with {GUIDE_NAME}
           </NavButton>
-          <p className="flex items-center gap-2 text-[12.5px] text-[#8a6a4a]">
-            Drag to look around · scroll to zoom ·
+          <p className="flex flex-wrap items-center justify-center gap-x-2 text-center text-[12.5px] text-[#8a6a4a]">
+            Drag to turn · right-drag or WASD to move · scroll to zoom ·
             <button onClick={goHome} className="font-bold text-[#b0702a] underline underline-offset-2">
               Change round
             </button>
           </p>
         </div>
       </div>
+
+      {/* getting about the island: jump to a place (double-click anywhere works too) */}
+      <nav
+        aria-label="Go to"
+        className={`absolute top-1/2 left-3 z-10 hidden -translate-y-1/2 flex-col gap-0.5 rounded-[20px] bg-[#fff8ec]/95 p-1.5 shadow-[0_8px_24px_rgba(70,45,20,0.18)] ring-1 ring-[#f0dfc2] transition-opacity duration-500 sm:flex ${
+          mode === "world" && arrived === "world" ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+      >
+        <span className="px-2.5 pt-1 pb-0.5 text-[11.5px] font-bold text-[#a08060]">Go to</span>
+        {PLACES.map((place) => (
+          <button
+            key={place.id}
+            onClick={() => flyTo(place)}
+            className="rounded-full px-3 py-1.5 text-left text-[13.5px] font-bold text-[#4a3424] transition-colors hover:bg-[#fff0d4] active:bg-[#ffe1a1]"
+          >
+            {place.label}
+          </button>
+        ))}
+        <span className="max-w-[7.5rem] px-2.5 pt-1 pb-1 text-[11px] leading-snug text-[#a08060]">Or double-click anywhere. R to come back.</span>
+      </nav>
 
       {/* 3. the side panel: chat and code at the table (kept mounted, so switching tabs loses nothing); stories and help any time */}
       {showPanel && (
