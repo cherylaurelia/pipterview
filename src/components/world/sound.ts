@@ -339,6 +339,8 @@ export function createAmbience(): Ambience {
           tone(fx, 560, at + dt, { type: "sawtooth", peak: 0.025, attack: 0.008, decay: 0.15, glide: 0.72 });
           tone(fx, 280, at + dt, { type: "square", peak: 0.015, attack: 0.008, decay: 0.13, glide: 0.8 });
         }
+      } else if (sound === "peck") {
+        for (const dt of [0, 0.14, 0.28]) tone(fx, 1500, at + dt, { type: "triangle", peak: 0.05, attack: 0.002, decay: 0.04, glide: 0.7 });
       } else if (sound === "plop") {
         tone(fx, 320, at, { peak: 0.08, attack: 0.004, decay: 0.12, glide: 2.4 });
       } else if (sound === "slurp") {

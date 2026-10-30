@@ -1,10 +1,10 @@
 // The pond's creatures you can click on (see pond.tsx): which one is picked, and the little things each can do. The
 // toolbar (in World.tsx) queues an action here; the creature picks it up in its own frame loop and plays it.
 
-export type CritterKind = "frog" | "duck" | "koi";
+export type CritterKind = "frog" | "duck" | "grassDuck" | "koi";
 
 /** A sound for an action; see `Ambience.critter` in sound.ts. */
-export type CritterSound = "croak" | "quack" | "splash" | "plop" | "flap" | "slurp";
+export type CritterSound = "croak" | "quack" | "splash" | "plop" | "flap" | "slurp" | "peck";
 
 export interface CritterAction {
   label: string;
@@ -28,6 +28,14 @@ export const CRITTERS: Record<CritterKind, { name: string; actions: CritterActio
       { label: "Flap", sound: "flap" },
     ],
   },
+  grassDuck: {
+    name: "Duck",
+    actions: [
+      { label: "Quack", sound: "quack" },
+      { label: "Peck", sound: "peck" },
+      { label: "Waddle", sound: "quack" },
+    ],
+  },
   koi: {
     name: "Koi",
     actions: [
@@ -38,7 +46,7 @@ export const CRITTERS: Record<CritterKind, { name: string; actions: CritterActio
   },
 };
 
-/** One creature: its kind, and which of that kind (there are two ducks and three koi). */
+/** One creature: its kind, and which of that kind (there are two ducks on the water, two on the grass, three koi). */
 export interface CritterPick {
   kind: CritterKind;
   index: number;
