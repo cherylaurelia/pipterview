@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ProgressView } from "@/components/ProgressView";
 import { Logo } from "@/components/ui";
 
-export const metadata: Metadata = { title: "Your progress · Steady" };
+export const metadata: Metadata = { title: "Your progress · Pip" };
 
 export default function ProgressPage() {
   return (
