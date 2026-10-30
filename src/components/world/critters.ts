@@ -64,3 +64,28 @@ export function takeAction(kind: CritterKind, index: number) {
   const i = inbox.findIndex((a) => a.kind === kind && a.index === index);
   return i < 0 ? null : inbox.splice(i, 1)[0].action;
 }
+
+// where each creature is right now, so you can walk up to one (see explore.ts)
+const spots = new Map<string, CritterPick & { x: number; z: number }>();
+
+/** A creature says where it is (from its frame loop). */
+export function reportSpot(kind: CritterKind, index: number, x: number, z: number) {
+  const key = `${kind}${index}`, s = spots.get(key);
+  if (s) {
+    s.x = x;
+    s.z = z;
+  } else spots.set(key, { kind, index, x, z });
+}
+
+/** The creature nearest (x, z), if one is within `reach` metres. */
+export function nearestCritter(x: number, z: number, reach: number): CritterPick | null {
+  let best: CritterPick | null = null, bestD = reach;
+  for (const s of spots.values()) {
+    const d = Math.hypot(s.x - x, s.z - z);
+    if (d < bestD) {
+      bestD = d;
+      best = { kind: s.kind, index: s.index };
+    }
+  }
+  return best;
+}
