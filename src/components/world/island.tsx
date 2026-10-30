@@ -8,13 +8,15 @@ import { softDot } from "./textures";
 import { gradientMap, toon } from "./toon";
 
 // The floating island the table sits on, like a little diorama: a grassy top with a stream running across it (under a
-// stone bridge and off the edge in a waterfall), a lily pond with floating lanterns, a cottage, a windmill and a wheat
-// field, all on pale stone cliffs that taper away into the haze below. Local layout, seen from above (the guide sits at
-// z = -1.15 facing +z, so everything at -z is the view behind it when you're seated):
+// stone bridge and off the edge in a waterfall), a big pond with a sandy shore and a wooden dock (see pond.tsx for the
+// pond and its creatures), a cottage, a windmill and a wheat field, all on pale stone cliffs that taper away into the
+// haze below. Local layout, seen from above (the guide sits at z = -1.15 facing +z, so everything at -z is the view
+// behind it when you're seated):
 //
 //            windmill   wheat      cottage
 //      ~~~~~~~~~~~~~~ stream ~~~~~~[bridge]~~~~~~~~~ waterfall →
-//                pond      (table)   path
+//             pond  (table)   path
+//               dock ⌟__________/
 //
 // Everything here is procedural and seeded, so the island is the same on every load.
 
@@ -44,12 +46,23 @@ const PATH_CURVE = curve([[-1.5, 12], [1.8, 6], [2.9, 2.2], [2.6, -2.5], [2.3, -
 const STREAM_PTS = STREAM_CURVE.getSpacedPoints(200);
 const PATH_PTS = PATH_CURVE.getSpacedPoints(160);
 
-export const POND = { x: -4.6, z: 2.8, r: 1.7 };
+export const POND = { x: -5, z: 3.4, r: 2.6 };
 export const COTTAGE = { x: 5.4, z: -9.6 };
 export const WINDMILL = { x: -3.2, z: -9.4 };
 export const FIELD = { x0: -7.6, x1: -4.6, z0: -8.8, z1: -6.8 };
 
 const insideRadius = (x: number, z: number) => Math.hypot(x, z) / islandRadius(Math.atan2(z, x));
+
+/** The pond's edge, as a radius from its centre at each angle: a lopsided kidney shape rather than a circle. */
+export function pondRadius(theta: number) {
+  return POND.r * (1 + Math.sin(theta * 2 + 0.6) * 0.14 + Math.sin(theta * 3 + 2.1) * 0.07 + Math.sin(theta * 5) * 0.04);
+}
+
+/** How far (x, z) is outside the pond's edge (negative in the water). */
+export function pondEdge(x: number, z: number) {
+  const dx = x - POND.x, dz = z - POND.z;
+  return Math.hypot(dx, dz) - pondRadius(Math.atan2(dz, dx));
+}
 
 /** Distance from (x, z) to the nearest of `pts`. */
 function distTo(pts: THREE.Vector3[], x: number, z: number) {
@@ -68,6 +81,27 @@ const FALL = (() => {
   const theta = Math.atan2(p.z, p.x), r = islandRadius(theta);
   return { x: Math.cos(theta) * r, z: Math.sin(theta) * r, theta };
 })();
+/** The wooden dock: where it leaves the shore, and its heading out over the water (towards the pond's middle). */
+export const DOCK = (() => {
+  const theta = 0.8, R = pondRadius(theta);
+  const x = POND.x + Math.cos(theta) * R, z = POND.z + Math.sin(theta) * R;
+  return { x, z, angle: Math.atan2(POND.x - x, POND.z - z), length: 1.9 };
+})();
+
+// a little dirt path from the main path down to the dock
+const SPUR_PTS = (() => {
+  const out = { x: Math.sin(DOCK.angle + Math.PI), z: Math.cos(DOCK.angle + Math.PI) };
+  const aim = { x: DOCK.x + out.x * 3.5, z: DOCK.z + out.z * 3.5 };
+  const join = PATH_PTS.reduce((a, b) => (Math.hypot(b.x - aim.x, b.z - aim.z) < Math.hypot(a.x - aim.x, a.z - aim.z) ? b : a));
+  return curve([
+    [DOCK.x - out.x * 0.2, DOCK.z - out.z * 0.2],
+    [DOCK.x + out.x * 1.4, DOCK.z + out.z * 1.4],
+    [(DOCK.x + out.x * 1.4 + join.x) / 2 + 0.3, (DOCK.z + out.z * 1.4 + join.z) / 2 - 0.3],
+    [join.x, join.z],
+  ]).getSpacedPoints(50);
+})();
+const PATHS = [...PATH_PTS, ...SPUR_PTS];
+
 const BRIDGE = (() => {
   let best = { i: 0, d: Infinity };
   PATH_PTS.forEach((p, i) => {
@@ -83,7 +117,7 @@ export function groundY(x: number, z: number) {
   // gentle bumps, flat by the table and at the rim (so the top meets the cliffs)
   const bumps = Math.sin(x * 0.5) * Math.cos(z * 0.45) * 0.06 * smooth(3, 7, Math.hypot(x, z)) * (1 - smooth(0.85, 0.96, insideRadius(x, z)));
   const stream = -0.42 * (1 - smooth(0.75, 1.35, distTo(STREAM_PTS, x, z)));
-  const pond = -0.36 * (1 - smooth(POND.r - 0.1, POND.r + 0.5, Math.hypot(x - POND.x, z - POND.z)));
+  const pond = -0.36 * (1 - smooth(-0.35, 0.25, pondEdge(x, z))); // meets the water level right at the edge
   return bumps + Math.min(stream, pond);
 }
 
@@ -92,8 +126,8 @@ export function isOpen(x: number, z: number, pad = 0) {
   if (insideRadius(x, z) > 1 - (0.5 + pad) / 13) return false;
   if (Math.hypot(x, z) < 1.4 + pad * 2) return false; // the table
   if (distTo(STREAM_PTS, x, z) < 1.25 + pad) return false;
-  if (Math.hypot(x - POND.x, z - POND.z) < POND.r + 0.45 + pad) return false;
-  if (distTo(PATH_PTS, x, z) < 0.7 + pad) return false;
+  if (pondEdge(x, z) < 0.45 + pad) return false;
+  if (distTo(PATHS, x, z) < 0.7 + pad) return false;
   if (x > FIELD.x0 - 0.3 - pad && x < FIELD.x1 + 0.3 + pad && z > FIELD.z0 - 0.3 - pad && z < FIELD.z1 + 0.3 + pad) return false;
   if (Math.hypot(x - COTTAGE.x, z - COTTAGE.z) < 2.1 + pad) return false;
   if (Math.hypot(x - WINDMILL.x, z - WINDMILL.z) < 1.4 + pad) return false;
@@ -122,8 +156,8 @@ export const GARDEN_SLOTS: { x: number; z: number; angle: number }[] = (() => {
 export const nearGardenSlot = (x: number, z: number, pad: number) => GARDEN_SLOTS.some((s) => Math.hypot(s.x - x, s.z - z) < pad);
 
 const C = (hex: string) => new THREE.Color(hex);
-const GRASS = C("#96c95f"), GRASS_LIGHT = C("#b7d96e"), GRASS_DARK = C("#78b257");
-const DIRT = C("#dcbd8c"), BANK = C("#c9c3b4"), BED = C("#8fb0b4"), SOIL = C("#b58a57");
+const GRASS = C("#8fcf4a"), GRASS_LIGHT = C("#b4df5c"), GRASS_DARK = C("#6fb843");
+const DIRT = C("#e2c48f"), BANK = C("#c9c3b4"), BED = C("#8fb0b4"), SOIL = C("#b58a57"), SAND = C("#ead6a6");
 const STONE_TOP = C("#e4dccd"), STONE = C("#cfc8bb"), STONE_DARK = C("#a8a4ab");
 
 /** The grassy top: a grid clamped to the island's outline, with the paths, banks and field painted in. */
@@ -134,6 +168,7 @@ function IslandTop() {
     const pos = g.attributes.position;
     const colors = new Float32Array(pos.count * 3);
     const c = new THREE.Color();
+    const rand = rng(17);
     for (let i = 0; i < pos.count; i++) {
       let x = pos.getX(i), z = pos.getZ(i);
       const theta = Math.atan2(z, x), r = Math.hypot(x, z), R = islandRadius(theta);
@@ -147,10 +182,11 @@ function IslandTop() {
       pos.setY(i, groundY(x, z));
       const n = Math.sin(x * 0.35) * Math.cos(z * 0.3) * 0.5 + Math.sin(x * 0.11 + z * 0.17) * 0.5;
       c.copy(GRASS).lerp(n > 0 ? GRASS_LIGHT : GRASS_DARK, Math.abs(n) * 0.6);
-      const ds = distTo(STREAM_PTS, x, z), dp = Math.hypot(x - POND.x, z - POND.z) - POND.r;
-      const water = Math.min(ds - 0.65, dp);
-      if (water < 0.45) c.copy(BANK).lerp(BED, smooth(0.25, -0.2, water)); // stone banks into the bed
-      if (distTo(PATH_PTS, x, z) < 0.55) c.copy(DIRT);
+      c.lerp(rand() > 0.5 ? GRASS_LIGHT : GRASS_DARK, rand() * 0.35); // a speckle of brush strokes, like painted grass
+      const ds = distTo(STREAM_PTS, x, z) - 0.65, dp = pondEdge(x, z);
+      if (ds < 0.45) c.copy(BANK).lerp(BED, smooth(0.25, -0.2, ds)); // stone banks into the stream bed
+      if (dp < 0.38) c.copy(SAND).lerp(BED, smooth(-0.05, -0.3, dp)); // a sandy shore round the pond
+      if (distTo(PATHS, x, z) < 0.55) c.copy(DIRT);
       if (x > FIELD.x0 - 0.2 && x < FIELD.x1 + 0.2 && z > FIELD.z0 - 0.2 && z < FIELD.z1 + 0.2) c.copy(SOIL);
       colors.set([c.r, c.g, c.b], i * 3);
     }
@@ -221,7 +257,7 @@ function IslandBody() {
 }
 
 // the water's colours by day, and at sunset (when it mirrors the peach and rose of the sky)
-const WATER = { shallow: C("#9fdcec"), deep: C("#4d9cc4"), shallowDusk: C("#ffcfae"), deepDusk: C("#b88ac4") };
+const WATER = { shallow: C("#93dccf"), deep: C("#2f86a3"), shallowDusk: C("#ffcfae"), deepDusk: C("#b88ac4") };
 
 // Water: an unlit shader with drifting light streaks (or ripples for the pond), coloured by the time of day, with fog.
 const WATER_VERTEX = /* glsl */ `
@@ -234,9 +270,9 @@ const WATER_VERTEX = /* glsl */ `
     #include <fog_vertex>
   }`;
 
-function waterMaterial(fragment: string, extra: Record<string, THREE.IUniform> = {}, transparent = false) {
+export function waterMaterial(fragment: string, extra: Record<string, THREE.IUniform> = {}, transparent = false, vertex = WATER_VERTEX) {
   return new THREE.ShaderMaterial({
-    vertexShader: WATER_VERTEX,
+    vertexShader: vertex,
     fragmentShader: fragment,
     fog: true,
     transparent,
@@ -255,12 +291,12 @@ function waterMaterial(fragment: string, extra: Record<string, THREE.IUniform> =
   });
 }
 
-const WATER_COMMON = /* glsl */ `
+export const WATER_COMMON = /* glsl */ `
   #include <common>
   #include <fog_pars_fragment>
   uniform float uTime, uEvening; uniform vec3 uShallow, uDeep;
   varying vec2 vUv;`;
-const WATER_END = /* glsl */ `
+export const WATER_END = /* glsl */ `
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
   #include <fog_fragment>`;
@@ -273,21 +309,6 @@ const STREAM_FRAGMENT = /* glsl */ `${WATER_COMMON}
     float a = sin(vUv.x * 260.0 - uTime * 3.0 + sin(vUv.y * 7.0 + vUv.x * 40.0) * 2.0) * 0.5 + 0.5;
     float b = sin(vUv.x * 150.0 - uTime * 2.2 + vUv.y * 11.0) * 0.5 + 0.5;
     col = mix(col, vec3(1.0), smoothstep(0.9, 1.0, a * b) * 0.6);
-    gl_FragColor = vec4(col, 1.0);
-    ${WATER_END}
-  }`;
-
-const POND_FRAGMENT = /* glsl */ `${WATER_COMMON}
-  uniform vec2 uLanterns[4];
-  void main() {
-    vec2 p = vUv - 0.5;
-    float r = length(p) * 2.0;
-    vec3 col = mix(uDeep, uShallow, smoothstep(0.55, 1.0, r));
-    col = mix(col, vec3(1.0), smoothstep(0.85, 1.0, sin(r * 38.0 - uTime * 1.4) * 0.5 + 0.5) * 0.18 * (1.0 - r));
-    // the lanterns' warm reflections, once the sun is down
-    float glow = 0.0;
-    for (int i = 0; i < 4; i++) glow += exp(-length((p - uLanterns[i]) * vec2(1.0, 0.45)) * 22.0);
-    col += vec3(1.0, 0.72, 0.35) * glow * (0.15 + uEvening * 0.9);
     gl_FragColor = vec4(col, 1.0);
     ${WATER_END}
   }`;
@@ -306,7 +327,7 @@ const FALL_FRAGMENT = /* glsl */ `${WATER_COMMON}
   }`;
 
 /** Moves a water shader's clock and sunset colours on; call it from a frame loop. */
-function tickWater(mesh: THREE.Mesh | null, time: number) {
+export function tickWater(mesh: THREE.Mesh | null, time: number) {
   const m = mesh?.material as THREE.ShaderMaterial | undefined;
   if (!m) return;
   m.uniforms.uTime.value = time;
@@ -429,64 +450,6 @@ export function BoxLantern({ position, scale = 1 }: { position: [number, number,
           <boxGeometry args={[0.17, 0.03, 0.17]} />
         </mesh>
       ))}
-    </group>
-  );
-}
-
-// where the pond's lanterns float, in its uv space (centred on 0)
-const POND_LANTERNS: [number, number][] = [[-0.25, 0.2], [0.3, -0.1], [0.05, -0.3], [-0.1, 0.33]];
-
-/** The lily pond: lily pads, pink lotus flowers, and lanterns floating on the pads. */
-function Pond() {
-  const ref = useRef<THREE.Mesh>(null);
-  const material = useMemo(() => waterMaterial(POND_FRAGMENT, { uLanterns: { value: POND_LANTERNS.map(([x, y]) => new THREE.Vector2(x, y)) } }), []);
-  const pads = useMemo(() => {
-    const r = rng(77);
-    return Array.from({ length: 9 }, (_, i) => {
-      const a = (i / 9) * Math.PI * 2 + r(), d = 0.35 + r() * 0.95;
-      return { x: Math.cos(a) * d, z: Math.sin(a) * d, s: 0.16 + r() * 0.1, rot: r() * 6, lotus: r() > 0.55 };
-    });
-  }, []);
-  const light = useRef<THREE.PointLight>(null);
-  useFrame(({ clock }) => {
-    tickWater(ref.current, clock.getElapsedTime());
-    if (light.current) light.current.intensity = daylight.evening * 1.1;
-  });
-  return (
-    <group position={[POND.x, 0, POND.z]}>
-      <mesh ref={ref} position={[0, -0.11, 0]} rotation={[-Math.PI / 2, 0, 0]} material={material}>
-        <circleGeometry args={[POND.r + 0.15, 48]} />
-      </mesh>
-      {pads.map((p, i) => (
-        <group key={i} position={[p.x, -0.095, p.z]} rotation={[0, p.rot, 0]}>
-          {/* a pad with a notch cut out */}
-          <mesh material={toon("#6db159")}>
-            <cylinderGeometry args={[p.s, p.s, 0.02, 20, 1, false, 0.4, Math.PI * 2 - 0.4]} />
-          </mesh>
-          {p.lotus && (
-            <group position={[0.02, 0.04, 0]}>
-              {[0, 1, 2, 3, 4].map((k) => (
-                <mesh key={k} rotation={[0.5, (k / 5) * Math.PI * 2, 0]} position={[Math.sin((k / 5) * Math.PI * 2) * 0.03, 0.02, Math.cos((k / 5) * Math.PI * 2) * 0.03]} material={toon("#ff9cc8")}>
-                  <coneGeometry args={[0.03, 0.08, 6]} />
-                </mesh>
-              ))}
-              <mesh position={[0, 0.04, 0]} material={toon("#ffe066")}>
-                <sphereGeometry args={[0.02, 8, 6]} />
-              </mesh>
-            </group>
-          )}
-        </group>
-      ))}
-      {POND_LANTERNS.map(([u, v], i) => (
-        // uv → local: the circle's uv spans the diameter, with v pointing towards -z once it's laid flat
-        <group key={i} position={[u * (POND.r + 0.15) * 2, -0.09, -v * (POND.r + 0.15) * 2]}>
-          <mesh material={toon("#5fa64e")}>
-            <cylinderGeometry args={[0.16, 0.16, 0.02, 18]} />
-          </mesh>
-          <BoxLantern position={[0, 0.01, 0]} />
-        </group>
-      ))}
-      <pointLight ref={light} position={[0, 0.6, 0]} color="#ffb860" intensity={0} distance={4.5} decay={2} />
     </group>
   );
 }
@@ -616,7 +579,7 @@ function WheatField() {
   );
 }
 
-/** Two or three little islands floating far off in the haze, each with a tree, for depth. */
+/** Two or three little islands floating far off in the haze, each with a puffy tree, for depth. */
 function FarIslands() {
   const islands = useMemo(
     () => [
@@ -639,9 +602,11 @@ function FarIslands() {
             <circleGeometry args={[13.6, 32]} />
           </mesh>
           <group scale={3}>
-            <mesh position={[0, 1.4, 0]} material={toon("#4f8f55")}>
-              <coneGeometry args={[0.9, 2.2, 8]} />
-            </mesh>
+            {[[0, 1.6, 0, 0.8], [0.55, 1.35, 0.1, 0.55], [-0.5, 1.4, -0.1, 0.55], [0.1, 2.15, 0.05, 0.5]].map(([x, y, z, r], j) => (
+              <mesh key={j} position={[x, y, z]} material={toon(j % 2 ? "#6db84a" : "#5aa83f")}>
+                <sphereGeometry args={[r, 16, 12]} />
+              </mesh>
+            ))}
             <mesh position={[0, 0.35, 0]} material={toon("#8a6248")}>
               <cylinderGeometry args={[0.15, 0.2, 0.7, 8]} />
             </mesh>
@@ -658,7 +623,6 @@ export function Island() {
       <IslandTop />
       <IslandBody />
       <Stream />
-      <Pond />
       <Bridge />
       <Cottage />
       <Windmill />

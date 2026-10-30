@@ -59,3 +59,9 @@ export const CodeIcon = () => (
     <path d="m9 8-4 4 4 4m6-8 4 4-4 4" />
   </Icon>
 );
+
+export const CloseIcon = () => (
+  <Icon size={16}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </Icon>
+);
