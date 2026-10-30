@@ -12,7 +12,8 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { daylight } from "./daylight";
 
 // The "shader pack" look, after cozy Minecraft shaders: soft ambient occlusion where things meet (contact shadows under
-// the chairs, in the grass, along the banks), a gentle bloom on anything bright (lanterns, the sun, sparkles), then a
+// the chairs, in the grass, along the banks), soft ink outlines round shapes (like an illustration), a gentle bloom on
+// anything bright (lanterns, the sun, sparkles), then a
 // colour grade in the final image: split toning (cool violet shadows, warm golden highlights, so light and shade always
 // harmonise), a soft S-curve, a touch more saturation, and a vignette.
 
@@ -42,6 +43,52 @@ const GradeShader = {
     }`,
 };
 
+/**
+ * Soft outlines, like ink round the shapes in an illustration: drawn where the depth jumps (an object against what's
+ * behind it) and, up close, where the surface turns sharply. It reads the depth and normals the AO pass has already
+ * rendered, so it costs no extra pass over the scene. The ink is a darker shade of whatever it outlines, not black.
+ */
+const OutlineShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    tDepth: { value: null },
+    tNormal: { value: null },
+    uTexel: { value: new THREE.Vector2(1 / 512, 1 / 512) },
+    uNear: { value: 0.05 },
+    uFar: { value: 900 },
+    uStrength: { value: 0.55 },
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: /* glsl */ `
+    #include <packing>
+    uniform sampler2D tDiffuse, tDepth, tNormal;
+    uniform vec2 uTexel;
+    uniform float uNear, uFar, uStrength;
+    varying vec2 vUv;
+    float dist(vec2 uv) { return -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar); }
+    void main() {
+      vec4 base = texture2D(tDiffuse, vUv);
+      float z = dist(vUv);
+      vec3 n = texture2D(tNormal, vUv).rgb * 2.0 - 1.0;
+      float jump = 0.0, turn = 0.0, sky = 0.0;
+      for (int i = 0; i < 4; i++) {
+        vec2 o = (i < 2 ? vec2(float(i * 2 - 1), 0.0) : vec2(0.0, float(i * 2 - 5))) * uTexel;
+        // only the nearer side of a jump gets the line, so it hugs the object rather than what's behind
+        jump = max(jump, (dist(vUv + o) - z) / z);
+        sky = max(sky, step(0.99999, texture2D(tDepth, vUv + o).x));
+        turn = max(turn, 1.0 - dot(n, texture2D(tNormal, vUv + o).rgb * 2.0 - 1.0));
+      }
+      // against the plain backdrop a line is hardly needed (and at the AO's half resolution it would look jagged)
+      float edge = smoothstep(0.05, 0.16, jump) * (1.0 - sky * 0.75);
+      edge = max(edge, smoothstep(0.55, 0.95, turn) * smoothstep(14.0, 5.0, z) * 0.6);
+      edge *= smoothstep(120.0, 50.0, z); // the far-off islands and clouds stay soft
+      vec3 ink = base.rgb * vec3(0.52, 0.47, 0.5);
+      gl_FragColor = vec4(mix(base.rgb, ink, edge * uStrength), base.a);
+    }`,
+};
+
 /** See-through things (sky, clouds, the waterfall, blush) shouldn't cast ambient occlusion. */
 const seeThrough = (o: THREE.Object3D) => {
   if (o instanceof THREE.Sprite) return true;
@@ -65,6 +112,7 @@ class SolidAOPass extends GTAOPass {
 interface Chain {
   composer: EffectComposer;
   ao: GTAOPass;
+  outline: ShaderPass;
   bloom: UnrealBloomPass;
   grade: ShaderPass;
 }
@@ -76,12 +124,20 @@ function buildChain(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.C
   ao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.4, thickness: 1.2, scale: 1.1, samples: 12 });
   ao.blendIntensity = 0.85;
   composer.addPass(ao);
+  const outline = new ShaderPass(OutlineShader);
+  outline.uniforms.tDepth.value = ao.depthTexture;
+  outline.uniforms.tNormal.value = ao.normalTexture;
+  if (camera instanceof THREE.PerspectiveCamera) {
+    outline.uniforms.uNear.value = camera.near;
+    outline.uniforms.uFar.value = camera.far;
+  }
+  composer.addPass(outline);
   const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.3, 0.4, 1.0); // only true highlights (lanterns, the sun) glow
   composer.addPass(bloom);
   composer.addPass(new OutputPass()); // tone mapping and sRGB, so the grade works on the final colours
   const grade = new ShaderPass(GradeShader);
   composer.addPass(grade);
-  return { composer, ao, bloom, grade };
+  return { composer, ao, outline, bloom, grade };
 }
 
 /** Takes over rendering with the post-processing chain. Render it inside the Canvas. */
@@ -108,6 +164,7 @@ export function Effects() {
     c.composer.setPixelRatio(dpr);
     c.composer.setSize(size.width, size.height); // sizes every pass too
     c.ao.setSize((size.width * dpr) / 2, (size.height * dpr) / 2); // AO at half resolution: soft anyway, and much cheaper
+    c.outline.uniforms.uTexel.value.set(2 / (size.width * dpr), 2 / (size.height * dpr)); // one texel of the AO's buffers
   }, [gl, size, scene, camera]);
 
   // priority 1: R3F stops rendering on its own and leaves it to us
