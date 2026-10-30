@@ -6,11 +6,11 @@ import * as THREE from "three";
 import { gradientMap, toon } from "./toon";
 import { isDrag } from "./controls";
 
-// The two characters at the table: soft, matte, clay-toy chicks (after the reference render): a smooth pear-shaped
-// body that is head and body in one, tiny black dot eyes, a little orange beak with a red wattle under it, a red comb,
-// pink cheeks, puffy rounded wings, a tail tuft, and thin orange legs with three toes. They squash and stretch when
-// they bounce, nod while you talk, and tilt their heads to think. Local coordinates: the chick faces +z, towards the
-// table, sitting on the chair seat.
+// The two characters at the table: soft, matte, clay-toy chicks after the Pip logo (public/design/logo/pip-logo.png):
+// a plump gumdrop body that is head and body in one, with a full round head, black oval eyes, a small rounded beak,
+// rosy cheeks level with it, a two-lobed tuft on top, little wings low at the sides, a tail tuft, and two round blob
+// feet in front. They squash and stretch when they bounce, nod while you talk, and tilt their heads to think. Local
+// coordinates: the chick faces +z, towards the table, sitting on the chair seat.
 
 type V3 = [number, number, number];
 
@@ -19,13 +19,15 @@ export type Outfit = "guide" | "you";
 const SEAT_Y = 0.56; // on a plump cushion, so more of the chick shows above the table
 
 const PALETTES: Record<Outfit, { body: string; wing: string; cushion: string }> = {
-  guide: { body: "#fbe08f", wing: "#f6d27a", cushion: "#f6b8aa" },
+  guide: { body: "#f3e6af", wing: "#e8d79a", cushion: "#f6b8aa" },
   you: { body: "#a9d1f0", wing: "#93c1e8", cushion: "#b9dcc4" },
 };
 
-// the body's silhouette as (radius, height): a wide, round bottom tapering into a smaller, rounded head
+// the body's silhouette as (radius, height), after the logo: a slightly flattened round bottom, the round belly at its
+// widest a quarter of the way up, a subtle waist, a cheek bulge for the face, and a round dome of a head
 const PROFILE: [number, number][] = [
-  [0, 0], [0.2, 0.012], [0.32, 0.06], [0.395, 0.16], [0.415, 0.28], [0.4, 0.41], [0.345, 0.54], [0.288, 0.66], [0.238, 0.77], [0.155, 0.86], [0.06, 0.915], [0, 0.92],
+  [0, 0], [0.2, 0.006], [0.3, 0.022], [0.37, 0.06], [0.405, 0.13], [0.418, 0.23], [0.402, 0.33], [0.376, 0.423], [0.385, 0.5],
+  [0.393, 0.58], [0.372, 0.66], [0.334, 0.736], [0.259, 0.828], [0.176, 0.88], [0.11, 0.905], [0.064, 0.915], [0, 0.92],
 ];
 const DEPTH = 0.9; // a little flatter front to back
 
@@ -35,6 +37,21 @@ const bodyGeometry = (() => {
   pts[pts.length - 1].x = 0;
   const g = new THREE.LatheGeometry(pts, 72);
   g.scale(1, 1, DEPTH);
+  g.computeVertexNormals();
+  return g;
+})();
+
+// a wing's outline as (half-width, height): slim where it joins the body at the top, fullest in the lower half and
+// ending in a soft round tip, so it hangs from the side like the logo's; spun round and then flattened into a flap
+const WING_PROFILE: [number, number][] = [
+  [0, -1.8], [0.4, -1.75], [0.68, -1.6], [0.88, -1.38], [0.98, -1.12], [1, -0.85], [0.95, -0.5], [0.82, -0.15], [0.62, 0.2], [0.4, 0.45], [0.2, 0.58], [0, 0.62],
+];
+
+const wingGeometry = (() => {
+  const pts = new THREE.SplineCurve(WING_PROFILE.map(([r, y]) => new THREE.Vector2(r, y))).getPoints(40);
+  pts[0].x = 0;
+  pts[pts.length - 1].x = 0;
+  const g = new THREE.LatheGeometry(pts, 32);
   g.computeVertexNormals();
   return g;
 })();
@@ -56,56 +73,43 @@ function surface(angle: number, y: number, out = 0): V3 {
 /** How far the surface leans back at height `y` (it faces upwards where the body narrows), for things that sit flat on it. */
 const leanAt = (y: number) => -Math.atan((radiusAt(y - 0.02) - radiusAt(y + 0.02)) / 0.04);
 
-const dotMat = new THREE.MeshStandardMaterial({ color: "#241a16", roughness: 0.2 });
-const sparkleMat = new THREE.MeshBasicMaterial({ color: "#ffffff" });
-const blushMat = new THREE.MeshBasicMaterial({ color: "#ff9a94", transparent: true, opacity: 0.5, depthWrite: false });
-const COMB = "#e5564a", BEAK = "#f39a4f", BEAK_LOW = "#e3863c";
+const eyeMat = toon("#120e0c");
+const blushMat = new THREE.MeshBasicMaterial({ color: "#ecb39f", transparent: true, opacity: 0.85, depthWrite: false });
+const COMB = "#e07a66", BEAK = "#df9e66", BEAK_INSIDE = "#b8774a";
 
-const EYE_Y = 0.665, EYE_ANGLE = 0.4;
+const EYE_Y = 0.58, EYE_ANGLE = 0.32; // on the cheek bulge
+const BEAK_Y = 0.55;
 
-/** A tiny glossy dot of an eye. Blinks by squashing flat. */
+/** A black oval of an eye, taller than it is wide. Blinks by squashing flat. */
 function Eye({ side, eyeRef }: { side: -1 | 1; eyeRef: React.Ref<THREE.Group> }) {
   const a = side * EYE_ANGLE;
   return (
     <group position={surface(a, EYE_Y, -0.004)} rotation={[leanAt(EYE_Y), a, 0, "YXZ"]}>
       <group ref={eyeRef}>
-        <mesh scale={[1, 1.15, 0.55]} material={dotMat}>
+        <mesh scale={[1, 1.9, 0.5]} material={eyeMat}>
           <sphereGeometry args={[0.027, 16, 12]} />
-        </mesh>
-        <mesh position={[-0.008, 0.01, 0.014]} material={sparkleMat}>
-          <sphereGeometry args={[0.0075, 8, 6]} />
         </mesh>
       </group>
     </group>
   );
 }
 
-/** Rosy cheeks, just below and outside each eye. */
+/** Rosy cheeks, outside each eye and level with the beak. */
 function Blush({ side }: { side: -1 | 1 }) {
-  const a = side * 0.6, y = 0.6;
+  const a = side * 0.7;
   return (
-    <mesh position={surface(a, y, 0.004)} rotation={[leanAt(y), a, 0, "YXZ"]} scale={[1.3, 0.8, 1]} material={blushMat}>
+    <mesh position={surface(a, BEAK_Y, 0.004)} rotation={[leanAt(BEAK_Y), a, 0, "YXZ"]} scale={[1.1, 0.55, 1]} material={blushMat}>
       <circleGeometry args={[0.04, 24]} />
     </mesh>
   );
 }
 
-/** Thin orange legs dangling off the front of the seat, each with three toes. */
-function Leg({ side }: { side: -1 | 1 }) {
-  const legMat = toon(BEAK);
+/** A round orange blob of a foot, resting in front of the body. */
+function Foot({ side }: { side: -1 | 1 }) {
   return (
-    <group position={[side * 0.11, 0.05, 0.24]}>
-      <mesh position={[0, -0.12, 0.07]} rotation={[0.55, 0, 0]} material={legMat}>
-        <cylinderGeometry args={[0.017, 0.019, 0.27, 10]} />
-      </mesh>
-      <group position={[0, -0.23, 0.14]} rotation={[0.25, side * 0.15, 0]}>
-        {[-0.5, 0, 0.5].map((a) => (
-          <mesh key={a} position={[Math.sin(a) * 0.045, 0, Math.cos(a) * 0.045]} rotation={[Math.PI / 2, 0, -a]} material={legMat}>
-            <capsuleGeometry args={[0.015, 0.075, 4, 8]} />
-          </mesh>
-        ))}
-      </group>
-    </group>
+    <mesh position={[side * 0.12, 0.04, 0.3]} rotation={[0, side * 0.2, 0]} scale={[0.08, 0.05, 0.07]} material={toon(BEAK)} castShadow>
+      <sphereGeometry args={[1, 20, 14]} />
+    </mesh>
   );
 }
 
@@ -214,8 +218,8 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
     }
   });
 
-  const bodyMat = toon(pal.body);
-  const beakAt = surface(0, 0.6, -0.006);
+  const bodyMat = toon(pal.body, outfit === "guide"); // Pip stays pale cream in the sunset, as in the logo
+  const beakAt = surface(0, BEAK_Y, -0.004);
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
       <WoodChair cushion={pal.cushion} />
@@ -237,24 +241,22 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
         <group ref={body}>
           {/* casts a shadow but doesn't receive the scenery's (a tree's shadow across the face reads as a smudge) */}
           <mesh geometry={bodyGeometry} material={bodyMat} castShadow />
-          {/* the comb: three little red bumps along the top of the head */}
+          {/* the tuft: two rounded lobes splaying out from one point on top of the head, like a little heart */}
           {[
-            [0.07, 0.9, 0.036],
-            [0.015, 0.93, 0.046],
-            [-0.04, 0.91, 0.036],
-          ].map(([z, y, r], i) => (
-            <mesh key={i} position={[0, y, z]} material={toon(COMB)}>
-              <sphereGeometry args={[r, 14, 12]} />
+            [-0.028, 0.955, 0.042, 0.5],
+            [0.03, 0.948, 0.035, -0.6],
+          ].map(([x, y, r, tilt], i) => (
+            <mesh key={i} position={[x, y, 0]} rotation={[0, 0, tilt]} scale={[1, 1.25, 0.6]} material={toon(COMB)} castShadow>
+              <sphereGeometry args={[r, 16, 12]} />
             </mesh>
           ))}
-          {/* puffy, rounded wings, hinged at the shoulder */}
+          {/* small flaps hanging at the sides, the inner edge hugging the body from the shoulder down while the fuller
+              lower half shows past it, the tips angled back, hinged at the top so they can flap */}
           {[0, 1].map((i) => {
             const side = i ? 1 : -1;
             return (
-              <group key={i} ref={wings[i]} position={[side * (radiusAt(0.48) - 0.02), 0.48, 0.02]}>
-                <mesh position={[side * 0.05, -0.12, 0]} rotation={[0.15, 0, side * 0.18]} scale={[0.085, 0.165, 0.15]} material={toon(pal.wing)} castShadow>
-                  <sphereGeometry args={[1, 24, 18]} />
-                </mesh>
+              <group key={i} ref={wings[i]} position={[side * (radiusAt(0.4) - 0.02), 0.4, 0.02]}>
+                <mesh geometry={wingGeometry} position={[side * 0.042, -0.075, -0.01]} rotation={[0.3, 0, side * 0.24]} scale={[0.051, 0.103, 0.105]} material={toon(pal.wing, outfit === "guide")} castShadow />
               </group>
             );
           })}
@@ -268,23 +270,23 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
           <Eye side={1} eyeRef={eyeL} />
           <Blush side={-1} />
           <Blush side={1} />
-          {/* a small beak, and a lower beak hinged so it can talk, with the red wattle hanging from it */}
-          <group position={beakAt}>
-            <mesh rotation={[Math.PI / 2 + 0.25, 0, 0]} scale={[1.3, 1, 0.8]} material={toon(BEAK)}>
-              <coneGeometry args={[0.046, 0.08, 18]} />
+          {/* a small rounded beak (a half-oval, flat underneath), and a thin lower beak hinged so it can talk */}
+          <group position={beakAt} rotation={[leanAt(BEAK_Y), 0, 0]}>
+            <mesh scale={[1, 0.9, 0.55]} material={toon(BEAK)}>
+              <sphereGeometry args={[0.044, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
             </mesh>
-            <group ref={jaw} position={[0, -0.018, -0.008]}>
-              <mesh position={[0, -0.004, 0.018]} rotation={[Math.PI / 2 + 0.55, 0, 0]} scale={[1.1, 1, 0.5]} material={toon(BEAK_LOW)}>
-                <coneGeometry args={[0.032, 0.046, 14]} />
-              </mesh>
-              <mesh position={[0, -0.058, 0.02]} scale={[0.85, 1.3, 0.7]} material={toon(COMB)}>
-                <sphereGeometry args={[0.04, 14, 12]} />
+            <mesh rotation={[Math.PI / 2, 0, 0]} scale={[1, 0.55, 1]} material={toon(BEAK_INSIDE)}>
+              <circleGeometry args={[0.044, 20]} />
+            </mesh>
+            <group ref={jaw} position={[0, 0, -0.006]}>
+              <mesh position={[0, 0, 0.006]} scale={[1, 0.3, 0.5]} material={toon(BEAK)}>
+                <sphereGeometry args={[0.036, 18, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2]} />
               </mesh>
             </group>
           </group>
         </group>
-        <Leg side={-1} />
-        <Leg side={1} />
+        <Foot side={-1} />
+        <Foot side={1} />
       </group>
     </group>
   );
