@@ -4,17 +4,19 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
 import { nearestCritter } from "./critters";
-import { canStand, held, player, type Nearby } from "./explore";
+import { canStand, getUp, held, nearestSeat, player, seatAt, type Nearby } from "./explore";
 import { surfaceY } from "./island";
+import { slideRoundPlants } from "./landscape";
 import { Figure } from "./people";
 
 // You, out on the island: your chick walks where you steer it (WASD or the arrow keys, relative to the camera, Shift to
-// run) or where you click, bumping round trees, water and buildings rather than through them, and waddles as it goes.
-// It notices what's close enough to use (the table, a creature) and says so through `onNear`.
+// run) or where you click, gliding round trees and bushes and stopping at water, buildings and benches rather than
+// going through them, and waddles as it goes. It can sit on a bench (and gets up again as soon as you walk). It notices
+// what's close enough to use (the table, a bench, a creature) and says so through `onNear`.
 
-const WALK = 2.4, RUN = 4.4;
+const WALK = 2.4, RUN = 4.4, BODY = 0.22;
 const turn = (from: number, to: number, f: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * f;
-const nearKey = (n: Nearby | null) => (!n ? "" : n.type === "table" ? "table" : `${n.pick.kind}${n.pick.index}`);
+const nearKey = (n: Nearby | null) => (!n ? "" : n.type === "table" ? "table" : n.type === "seat" ? `seat:${n.id}:${n.sitting}` : `${n.pick.kind}${n.pick.index}`);
 
 export function Player({ active, visible, onNear }: { active: boolean; visible: boolean; onNear: (near: Nearby | null) => void }) {
   const group = useRef<THREE.Group>(null);
@@ -33,7 +35,10 @@ export function Player({ active, visible, onNear }: { active: boolean; visible: 
       const ahead = (has("w", "arrowup") ? 1 : 0) - (has("s", "arrowdown") ? 1 : 0);
       const side = (has("d", "arrowright") ? 1 : 0) - (has("a", "arrowleft") ? 1 : 0);
       move.set(f.x * ahead - f.y * side, f.y * ahead + f.x * side);
-      if (move.lengthSq() > 0) p.goal = null;
+      if (move.lengthSq() > 0) {
+        p.goal = null;
+        if (p.sitting) getUp(); // walking off gets you up
+      }
       else if (p.goal) {
         move.set(p.goal.x - p.pos.x, p.goal.z - p.pos.z);
         if (move.length() < 0.15) {
@@ -44,22 +49,29 @@ export function Player({ active, visible, onNear }: { active: boolean; visible: 
       if (move.lengthSq() > 0) {
         speed = has("shift") ? RUN : WALK;
         move.normalize().multiplyScalar(speed * dt);
-        const x = p.pos.x + move.x, z = p.pos.z + move.y;
-        // slide along whatever's in the way rather than stopping dead
-        if (canStand(x, z)) p.pos.set(x, 0, z);
-        else if (canStand(x, p.pos.z)) p.pos.x = x;
-        else if (canStand(p.pos.x, z)) p.pos.z = z;
+        // glide round trees and bushes; slide along anything else that's in the way rather than stopping dead
+        const to = slideRoundPlants(p.pos.x + move.x, p.pos.z + move.y, BODY);
+        if (canStand(to.x, to.z)) p.pos.set(to.x, 0, to.z);
         else {
-          p.goal = null;
-          speed = 0;
+          const alongX = slideRoundPlants(p.pos.x + move.x, p.pos.z, BODY), alongZ = slideRoundPlants(p.pos.x, p.pos.z + move.y, BODY);
+          if (canStand(alongX.x, alongX.z)) p.pos.set(alongX.x, 0, alongX.z);
+          else if (canStand(alongZ.x, alongZ.z)) p.pos.set(alongZ.x, 0, alongZ.z);
+          else {
+            p.goal = null;
+            speed = 0;
+          }
         }
         p.heading = turn(p.heading, Math.atan2(move.x, move.y), Math.min(1, dt * 12));
       }
 
       // what's close enough to use
-      const near: Nearby | null = Math.hypot(p.pos.x, p.pos.z) < 2.1 ? { type: "table" } : (() => {
+      const near: Nearby | null = (() => {
+        if (p.sitting) return { type: "seat", id: p.sitting, sitting: true };
+        if (Math.hypot(p.pos.x, p.pos.z) < 2.1) return { type: "table" };
+        const seat = nearestSeat(p.pos.x, p.pos.z, 1.3);
+        if (seat) return { type: "seat", id: seat, sitting: false };
         const pick = nearestCritter(p.pos.x, p.pos.z, 2.4); // generous: most of them are out on the water
-        return pick ? { type: "critter" as const, pick } : null;
+        return pick ? { type: "critter", pick } : null;
       })();
       const key = nearKey(near);
       if (key !== lastNear.current) {
@@ -71,7 +83,13 @@ export function Player({ active, visible, onNear }: { active: boolean; visible: 
       onNear(null);
     }
     gait.current += ((speed > 0 ? speed / WALK : 0) - gait.current) * Math.min(1, dt * 10);
-    group.current?.position.set(p.pos.x, surfaceY(p.pos.x, p.pos.z), p.pos.z);
+    const seat = p.sitting ? seatAt(p.sitting) : undefined;
+    if (seat) {
+      // on the bench: settled into the seat, looking out the way it faces
+      p.pos.set(seat.x, 0, seat.z);
+      p.heading = turn(p.heading, seat.heading, Math.min(1, dt * 8));
+    }
+    group.current?.position.set(p.pos.x, seat ? seat.y : surfaceY(p.pos.x, p.pos.z), p.pos.z);
     if (group.current) group.current.rotation.y = p.heading;
 
     // a soft ring where you clicked to go
