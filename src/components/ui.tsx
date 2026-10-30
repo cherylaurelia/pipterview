@@ -104,8 +104,8 @@ export function Choice<T extends string>({
 export function Logo() {
   return (
     <Link href="/" className="inline-flex items-center gap-2 font-semibold tracking-tight text-slate-900">
-      <span className="grid h-7 w-7 place-items-center rounded-lg bg-teal-600 text-sm text-white">S</span>
-      Steady
+      <span className="grid h-7 w-7 place-items-center rounded-lg bg-teal-600 text-sm text-white">P</span>
+      Pip
     </Link>
   );
 }

@@ -1,26 +1,35 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { NERVOUSNESS_LABELS, READINESS, addSession, previousSession, updateSession } from "@/lib/history";
 import { getInterviewType, rubricFor } from "@/lib/interview/catalog";
 import { PACE_RANGE, deliveryStats } from "@/lib/interview/delivery";
 import type { Feedback } from "@/lib/interview/prompts";
-import type { Intensity, SessionState, TranscriptEntry } from "@/lib/interview/types";
+import { DEFAULT_INTERVIEWER_NAME, type Intensity, type SessionState, type TranscriptEntry } from "@/lib/interview/types";
+import { STAR_PARTS, addStories, bankSizeAfter, missingParts } from "@/lib/stories";
 import { LANGUAGE_LABELS, type WorkspaceSnapshot } from "@/lib/workspace/types";
 import { QuestionRating } from "./QuestionRating";
 import { NervousnessScale } from "./room/NervousnessScale";
 import { INTENSITY_OPTIONS } from "./room/SessionSetup";
-import { Button, ButtonLink, Card, Logo, SectionTitle } from "./ui";
 
-const TONE_CLASS = {
-  low: "bg-amber-50 text-amber-800 ring-amber-200",
-  mid: "bg-sky-50 text-sky-800 ring-sky-200",
-  high: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-};
+// The feedback report, in the world's warm style: what matters first (how it went, what went well, the one or two
+// things to practise, what grew on your island), then the details folded into sections you open when you want them.
 
 const SCORE_LABEL = ["", "Needs work", "Developing", "Solid", "Strong"];
 const INTENSITY_ORDER: Intensity[] = ["gentle", "standard", "realistic"];
+const READINESS_TONE = {
+  low: "bg-[#fbe7cf] text-[#8a5a1c]",
+  mid: "bg-[#e3ecf7] text-[#2f4a7a]",
+  high: "bg-[#e3f0dc] text-[#3f6b2f]",
+};
+
+/** What a finished session added to your island, and what's next. */
+export interface IslandSummary {
+  grew: { label: string; color: string };
+  next: { label: string; color: string };
+  grown: number;
+  total: number;
+}
 
 function download(filename: string, text: string, type: string) {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -29,18 +38,45 @@ function download(filename: string, text: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
+const card = "rounded-[22px] bg-[#fff8ec] ring-1 ring-[#f0dfc2] shadow-[0_6px_20px_rgba(70,45,20,0.08)]";
+const heading = "text-[15px] font-bold text-[#4a3424]";
+
+/** A section you can open for the details, with a one-line preview when closed. */
+function Section({ title, preview, children, open = false }: { title: string; preview?: string; children: ReactNode; open?: boolean }) {
+  return (
+    <details open={open} className={`${card} group px-5 py-4`}>
+      <summary className="flex cursor-pointer list-none items-baseline gap-3 [&::-webkit-details-marker]:hidden">
+        <span className={`${heading} shrink-0`}>{title}</span>
+        {preview && <span className="min-w-0 flex-1 truncate text-[13px] text-[#8a6a4a]">{preview}</span>}
+        <span className="ml-auto shrink-0 text-[12.5px] font-bold text-[#b0702a] group-open:hidden">Show</span>
+        <span className="ml-auto hidden shrink-0 text-[12.5px] font-bold text-[#b0702a] group-open:inline">Hide</span>
+      </summary>
+      <div className="mt-4">{children}</div>
+    </details>
+  );
+}
+
 export function FeedbackReport({
   feedback,
   state,
   transcript,
   work,
   nervousBefore,
+  againHref,
+  island,
+  embedded = false,
 }: {
   feedback: Feedback;
   state: SessionState;
   transcript: TranscriptEntry[];
   work: WorkspaceSnapshot[];
   nervousBefore?: number;
+  /** Where "Practise again" goes. Defaults to this round's interview room. */
+  againHref?: string;
+  /** What this session grew on your island (the world passes this). */
+  island?: IslandSummary;
+  /** Shown inside the world, which supplies its own header and buttons. */
+  embedded?: boolean;
 }) {
   const type = getInterviewType(state.typeId);
   const rubric = rubricFor(state.typeId, state.candidate?.role);
@@ -50,15 +86,18 @@ export function FeedbackReport({
   const [nervousAfter, setNervousAfter] = useState<number>();
   const [reflection, setReflection] = useState("");
   const [reflectionSaved, setReflectionSaved] = useState(false);
-  // Gentle sessions focus on what to practice; scores are one click away.
+  // Gentle sessions focus on what to practise; scores are one click away.
   const [showScores, setShowScores] = useState(state.settings.intensity !== "gentle");
   // Compare against your own last session of this round, not just a hiring bar. Read before this one is saved.
   const [previous] = useState(() => previousSession(state.typeId));
+  const stories = feedback.stories ?? [];
+  const [bankSize] = useState(() => (stories.length ? bankSizeAfter(stories) : undefined));
+  const interviewer = state.settings.interviewerName ?? DEFAULT_INTERVIEWER_NAME;
 
   const scores = feedback.dimensions.map((d) => Math.min(4, Math.max(1, d.score)));
   const average = scores.length ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10 : 0;
 
-  // Record the session once, for the progress page.
+  // Record the session once, for your history (and its stories, for the story bank).
   useEffect(() => {
     addSession({
       id: sessionId,
@@ -72,7 +111,11 @@ export function FeedbackReport({
       nervousBefore,
       wordsPerMinute: delivery.wordsPerMinute,
       fillersPerMinute: delivery.fillersPerMinute,
+      hedgesPerAnswer: delivery.hedgesPerAnswer,
+      averageThinkSeconds: delivery.averageThinkSeconds,
+      ownershipPercent: delivery.ownershipPercent,
     });
+    if (stories.length) addStories(stories, { typeId: state.typeId, questionPrompt: (id) => state.questions.find((q) => q.id === id)?.prompt });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- record exactly once
   }, []);
 
@@ -91,36 +134,34 @@ export function FeedbackReport({
 
   const intensityIndex = INTENSITY_ORDER.indexOf(state.settings.intensity);
   const nextIntensity =
-    readiness.tone !== "low" && !needsSupport && intensityIndex < INTENSITY_ORDER.length - 1
-      ? INTENSITY_ORDER[intensityIndex + 1]
-      : undefined;
+    readiness.tone !== "low" && !needsSupport && intensityIndex < INTENSITY_ORDER.length - 1 ? INTENSITY_ORDER[intensityIndex + 1] : undefined;
   const intensityLabel = INTENSITY_OPTIONS.find((o) => o.value === state.settings.intensity)?.label;
 
-  const transcriptText = transcript.map((e) => `${e.role === "interviewer" ? "Alex" : "You"}: ${e.text}`).join("\n\n");
+  const transcriptText = transcript.map((e) => `${e.role === "interviewer" ? interviewer : "You"}: ${e.text}`).join("\n\n");
+  const spoke = transcript.some((e) => e.role === "candidate");
+  const deliveryPreview = [
+    delivery.wordsPerMinute && `${delivery.wordsPerMinute} words per minute`,
+    delivery.fillersPerMinute !== undefined && `${delivery.fillersPerMinute} filler words per minute`,
+    `${delivery.hedgesPerAnswer} hedges per answer`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <main className="min-h-screen bg-slate-50/60">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
-          <Logo />
-          <span className="text-sm text-slate-500">
-            {type.label} · {intensityLabel}
-          </span>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-3xl space-y-6 px-4 py-10 sm:px-6">
-        <Card className="p-6 sm:p-8">
-          <p className="text-sm font-medium text-teal-700">You did it. That was a full practice interview.</p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Your feedback</h1>
-            {showScores && (
-              <span className={`rounded-full px-3 py-1 text-sm font-medium ring-1 ${TONE_CLASS[readiness.tone]}`}>{readiness.label}</span>
-            )}
+    <main className={`min-h-full text-[#3d2a1c] ${embedded ? "" : "bg-[#f6efe4]"}`}>
+      <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 sm:px-6">
+        {/* how it went */}
+        <section className={`${card} px-6 py-6 sm:px-8`}>
+          <p className="text-[13px] font-bold text-[#a07a4a]">
+            {type.label} · {intensityLabel} · Session complete
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <h1 className="text-[26px] font-bold tracking-tight text-[#3d2a1c]">How it went</h1>
+            {showScores && <span className={`rounded-full px-3 py-1 text-[13px] font-bold ${READINESS_TONE[readiness.tone]}`}>{readiness.label}</span>}
           </div>
-          <p className="mt-4 text-lg leading-relaxed text-slate-700">{feedback.summary}</p>
+          <p className="mt-3 text-[16px] leading-relaxed text-[#5a4430]">{feedback.summary}</p>
           {previous && (showScores ? improved + same + lower > 0 : improved > 0) && (
-            <p className="mt-4 rounded-xl bg-teal-50 px-4 py-2.5 text-sm text-teal-900 ring-1 ring-teal-100">
+            <p className="mt-4 rounded-2xl bg-[#eef4e6] px-4 py-2.5 text-[14px] text-[#3f6b2f]">
               Since your last {type.label.toLowerCase()} session:{" "}
               {[
                 improved > 0 && `better in ${improved} area${improved === 1 ? "" : "s"}`,
@@ -132,19 +173,70 @@ export function FeedbackReport({
               .
             </p>
           )}
-          {showScores ? (
-            <p className="mt-3 text-xs text-slate-400">Readiness is judged against a new-grad hiring bar. Average rubric score: {average}/4.</p>
-          ) : (
-            <p className="mt-3 text-sm text-slate-500">
-              Scores are hidden in gentle mode so you can focus on what to practice.{" "}
-              <button className="font-medium text-teal-700 underline underline-offset-2" onClick={() => setShowScores(true)}>
-                Show scores
-              </button>
-            </p>
-          )}
-        </Card>
+          <p className="mt-3 text-[13px] text-[#8a6a4a]">
+            {showScores ? (
+              <>Readiness is judged against a new-grad hiring bar. Average rubric score: {average} of 4.</>
+            ) : (
+              <>
+                Scores are hidden in gentle mode, so you can focus on what to practise.{" "}
+                <button className="font-bold text-[#b0702a] underline underline-offset-2" onClick={() => setShowScores(true)}>
+                  Show scores
+                </button>
+              </>
+            )}
+          </p>
+        </section>
 
-        <Card className="space-y-4 p-6">
+        {/* the essentials, side by side */}
+        <div className={`grid gap-4 ${island ? "md:grid-cols-3" : "sm:grid-cols-2"}`}>
+          <section className={`${card} px-5 py-5`}>
+            <h2 className={heading}>What went well</h2>
+            <ul className="mt-3 space-y-2.5 text-[14px] leading-relaxed text-[#5a4430]">
+              {feedback.strengths.map((s, i) => (
+                <li key={i} className="flex gap-2.5">
+                  <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#6fa65a]" aria-hidden />
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className={`${card} px-5 py-5`}>
+            <h2 className={heading}>Practise next</h2>
+            <ol className="mt-3 space-y-2.5 text-[14px] leading-relaxed text-[#5a4430]">
+              {feedback.improvements.map((s, i) => (
+                <li key={i} className="flex gap-2.5">
+                  <span className="mt-px grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#ffe1a1] text-[11.5px] font-bold text-[#7a5418]">{i + 1}</span>
+                  {s}
+                </li>
+              ))}
+            </ol>
+          </section>
+          {island && (
+            <section className={`${card} px-5 py-5`}>
+              <h2 className={heading}>Your island</h2>
+              <div className="mt-3 flex items-center gap-2.5">
+                <span className="h-7 w-7 shrink-0 rounded-lg" style={{ background: island.grew.color }} aria-hidden />
+                <p className="text-[14px] leading-snug">
+                  <span className="block text-[12px] font-bold text-[#a07a4a]">New</span>
+                  {island.grew.label}
+                </p>
+              </div>
+              <div className="mt-3 flex items-center gap-2.5">
+                <span className="h-7 w-7 shrink-0 rounded-lg border-2 border-dashed border-[#d9c3a0]" aria-hidden />
+                <p className="text-[14px] leading-snug text-[#6b5640]">
+                  <span className="block text-[12px] font-bold text-[#a07a4a]">Next session</span>
+                  {island.next.label}
+                </p>
+              </div>
+              <p className="mt-3 text-[12.5px] text-[#8a6a4a]">
+                {Math.min(island.grown, island.total)} of {island.total} grown
+              </p>
+            </section>
+          )}
+        </div>
+
+        {/* a quick check-in */}
+        <section className={`${card} space-y-3 px-5 py-5`}>
           <NervousnessScale
             label="How do you feel now?"
             value={nervousAfter}
@@ -154,57 +246,28 @@ export function FeedbackReport({
             }}
           />
           {nervousAfter && nervousBefore && (
-            <p className="text-sm text-slate-600">
-              Before: <span className="font-medium">{NERVOUSNESS_LABELS[nervousBefore - 1]}</span> → Now:{" "}
-              <span className="font-medium">{NERVOUSNESS_LABELS[nervousAfter - 1]}</span>.{" "}
+            <p className="text-[14px] text-[#5a4430]">
+              Before: <b>{NERVOUSNESS_LABELS[nervousBefore - 1]}</b>. Now: <b>{NERVOUSNESS_LABELS[nervousAfter - 1]}</b>.{" "}
               {nervousAfter < nervousBefore
                 ? "Facing it made it smaller. That's how practice works."
                 : "Nerves don't always drop after one session. They usually fall over several. Keep going."}
             </p>
           )}
           {needsSupport && (
-            <div className="space-y-2 rounded-xl bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900 ring-1 ring-amber-100">
-              <p className="font-medium">That was a hard one, and it&apos;s okay that it felt that way.</p>
-              <ul className="list-disc space-y-1 pl-5">
-                <li>Take a break before the next session. Practice works best spread out.</li>
-                <li>Next time, try gentle mode and the breathing exercise first; there&apos;s no clock and Alex goes easier.</li>
-                <li>It can help to practice just one question, then stop. Small wins count.</li>
-              </ul>
-              <p>If interview anxiety is affecting you beyond practice, your campus counseling center is a good place to talk it through.</p>
+            <div className="space-y-2 rounded-2xl bg-[#fbe7cf] px-4 py-3 text-[14px] leading-relaxed text-[#6b4a1c]">
+              <p className="font-bold">That was a hard one, and it&apos;s okay that it felt that way.</p>
+              <p>
+                Take a break before the next session; practice works best spread out. Next time, try gentle mode, where there&apos;s no
+                clock and {interviewer} goes easier, or practise just one question and stop. Small wins count.
+              </p>
+              <p>If interview anxiety is affecting you beyond practice, your campus counselling centre is a good place to talk it through.</p>
             </div>
           )}
-        </Card>
-
-        <section className="grid gap-4 sm:grid-cols-2">
-          <Card className="p-6">
-            <SectionTitle>What went well</SectionTitle>
-            <ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-700">
-              {feedback.strengths.map((s, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="mt-0.5 text-emerald-600">✓</span>
-                  {s}
-                </li>
-              ))}
-            </ul>
-          </Card>
-          <Card className="p-6">
-            <SectionTitle>Practice next</SectionTitle>
-            <ul className="mt-3 space-y-2 text-sm leading-relaxed text-slate-700">
-              {feedback.improvements.map((s, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="mt-0.5 text-teal-600">→</span>
-                  {s}
-                </li>
-              ))}
-            </ul>
-          </Card>
         </section>
 
-        <Card className="p-6">
-          <SectionTitle hint={showScores ? "Each area is scored 1 to 4 against a new-grad bar." : "What you showed in each area, and one thing to try next."}>
-            Rubric
-          </SectionTitle>
-          <ul className="mt-5 space-y-5">
+        {/* the details, folded away */}
+        <Section title="Rubric" preview={feedback.dimensions.map((d) => d.name).join(" · ")}>
+          <ul className="space-y-5">
             {feedback.dimensions.map((d, i) => {
               const score = scores[i];
               const level = rubric.find((r) => r.name === d.name)?.levels[score - 1];
@@ -212,133 +275,208 @@ export function FeedbackReport({
               return (
                 <li key={d.name}>
                   <div className="flex items-baseline justify-between gap-4">
-                    <h3 className="font-medium text-slate-900">{d.name}</h3>
+                    <h3 className="text-[14.5px] font-bold text-[#4a3424]">{d.name}</h3>
                     {showScores ? (
-                      <span className="text-sm text-slate-500">
+                      <span className="text-[13px] text-[#8a6a4a]">
                         {change !== undefined && change !== 0 && (
-                          <span className={`mr-2 text-xs ${change > 0 ? "text-emerald-700" : "text-slate-400"}`}>
-                            {change > 0 ? "▲" : "▼"} from {score - change}
+                          <span className={`mr-2 ${change > 0 ? "font-bold text-[#3f6b2f]" : ""}`}>
+                            {change > 0 ? "Up" : "Down"} from {score - change}
                           </span>
                         )}
-                        {score}/4 · {SCORE_LABEL[score]}
+                        {score} of 4 · {SCORE_LABEL[score]}
                       </span>
                     ) : (
-                      change !== undefined && change > 0 && <span className="text-xs text-emerald-700">▲ better than last time</span>
+                      change !== undefined && change > 0 && <span className="text-[13px] font-bold text-[#3f6b2f]">Better than last time</span>
                     )}
                   </div>
                   {showScores && (
                     <>
                       <div className="mt-2 flex gap-1" aria-hidden>
                         {[1, 2, 3, 4].map((n) => (
-                          <span key={n} className={`h-1.5 flex-1 rounded-full ${n <= score ? "bg-teal-500" : "bg-slate-200"}`} />
+                          <span key={n} className={`h-1.5 flex-1 rounded-full ${n <= score ? "bg-[#e0a43a]" : "bg-[#efe2cc]"}`} />
                         ))}
                       </div>
-                      {level && <p className="mt-2 text-xs text-slate-400">{level}</p>}
+                      {level && <p className="mt-2 text-[12.5px] text-[#a08a70]">{level}</p>}
                     </>
                   )}
-                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{d.evidence}</p>
-                  <p className="mt-1.5 text-sm leading-relaxed text-teal-800">Next time: {d.advice}</p>
+                  <p className="mt-2 text-[14px] leading-relaxed text-[#5a4430]">{d.evidence}</p>
+                  <p className="mt-1.5 text-[14px] leading-relaxed text-[#8a5a1c]">Next time: {d.advice}</p>
                 </li>
               );
             })}
           </ul>
-        </Card>
+        </Section>
 
-        {(delivery.spokenAnswers > 0 || delivery.fillerCount > 0) && (
-          <Card className="p-6">
-            <SectionTitle hint="Nerves usually show up here first: speeding up, filling silences, or rambling. These are habits, not scores.">
-              How you sounded
-            </SectionTitle>
-            <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {spoke && (
+          <Section title="How you sounded" preview={deliveryPreview}>
+            <p className="mb-4 text-[13px] text-[#8a6a4a]">
+              Nerves usually show up here first: speeding up, filling silences, hedging, or rambling. These are habits, not scores,
+              compared with your own last session.
+            </p>
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <Stat
                 label="Pace"
-                value={delivery.wordsPerMinute ? `${delivery.wordsPerMinute} wpm` : "—"}
+                value={delivery.wordsPerMinute ? `${delivery.wordsPerMinute} wpm` : "Not measured"}
                 note={
                   !delivery.wordsPerMinute
-                    ? "Speak an answer to measure"
+                    ? "Speak an answer to measure it"
                     : delivery.wordsPerMinute > PACE_RANGE.max
                       ? "A bit fast. Try pausing between points."
                       : delivery.wordsPerMinute < PACE_RANGE.min
                         ? "Unhurried. Fine if it flows."
                         : "Comfortable"
                 }
+                trend={paceTrend(delivery.wordsPerMinute, previous?.wordsPerMinute)}
               />
               <Stat
                 label="Filler words"
-                value={delivery.fillersPerMinute !== undefined ? `${delivery.fillersPerMinute}/min` : String(delivery.fillerCount)}
-                note={delivery.topFillers.length ? `Most often: ${delivery.topFillers.map((f) => `“${f.word}”`).join(", ")}` : "Hardly any"}
+                value={delivery.fillersPerMinute !== undefined ? `${delivery.fillersPerMinute} per min` : String(delivery.fillerCount)}
+                note={delivery.topFillers.length ? `Most often: ${delivery.topFillers.map((f) => `“${quoteWord(f.word)}”`).join(", ")}` : "Hardly any"}
+                trend={trend(delivery.fillersPerMinute, previous?.fillersPerMinute, "lower", " per min")}
               />
               <Stat
-                label="Average answer"
-                value={delivery.averageAnswerSeconds ? `${delivery.averageAnswerSeconds}s` : `${delivery.averageAnswerWords} words`}
-                note="1–2 minutes is typical"
+                label="Hedging"
+                value={`${delivery.hedgesPerAnswer} per answer`}
+                note={
+                  delivery.topHedges.length
+                    ? `${delivery.topHedges.map((h) => `“${quoteWord(h.word)}”`).join(", ")}. ${delivery.hedgesPerAnswer >= 1.5 ? "Say it like you mean it." : "A little is natural."}`
+                    : "You sounded sure of yourself"
+                }
+                trend={trend(delivery.hedgesPerAnswer, previous?.hedgesPerAnswer, "lower")}
               />
               <Stat
-                label="Longest answer"
-                value={delivery.longestAnswerSeconds ? `${delivery.longestAnswerSeconds}s` : "—"}
-                note={delivery.longestAnswerSeconds && delivery.longestAnswerSeconds > 180 ? "Long; check in with the interviewer sooner" : undefined}
+                label="Thinking time"
+                value={delivery.averageThinkSeconds !== undefined ? `${delivery.averageThinkSeconds}s` : "Not measured"}
+                note={
+                  delivery.averageThinkSeconds === undefined
+                    ? "Speak an answer to measure it"
+                    : delivery.averageThinkSeconds < 1.5
+                      ? "Quick starts. A breath first is fine too."
+                      : delivery.averageThinkSeconds > 8
+                        ? "Long pauses. Try saying your first step out loud."
+                        : "A good beat to gather your thoughts"
+                }
+              />
+              {delivery.ownershipPercent !== undefined && (
+                <Stat
+                  label="“I” vs “we”"
+                  value={`${delivery.ownershipPercent}% “I”`}
+                  note={delivery.ownershipPercent < 50 ? "Mostly “we”. Interviewers want to hear what you did." : "Clear about your own part"}
+                  trend={trend(delivery.ownershipPercent, previous?.ownershipPercent, "higher", "%")}
+                />
+              )}
+              <Stat
+                label="Answer length"
+                value={delivery.averageAnswerSeconds ? `${delivery.averageAnswerSeconds}s average` : `${delivery.averageAnswerWords} words`}
+                note={
+                  delivery.longestAnswerSeconds && delivery.longestAnswerSeconds > 180
+                    ? `Longest ${delivery.longestAnswerSeconds}s; check in with the interviewer sooner`
+                    : "One to two minutes is typical"
+                }
               />
             </dl>
-          </Card>
+          </Section>
+        )}
+
+        {stories.length > 0 && (
+          <Section title="Stories you told" preview={stories.map((s) => s.title).join(" · ")}>
+            <p className="mb-4 text-[13px] text-[#8a6a4a]">
+              Most behavioral questions can be answered with five or six good stories. These are saved to your story bank, and {interviewer}{" "}
+              can remind you of one if you freeze.
+            </p>
+            <ul className="space-y-3">
+              {stories.map((story, i) => {
+                const missing = missingParts(story);
+                return (
+                  <li key={i} className="rounded-2xl bg-white/70 p-4 ring-1 ring-[#f0dfc2]">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-[14.5px] font-bold text-[#4a3424]">{story.title}</h3>
+                      <span className="flex gap-1" aria-label={missing.length ? `Missing: ${missing.join(", ")}` : "All four STAR parts"}>
+                        {STAR_PARTS.map((part) => (
+                          <span
+                            key={part}
+                            title={part}
+                            className={`grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold ${
+                              missing.includes(part) ? "border border-dashed border-[#d9c3a0] text-[#b8a080]" : "bg-[#e0a43a] text-white"
+                            }`}
+                          >
+                            {part[0].toUpperCase()}
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                    <dl className="mt-2 space-y-1 text-[14px] leading-relaxed text-[#5a4430]">
+                      {STAR_PARTS.filter((p) => story[p].trim()).map((part) => (
+                        <div key={part} className="flex gap-2">
+                          <dt className="w-[70px] shrink-0 text-[12px] font-bold capitalize text-[#a07a4a]">{part}</dt>
+                          <dd>{story[part]}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    {story.skills.length > 0 && <p className="mt-2 text-[12.5px] text-[#8a6a4a]">Shows: {story.skills.join(", ")}</p>}
+                    <p className="mt-1.5 text-[14px] text-[#8a5a1c]">
+                      {missing.length ? `Add the ${missing.join(" and ")}. ` : ""}
+                      {story.tip}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+            {bankSize !== undefined && (
+              <p className="mt-3 text-[12.5px] text-[#8a6a4a]">
+                Saved. Your story bank has {bankSize} {bankSize === 1 ? "story" : "stories"}.
+              </p>
+            )}
+          </Section>
         )}
 
         {work.length > 0 && (
-          <Card className="space-y-5 p-6">
-            <SectionTitle>Your work</SectionTitle>
-            {work.map((w, i) =>
-              w.kind === "code" ? (
-                <div key={i} className="space-y-2">
-                  <p className="text-sm font-medium text-slate-700">
-                    {state.questions.find((q) => q.id === w.questionId)?.prompt ?? w.questionId}{" "}
-                    <span className="font-normal text-slate-400">· {LANGUAGE_LABELS[w.language]}</span>
-                  </p>
-                  <pre className="max-h-80 overflow-auto rounded-xl bg-slate-50 p-4 font-mono text-xs leading-relaxed text-slate-800 ring-1 ring-slate-200">
-                    {w.code}
-                  </pre>
-                  {w.run && <p className="whitespace-pre-wrap text-xs text-slate-500">{w.run}</p>}
-                </div>
-              ) : (
-                <div key={i} className="space-y-3">
-                  {w.image && (
-                    // eslint-disable-next-line @next/next/no-img-element -- a data URL exported from the whiteboard
-                    <img src={`data:image/jpeg;base64,${w.image}`} alt="Your system design diagram" className="w-full rounded-xl ring-1 ring-slate-200" />
-                  )}
-                  {w.notes && (
-                    <pre className="whitespace-pre-wrap rounded-xl bg-slate-50 p-4 font-mono text-xs text-slate-700 ring-1 ring-slate-200">{w.notes}</pre>
-                  )}
-                </div>
-              ),
-            )}
-          </Card>
+          <Section title="Your work" preview={work.map((w) => (w.kind === "code" ? LANGUAGE_LABELS[w.language] : "Whiteboard")).join(" · ")}>
+            <div className="space-y-5">
+              {work.map((w, i) =>
+                w.kind === "code" ? (
+                  <div key={i} className="space-y-2">
+                    <p className="text-[14px] font-bold text-[#4a3424]">
+                      {state.questions.find((q) => q.id === w.questionId)?.prompt ?? w.questionId}{" "}
+                      <span className="font-normal text-[#8a6a4a]">· {LANGUAGE_LABELS[w.language]}</span>
+                    </p>
+                    <pre className="max-h-80 overflow-auto rounded-2xl bg-[#13233f] p-4 font-mono text-[12px] leading-relaxed text-[#e8eef7]">{w.code}</pre>
+                    {w.run && <p className="whitespace-pre-wrap text-[12.5px] text-[#8a6a4a]">{w.run}</p>}
+                  </div>
+                ) : (
+                  <div key={i} className="space-y-3">
+                    {w.image && (
+                      // eslint-disable-next-line @next/next/no-img-element -- a data URL exported from the whiteboard
+                      <img src={`data:image/jpeg;base64,${w.image}`} alt="Your system design diagram" className="w-full rounded-2xl ring-1 ring-[#f0dfc2]" />
+                    )}
+                    {w.notes && <pre className="whitespace-pre-wrap rounded-2xl bg-white/70 p-4 font-mono text-[12px] text-[#5a4430]">{w.notes}</pre>}
+                  </div>
+                ),
+              )}
+            </div>
+          </Section>
         )}
 
-        <Card className="p-6">
-          <SectionTitle>Question by question</SectionTitle>
-          <div className="mt-3 divide-y divide-slate-100">
+        <Section title="Question by question" preview={`${feedback.questionReviews.length} ${feedback.questionReviews.length === 1 ? "question" : "questions"}`}>
+          <div className="space-y-5">
             {feedback.questionReviews.map((review) => {
               const question = state.questions.find((q) => q.id === review.questionId);
               return (
-                <details key={review.questionId} className="group py-3">
-                  <summary className="cursor-pointer list-none font-medium text-slate-800">
-                    <span className="mr-2 inline-block text-slate-400 transition group-open:rotate-90">›</span>
-                    {question?.prompt ?? review.questionId}
-                  </summary>
-                  <dl className="mt-3 space-y-3 pl-5 text-sm leading-relaxed">
+                <div key={review.questionId}>
+                  <h3 className="text-[14.5px] font-bold text-[#4a3424]">{question?.prompt ?? review.questionId}</h3>
+                  <dl className="mt-2 space-y-2 text-[14px] leading-relaxed">
                     {question?.tailoredReason && <Field label="Why you got this question" value={question.tailoredReason} />}
                     <Field label="Went well" value={review.wentWell} />
                     <Field label="To work on" value={review.toImprove} />
                     <Field label="A stronger answer" value={review.strongerAnswer} />
                   </dl>
-                </details>
+                </div>
               );
             })}
           </div>
-        </Card>
+        </Section>
 
-        <Card className="space-y-3 p-6">
-          <SectionTitle hint="Writing it down makes it stick, and you'll see it on your progress page.">
-            One thing you&apos;ll do differently next time
-          </SectionTitle>
+        <Section title="One thing you'll do differently" preview="Writing it down makes it stick">
           <textarea
             value={reflection}
             onChange={(e) => {
@@ -346,83 +484,94 @@ export function FeedbackReport({
               setReflectionSaved(false);
             }}
             rows={2}
-            placeholder="e.g. Pause and outline my answer before I start talking"
-            className="w-full rounded-xl px-3 py-2 text-sm ring-1 ring-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            placeholder="For example: pause and outline my answer before I start talking"
+            className="w-full rounded-2xl bg-white px-4 py-3 text-[14px] ring-1 ring-[#ead7b8] placeholder:text-[#b8a080] focus:outline-none focus:ring-2 focus:ring-[#e0a43a]"
           />
-          <Button
-            size="sm"
+          <button
             disabled={!reflection.trim() || reflectionSaved}
             onClick={() => {
               updateSession(sessionId, { reflection: reflection.trim() });
               setReflectionSaved(true);
             }}
+            className="mt-2 rounded-full bg-[#ffc95c] px-4 py-1.5 text-[14px] font-bold text-[#3d2a14] disabled:opacity-45"
           >
             {reflectionSaved ? "Saved" : "Save"}
-          </Button>
-        </Card>
+          </button>
+        </Section>
 
-        <Card className="space-y-4 p-6">
-          <SectionTitle hint="Quick ratings help keep the questions close to real interviews.">Rate the questions</SectionTitle>
-          {state.questions.map((q) => (
-            <div key={q.id} className="space-y-2">
-              <p className="text-sm font-medium text-slate-800">{q.prompt}</p>
-              <QuestionRating question={q} typeId={state.typeId} source="candidate" />
-            </div>
-          ))}
-        </Card>
-
-        <Card className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-medium text-slate-900">
-              {nextIntensity
-                ? `Ready for a little more pressure? Try ${INTENSITY_OPTIONS.find((o) => o.value === nextIntensity)?.label.toLowerCase()} mode next.`
-                : needsSupport
-                  ? "When you're ready, a gentle session is a good next step."
-                  : "Another rep at this level will make the next one easier."}
-            </p>
-            <p className="text-sm text-slate-500">You can change the pressure level before you start.</p>
+        <Section title="Rate the questions" preview="Helps keep them close to real interviews">
+          <div className="space-y-4">
+            {state.questions.map((q) => (
+              <div key={q.id} className="space-y-2">
+                <p className="text-[14px] font-bold text-[#4a3424]">{q.prompt}</p>
+                <QuestionRating question={q} typeId={state.typeId} source="candidate" />
+              </div>
+            ))}
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
-            {/* A full page load gives a fresh interview. */}
-            <a
-              href={`/interview/${state.typeId}`}
-              className="inline-flex h-10 items-center rounded-full bg-teal-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-teal-700"
-            >
-              Practice again
+        </Section>
+
+        <section className={`${card} flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between`}>
+          <p className="text-[14.5px] text-[#4a3424]">
+            {nextIntensity
+              ? `Ready for a little more pressure? Try ${INTENSITY_OPTIONS.find((o) => o.value === nextIntensity)?.label.toLowerCase()} mode next.`
+              : needsSupport
+                ? "When you're ready, a gentle session is a good next step."
+                : "Another session at this level will make the next one easier."}
+          </p>
+          {!embedded && (
+            <a href={againHref ?? `/interview/${state.typeId}`} className="shrink-0 rounded-full bg-[#ffc95c] px-5 py-2 text-[14px] font-bold text-[#3d2a14]">
+              Practise again
             </a>
-            <ButtonLink href="/progress">See progress</ButtonLink>
-          </div>
-        </Card>
+          )}
+        </section>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-sm text-slate-500">
-          <Link href="/" className="hover:text-slate-800">
-            ← Choose another round
-          </Link>
-          <span className="flex gap-4">
-            <button className="hover:text-slate-800" onClick={() => download(`steady-${state.typeId}-transcript.txt`, transcriptText, "text/plain")}>
-              Download transcript
-            </button>
-            <button
-              className="hover:text-slate-800"
-              onClick={() =>
-                download(`steady-${state.typeId}-session.json`, JSON.stringify({ state, transcript, feedback }, null, 2), "application/json")
-              }
-            >
-              Save session (JSON)
-            </button>
-          </span>
+        <div className="flex flex-wrap justify-end gap-4 px-1 text-[13px] text-[#8a6a4a]">
+          <button className="hover:text-[#4a3424]" onClick={() => download(`pip-${state.typeId}-transcript.txt`, transcriptText, "text/plain")}>
+            Download transcript
+          </button>
+          <button
+            className="hover:text-[#4a3424]"
+            onClick={() => download(`pip-${state.typeId}-session.json`, JSON.stringify({ state, transcript, feedback }, null, 2), "application/json")}
+          >
+            Save session (JSON)
+          </button>
         </div>
       </div>
     </main>
   );
 }
 
-function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
+/** A counted word as you'd write it ("i think" becomes "I think"). */
+const quoteWord = (word: string) => word.replace(/\bi\b/g, "I").replace(/\bi'/g, "I'").replace(/^\w/, (c) => c.toUpperCase());
+
+interface Trend {
+  text: string;
+  good: boolean;
+}
+
+/** A change since last session, framed so improvement reads green and anything else stays neutral. */
+function trend(now: number | undefined, before: number | undefined, better: "lower" | "higher", unit = ""): Trend | undefined {
+  if (now === undefined || before === undefined) return undefined;
+  const diff = Math.round((now - before) * 10) / 10;
+  if (diff === 0) return { text: "Same as last time", good: false };
+  const good = better === "lower" ? diff < 0 : diff > 0;
+  return { text: `${diff > 0 ? "Up" : "Down"} ${Math.abs(diff)}${unit} since last time`, good };
+}
+
+/** Pace improves when it moves into (or towards) the comfortable range. */
+function paceTrend(now: number | undefined, before: number | undefined): Trend | undefined {
+  if (now === undefined || before === undefined || now === before) return undefined;
+  const off = (wpm: number) => Math.max(0, PACE_RANGE.min - wpm, wpm - PACE_RANGE.max);
+  return { text: `${now > before ? "Up" : "Down"} ${Math.abs(now - before)} wpm since last time`, good: off(now) < off(before) };
+}
+
+function Stat({ label, value, note, trend }: { label: string; value: string; note?: string; trend?: Trend }) {
   return (
-    <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
-      <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="mt-1 text-lg font-semibold tracking-tight text-slate-900">{value}</dd>
-      {note && <p className="mt-0.5 text-xs leading-snug text-slate-500">{note}</p>}
+    <div className="rounded-2xl bg-white/70 p-3.5 ring-1 ring-[#f0dfc2]">
+      <dt className="text-[12px] font-bold text-[#a07a4a]">{label}</dt>
+      <dd className="mt-1 text-[17px] font-bold tracking-tight text-[#3d2a1c]">{value}</dd>
+      {note && <p className="mt-0.5 text-[12.5px] leading-snug text-[#8a6a4a]">{note}</p>}
+      {trend && <p className={`mt-1 text-[12.5px] font-bold ${trend.good ? "text-[#3f6b2f]" : "text-[#b8a080]"}`}>{trend.text}</p>}
     </div>
   );
 }
@@ -430,8 +579,8 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</dt>
-      <dd className="mt-0.5 text-slate-700">{value}</dd>
+      <dt className="text-[12px] font-bold text-[#a07a4a]">{label}</dt>
+      <dd className="mt-0.5 text-[#5a4430]">{value}</dd>
     </div>
   );
 }
