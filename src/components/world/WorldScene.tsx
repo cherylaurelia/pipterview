@@ -7,7 +7,7 @@ import type { CritterPick } from "./critters";
 import { daylight } from "./daylight";
 import { Effects } from "./effects";
 import { Garden } from "./garden";
-import { COLORS, Landscape } from "./landscape";
+import { COLORS, GRASS_LAYER, Landscape } from "./landscape";
 import { takeFlight } from "./nav";
 import { Figure, RoundTable, type Mood } from "./people";
 
@@ -191,6 +191,8 @@ function CameraRig({ mode, aside, onArrive }: { mode: WorldMode; aside: number; 
   const look = useRef(new THREE.Vector3(0, 0.9, 0));
   const view = useRef<UserView>({ spin: 0, target: ISLAND.target.clone(), az: ISLAND.az, el: ISLAND.el, dist: ISLAND.dist, yaw: 0, pitch: 0, zoom: 1, lastDrag: 0 });
   const keys = useViewControls(mode, view);
+  const camera = useThree((s) => s.camera);
+  useEffect(() => void camera.layers.enable(GRASS_LAYER), [camera]);
   const goal = useRef({ pos: new THREE.Vector3(), look: new THREE.Vector3() });
   // a flight in progress; `from` is filled in on its first frame, from wherever the camera is then
   const tween = useRef<{ t0: number; dur: number; from: { pos: THREE.Vector3; look: THREE.Vector3; fov: number } | null } | null>(null);
