@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { rateLimited } from "@/lib/server/rate-limit";
 
 /**
  * A natural voice for the interviewer via ElevenLabs. Set ELEVENLABS_API_KEY to turn it on; otherwise the browser's
@@ -25,6 +26,8 @@ const BodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const limited = rateLimited(request, "tts");
+  if (limited) return limited;
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) return Response.json({ error: "No ELEVENLABS_API_KEY set." }, { status: 404 });
   const body = BodySchema.safeParse(await request.json().catch(() => null));
