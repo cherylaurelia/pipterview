@@ -1,16 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Cedarville_Cursive, Overpass_Mono, Tuffy } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Brand type: Tuffy for everything, Overpass Mono for code and numbers, Cedarville Cursive for handwritten accents.
+const tuffy = Tuffy({ variable: "--font-tuffy", weight: ["400", "700"], style: ["normal", "italic"], subsets: ["latin"] });
+const overpassMono = Overpass_Mono({ variable: "--font-overpass-mono", subsets: ["latin"] });
+const cedarville = Cedarville_Cursive({ variable: "--font-cedarville", weight: "400", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Steady · Interview practice for nervous candidates",
@@ -22,7 +17,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${tuffy.variable} ${overpassMono.variable} ${cedarville.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-white text-slate-900">{children}</body>
     </html>
