@@ -46,6 +46,9 @@ export async function POST(request: Request) {
   });
   if (!upstream.ok || !upstream.body) {
     console.error("tts: ElevenLabs returned", upstream.status, await upstream.text().catch(() => ""));
+    // 429 from ElevenLabs means too many requests at once on the account: a short wait usually clears it, so say
+    // "busy" (503) and let the client retry. Anything else is passed on as a plain failure.
+    if (upstream.status === 429) return Response.json({ error: "Voice service busy." }, { status: 503 });
     return Response.json({ error: `Voice service error (${upstream.status}).` }, { status: 502 });
   }
   return new Response(upstream.body, { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" } });
