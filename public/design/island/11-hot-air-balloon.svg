@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512">
+<defs><filter id="hand" x="-10%" y="-10%" width="120%" height="120%">
+<feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="1" seed="53" result="w"/>
+<feDisplacementMap in="SourceGraphic" in2="w" scale="4.5" xChannelSelector="R" yChannelSelector="G" result="sw"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="13" result="t"/>
+<feDisplacementMap in="sw" in2="t" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="33" result="n"/>
+<feColorMatrix in="n" type="matrix" values="0.32 0 0 0 0.78  0.32 0 0 0 0.78  0.32 0 0 0 0.78  0 0 0 0 1" result="g"/>
+<feBlend in="d" in2="g" mode="multiply" result="m"/>
+<feComposite in="m" in2="d" operator="in"/></filter></defs>
+<g filter="url(#hand)" fill="none" stroke="#1f1814" stroke-width="3.0" stroke-linecap="round" stroke-linejoin="round">
+<defs><clipPath id="bal"><path d="M64 10 C34 10 22 34 26 54 C30 72 50 82 56 92 H72 C78 82 98 72 102 54 C106 34 94 10 64 10Z"/></clipPath></defs>
+<path d="M56 92 L52 102 M72 92 L76 102" stroke-width="2.4"/>
+<path d="M64 10 C34 10 22 34 26 54 C30 72 50 82 56 92 H72 C78 82 98 72 102 54 C106 34 94 10 64 10Z" fill="#e9a066"/>
+<g clip-path="url(#bal)" stroke="none">
+<path d="M64 8 C50 30 50 70 60 94 H68 C78 70 78 30 64 8Z" fill="#fbf3df"/>
+<path d="M30 20 C26 50 40 76 52 94 L44 94 C26 70 18 44 30 20Z" fill="#fbf3df"/>
+<path d="M98 20 C102 50 88 76 76 94 L84 94 C102 70 110 44 98 20Z" fill="#fbf3df"/>
+</g>
+<path d="M64 10 C34 10 22 34 26 54 C30 72 50 82 56 92 H72 C78 82 98 72 102 54 C106 34 94 10 64 10Z" fill="none"/>
+<path d="M64 10 C50 30 50 70 58 92 M64 10 C78 30 78 70 70 92" stroke-width="2.4"/>
+<path d="M50 102 H78 L75 116 H53Z" fill="#c48d5f"/>
+<path d="M51 108 H77" stroke-width="2.2"/>
+</g></svg>

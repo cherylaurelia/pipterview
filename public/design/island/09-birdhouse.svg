@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="512" height="512">
+<defs><filter id="hand" x="-10%" y="-10%" width="120%" height="120%">
+<feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="1" seed="51" result="w"/>
+<feDisplacementMap in="SourceGraphic" in2="w" scale="4.5" xChannelSelector="R" yChannelSelector="G" result="sw"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="11" result="t"/>
+<feDisplacementMap in="sw" in2="t" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="d"/>
+<feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="31" result="n"/>
+<feColorMatrix in="n" type="matrix" values="0.32 0 0 0 0.78  0.32 0 0 0 0.78  0.32 0 0 0 0.78  0 0 0 0 1" result="g"/>
+<feBlend in="d" in2="g" mode="multiply" result="m"/>
+<feComposite in="m" in2="d" operator="in"/></filter></defs>
+<g filter="url(#hand)" fill="none" stroke="#1f1814" stroke-width="3.0" stroke-linecap="round" stroke-linejoin="round">
+<path d="M60 84 H68 V114 H60Z" fill="#a8734a"/>
+<path d="M50 114 Q64 108 78 114Z" fill="#a8734a"/>
+<path d="M36 48 L64 26 L92 48 V84 H36Z" fill="#f3e6af"/>
+<path d="M28 52 L64 20 L100 52" fill="none" stroke-width="9" stroke="#1f1814"/>
+<path d="M28 52 L64 20 L100 52" fill="none" stroke-width="3" stroke="#d4675a"/>
+<path d="M72.82 56.00 C72.73 57.02 72.47 58.02 72.11 58.95 C71.75 59.88 71.28 60.82 70.65 61.58 C70.01 62.33 69.18 62.98 68.33 63.50 C67.48 64.02 66.53 64.41 65.53 64.70 C64.54 64.99 63.43 65.30 62.37 65.25 C61.31 65.20 60.08 64.93 59.15 64.40 C58.23 63.86 57.41 62.92 56.82 62.03 C56.22 61.14 55.85 60.07 55.59 59.06 C55.33 58.06 55.19 57.00 55.25 56.00 C55.31 55.00 55.59 53.99 55.96 53.08 C56.34 52.16 56.89 51.33 57.49 50.54 C58.09 49.74 58.74 48.92 59.55 48.30 C60.37 47.68 61.38 47.08 62.38 46.84 C63.39 46.60 64.58 46.67 65.61 46.87 C66.64 47.07 67.67 47.53 68.59 48.05 C69.51 48.58 70.45 49.22 71.13 50.02 C71.81 50.82 72.38 51.85 72.66 52.85 C72.94 53.84 72.92 54.98 72.82 56.00 Z" fill="#5b4030"/>
+<path d="M58 72 H70" stroke-width="3.4"/>
+<path d="M32 84 H96" />
+
+</g></svg>

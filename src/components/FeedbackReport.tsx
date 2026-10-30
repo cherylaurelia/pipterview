@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import type { GardenItemId } from "@/lib/garden";
 import { NERVOUSNESS_LABELS, READINESS, addSession, previousSession, updateSession } from "@/lib/history";
 import { getInterviewType, rubricFor } from "@/lib/interview/catalog";
 import { PACE_RANGE, deliveryStats } from "@/lib/interview/delivery";
@@ -9,6 +10,8 @@ import { DEFAULT_INTERVIEWER_NAME, type Intensity, type SessionState, type Trans
 import { STAR_PARTS, addStories, bankSizeAfter, missingParts } from "@/lib/stories";
 import { LANGUAGE_LABELS, type WorkspaceSnapshot } from "@/lib/workspace/types";
 import { QuestionRating } from "./QuestionRating";
+import { GardenIcon } from "./GardenIcon";
+import { RoundIcon } from "./RoundIcon";
 import { NervousnessScale } from "./room/NervousnessScale";
 import { INTENSITY_OPTIONS } from "./room/SessionSetup";
 
@@ -26,8 +29,8 @@ const READINESS_TONE = {
 
 /** What a finished session added to your island, and what's next. */
 export interface IslandSummary {
-  grew: { label: string; color: string };
-  next: { label: string; color: string };
+  grew: { id: GardenItemId; label: string };
+  next: { id: GardenItemId; label: string };
   grown: number;
   total: number;
 }
@@ -153,7 +156,8 @@ export function FeedbackReport({
       <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 sm:px-6">
         {/* how it went */}
         <section className={`${card} px-6 py-6 sm:px-8`}>
-          <p className="text-[13px] font-bold text-[#8a6440]">
+          <p className="flex items-center gap-1.5 text-[13px] font-bold text-[#8a6440]">
+            <RoundIcon type={state.typeId} />
             {type.label} · {intensityLabel} · Session complete
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -216,14 +220,14 @@ export function FeedbackReport({
             <section className={`${card} px-5 py-5`}>
               <h2 className={heading}>Your island</h2>
               <div className="mt-3 flex items-center gap-2.5">
-                <span className="h-7 w-7 shrink-0 rounded-lg" style={{ background: island.grew.color }} aria-hidden />
+                <GardenIcon id={island.grew.id} size={32} />
                 <p className="text-[14px] leading-snug">
                   <span className="block text-[12px] font-bold text-[#8a6440]">New</span>
                   {island.grew.label}
                 </p>
               </div>
               <div className="mt-3 flex items-center gap-2.5">
-                <span className="h-7 w-7 shrink-0 rounded-lg border-2 border-dashed border-[#d9c3a0]" aria-hidden />
+                <GardenIcon id={island.next.id} size={32} grown={false} />
                 <p className="text-[14px] leading-snug text-[#6b5640]">
                   <span className="block text-[12px] font-bold text-[#8a6440]">Next session</span>
                   {island.next.label}

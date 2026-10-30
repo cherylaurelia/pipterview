@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { InterviewType } from "@/lib/interview/types";
 import type { QuestionRatingSummary } from "@/lib/ratings";
 import { QuestionRating } from "./QuestionRating";
+import { RoundIcon } from "./RoundIcon";
 
 /**
  * The whole question bank, with everything the interviewer sees, so mentors
@@ -39,10 +40,11 @@ export function ReviewBoard({ types }: { types: InterviewType[] }) {
           <button
             key={t.id}
             onClick={() => setActiveType(t.id)}
-            className={`rounded-full px-4 py-1.5 text-sm ring-1 ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm ring-1 ${
               t.id === activeType ? "bg-teal-600 text-white ring-teal-600" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-100"
             }`}
           >
+            <RoundIcon type={t.id} />
             {t.label} · {t.questions.length}
           </button>
         ))}

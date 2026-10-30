@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 
@@ -104,7 +105,7 @@ export function Choice<T extends string>({
 export function Logo() {
   return (
     <Link href="/" className="inline-flex items-center gap-2 font-semibold tracking-tight text-slate-900">
-      <span className="grid h-7 w-7 place-items-center rounded-lg bg-teal-600 text-sm text-white">P</span>
+      <Image src="/design/logo/pip-badge.png" alt="" width={28} height={28} className="h-7 w-7 rounded-full" />
       Pip
     </Link>
   );
