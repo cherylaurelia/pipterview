@@ -10,10 +10,15 @@ export interface TurnResponse {
 /**
  * Calls a streaming interview route (start or turn). onSay receives the
  * interviewer's line as it's generated; the promise resolves with the
- * finished turn.
+ * finished turn. Aborting the signal cancels the request (and the server stops generating).
  */
-export async function streamTurnRequest(url: string, body: unknown, onSay: (text: string) => void): Promise<TurnResponse> {
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+export async function streamTurnRequest(
+  url: string,
+  body: unknown,
+  onSay: (text: string) => void,
+  signal?: AbortSignal,
+): Promise<TurnResponse> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
   if (!res.ok || !res.body) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error ?? `Request failed (${res.status})`);

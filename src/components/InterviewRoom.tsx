@@ -3,8 +3,9 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Feedback } from "@/lib/interview/prompts";
-import type { Intensity, InterviewTypeId, Question, SessionState, TranscriptEntry } from "@/lib/interview/types";
+import type { InterviewTypeId, Question, SessionState, TranscriptEntry } from "@/lib/interview/types";
 import { speak, stopSpeaking, warmUpVoices } from "@/lib/voice/speak";
+import { DONE_PHRASE, SILENCE_MS, VOICE_MODE_KEY, stripDonePhrase } from "@/lib/voice/hands-free";
 import { usePushToTalk } from "@/lib/voice/usePushToTalk";
 import type { WorkspaceSnapshot } from "@/lib/workspace/types";
 import { FeedbackReport } from "./FeedbackReport";
@@ -58,15 +59,7 @@ const ROUND_MINUTES: Record<InterviewTypeId, number> = { behavioral: 25, technic
 // A press shorter than this is a click: it starts listening, and the next click sends.
 const CLICK_MS = 350;
 
-const VOICE_MODE_KEY = "mock-interviewer:voice-mode";
 
-/**
- * Hands-free mode sends an answer after this much silence. Nervous speakers
- * pause more, so gentle mode waits longest.
- */
-const SILENCE_MS: Record<Intensity, number> = { gentle: 4000, standard: 3000, realistic: 2500 };
-/** Saying one of these at the end sends the answer right away. */
-const DONE_PHRASE = /\b(that'?s my answer|that is my answer|i'?m done|that'?s it)[.!]?$/i;
 
 function useVoiceMode() {
   const [mode, setMode] = useState<VoiceMode>("hands-free");
@@ -246,7 +239,7 @@ export function InterviewRoom({ typeId, label }: { typeId: InterviewTypeId; labe
   }, [typeId, settings, profileDraft, deliver, fail, setStatus]);
 
   const submitAnswer = useCallback(
-    async (text: string, durationMs?: number) => {
+    async (text: string, durationMs?: number, thinkMs?: number) => {
       const state = sessionRef.current;
       if (!state) return;
       const answer = text.trim();
@@ -263,6 +256,7 @@ export function InterviewRoom({ typeId, label }: { typeId: InterviewTypeId; labe
         text: answer,
         ...(work ? { workspace: work } : {}),
         ...(durationMs ? { durationMs } : {}),
+        ...(thinkMs !== undefined ? { thinkMs } : {}),
       };
       const lines = [...transcriptRef.current, entry];
       setTranscript(lines);
@@ -294,14 +288,16 @@ export function InterviewRoom({ typeId, label }: { typeId: InterviewTypeId; labe
     if (statusRef.current !== "listening") return;
     clickToTalkRef.current = false;
     setClickToTalk(false);
-    // Time actually spent talking: up to the last word, not the trailing pause.
+    // Time actually spent talking: first word to last, not the pauses either side (the one before is thinking time).
     const end = mic.lastSpeechAt() || performance.now();
-    const durationMs = Math.max(0, Math.round(end - talkStarted.current));
+    const first = mic.firstSpeechAt();
+    const durationMs = Math.max(0, Math.round(end - (first || talkStarted.current)));
+    const thinkMs = first ? Math.max(0, Math.round(first - talkStarted.current)) : undefined;
     holdAfter.current = 0;
     setHolding(false);
     setSilenceProgress(0);
-    const text = (await mic.stop()).replace(DONE_PHRASE, "").replace(/[\s,;]+$/, "").trim();
-    await submitAnswer(text, durationMs);
+    const text = stripDonePhrase(await mic.stop());
+    await submitAnswer(text, durationMs, thinkMs);
   }, [mic, submitAnswer]);
 
   useEffect(() => {
