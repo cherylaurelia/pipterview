@@ -16,7 +16,7 @@ import { createAmbience, type Ambience } from "./sound";
 import { setVoiceVolume } from "@/lib/voice/speak";
 import { BookIcon, ChatIcon, CloseIcon, CodeIcon, HelpIcon, HomeIcon, IslandIcon, SpeakerIcon } from "./icons";
 import { askCritter, CRITTERS, type CritterAction, type CritterPick } from "./critters";
-import { goHomeSpot, type Nearby } from "./explore";
+import { getUp, goHomeSpot, sitOn, type Nearby } from "./explore";
 import { IslandPanel } from "./islandpanel";
 import { StoryBook } from "./storybook";
 import { GardenIcon } from "../GardenIcon";
@@ -278,6 +278,7 @@ export default function World() {
   // the creature whose actions are showing: the one you clicked on, or else the one you're standing by
   const picked = mode === "world" ? (critter ?? (near?.type === "critter" ? near.pick : null)) : null;
   const atTable = mode === "world" && near?.type === "table";
+  const bySeat = mode === "world" && near?.type === "seat" ? near : null;
   // the controls hint, shown when you first step onto the island and then fading away
   const [hintUntil, setHintUntil] = useState(0);
   // first-visit help: which tour bubbles you've seen (null until loaded, so nothing flashes), the help window, and the
@@ -499,6 +500,10 @@ export default function World() {
       if ((key === "e" || key === "enter") && atTable) {
         e.preventDefault();
         sitDown();
+      } else if ((key === "e" || key === "enter") && bySeat) {
+        e.preventDefault();
+        if (bySeat.sitting) getUp();
+        else sitOn(bySeat.id);
       } else if (picked && ["1", "2", "3"].includes(key)) {
         const action = CRITTERS[picked.kind].actions[Number(key) - 1];
         if (action) doCritter(picked, action);
@@ -678,7 +683,19 @@ export default function World() {
 
       {/* 2. on the island the world is the interface: just a word about how to get about, when you first arrive, and a
           prompt when you walk up to the table (the creatures' actions show below, when you're by one) */}
-      <IslandHint show={mode === "world" && arrived === "world" && !picked && !atTable} until={hintUntil} />
+      <IslandHint show={mode === "world" && arrived === "world" && !picked && !atTable && !bySeat} until={hintUntil} />
+      {bySeat && !picked && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-3">
+          <button
+            onClick={() => (bySeat.sitting ? getUp() : sitOn(bySeat.id))}
+            className="pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#fff8ec]/95 py-2 pr-5 pl-2 text-[15px] font-bold text-[#4a3424] shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur transition-colors hover:bg-[#fff0d4]"
+          >
+            <Key>E</Key>
+            {bySeat.sitting ? "Get up" : "Sit on the bench"}
+            {bySeat.sitting && <span className="text-[12.5px] font-normal text-[#8a6a4a]">· or just walk off</span>}
+          </button>
+        </div>
+      )}
       {atTable && !picked && (
         <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-3">
           <button
