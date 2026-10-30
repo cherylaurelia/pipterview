@@ -17,10 +17,11 @@ import { INTENSITY_OPTIONS } from "./room/SessionSetup";
 
 const SCORE_LABEL = ["", "Needs work", "Developing", "Solid", "Strong"];
 const INTENSITY_ORDER: Intensity[] = ["gentle", "standard", "realistic"];
+// one warm palette throughout: amber for anything good or highlighted, deep brown text for contrast
 const READINESS_TONE = {
-  low: "bg-[#fbe7cf] text-[#8a5a1c]",
-  mid: "bg-[#e3ecf7] text-[#2f4a7a]",
-  high: "bg-[#e3f0dc] text-[#3f6b2f]",
+  low: "bg-[#fde3cf] text-[#8a4a1c]",
+  mid: "bg-[#fff0c7] text-[#7a5418]",
+  high: "bg-[#f7d79a] text-[#5a3a0c]",
 };
 
 /** What a finished session added to your island, and what's next. */
@@ -38,7 +39,7 @@ function download(filename: string, text: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
-const card = "rounded-[22px] bg-[#fff8ec] ring-1 ring-[#f0dfc2] shadow-[0_6px_20px_rgba(70,45,20,0.08)]";
+const card = "rounded-[22px] bg-[#fffdf8] ring-1 ring-[#ead8b8] shadow-[0_4px_16px_rgba(70,45,20,0.07)]";
 const heading = "text-[15px] font-bold text-[#4a3424]";
 
 /** A section you can open for the details, with a one-line preview when closed. */
@@ -47,7 +48,7 @@ function Section({ title, preview, children, open = false }: { title: string; pr
     <details open={open} className={`${card} group px-5 py-4`}>
       <summary className="flex cursor-pointer list-none items-baseline gap-3 [&::-webkit-details-marker]:hidden">
         <span className={`${heading} shrink-0`}>{title}</span>
-        {preview && <span className="min-w-0 flex-1 truncate text-[13px] text-[#8a6a4a]">{preview}</span>}
+        {preview && <span className="min-w-0 flex-1 truncate text-[13px] text-[#6e563f]">{preview}</span>}
         <span className="ml-auto shrink-0 text-[12.5px] font-bold text-[#b0702a] group-open:hidden">Show</span>
         <span className="ml-auto hidden shrink-0 text-[12.5px] font-bold text-[#b0702a] group-open:inline">Hide</span>
       </summary>
@@ -152,16 +153,16 @@ export function FeedbackReport({
       <div className="mx-auto max-w-3xl space-y-4 px-4 py-6 sm:px-6">
         {/* how it went */}
         <section className={`${card} px-6 py-6 sm:px-8`}>
-          <p className="text-[13px] font-bold text-[#a07a4a]">
+          <p className="text-[13px] font-bold text-[#8a6440]">
             {type.label} · {intensityLabel} · Session complete
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <h1 className="text-[26px] font-bold tracking-tight text-[#3d2a1c]">How it went</h1>
             {showScores && <span className={`rounded-full px-3 py-1 text-[13px] font-bold ${READINESS_TONE[readiness.tone]}`}>{readiness.label}</span>}
           </div>
-          <p className="mt-3 text-[16px] leading-relaxed text-[#5a4430]">{feedback.summary}</p>
+          <p className="mt-3 text-[16px] leading-relaxed text-[#44311f]">{feedback.summary}</p>
           {previous && (showScores ? improved + same + lower > 0 : improved > 0) && (
-            <p className="mt-4 rounded-2xl bg-[#eef4e6] px-4 py-2.5 text-[14px] text-[#3f6b2f]">
+            <p className="mt-4 rounded-2xl bg-[#fff0c7] px-4 py-2.5 text-[14px] text-[#9a5b12]">
               Since your last {type.label.toLowerCase()} session:{" "}
               {[
                 improved > 0 && `better in ${improved} area${improved === 1 ? "" : "s"}`,
@@ -173,7 +174,7 @@ export function FeedbackReport({
               .
             </p>
           )}
-          <p className="mt-3 text-[13px] text-[#8a6a4a]">
+          <p className="mt-3 text-[13px] text-[#6e563f]">
             {showScores ? (
               <>Readiness is judged against a new-grad hiring bar. Average rubric score: {average} of 4.</>
             ) : (
@@ -191,10 +192,10 @@ export function FeedbackReport({
         <div className={`grid gap-4 ${island ? "md:grid-cols-3" : "sm:grid-cols-2"}`}>
           <section className={`${card} px-5 py-5`}>
             <h2 className={heading}>What went well</h2>
-            <ul className="mt-3 space-y-2.5 text-[14px] leading-relaxed text-[#5a4430]">
+            <ul className="mt-3 space-y-2.5 text-[14px] leading-relaxed text-[#44311f]">
               {feedback.strengths.map((s, i) => (
                 <li key={i} className="flex gap-2.5">
-                  <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#6fa65a]" aria-hidden />
+                  <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#e0a43a]" aria-hidden />
                   {s}
                 </li>
               ))}
@@ -202,7 +203,7 @@ export function FeedbackReport({
           </section>
           <section className={`${card} px-5 py-5`}>
             <h2 className={heading}>Practise next</h2>
-            <ol className="mt-3 space-y-2.5 text-[14px] leading-relaxed text-[#5a4430]">
+            <ol className="mt-3 space-y-2.5 text-[14px] leading-relaxed text-[#44311f]">
               {feedback.improvements.map((s, i) => (
                 <li key={i} className="flex gap-2.5">
                   <span className="mt-px grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#ffe1a1] text-[11.5px] font-bold text-[#7a5418]">{i + 1}</span>
@@ -217,18 +218,18 @@ export function FeedbackReport({
               <div className="mt-3 flex items-center gap-2.5">
                 <span className="h-7 w-7 shrink-0 rounded-lg" style={{ background: island.grew.color }} aria-hidden />
                 <p className="text-[14px] leading-snug">
-                  <span className="block text-[12px] font-bold text-[#a07a4a]">New</span>
+                  <span className="block text-[12px] font-bold text-[#8a6440]">New</span>
                   {island.grew.label}
                 </p>
               </div>
               <div className="mt-3 flex items-center gap-2.5">
                 <span className="h-7 w-7 shrink-0 rounded-lg border-2 border-dashed border-[#d9c3a0]" aria-hidden />
                 <p className="text-[14px] leading-snug text-[#6b5640]">
-                  <span className="block text-[12px] font-bold text-[#a07a4a]">Next session</span>
+                  <span className="block text-[12px] font-bold text-[#8a6440]">Next session</span>
                   {island.next.label}
                 </p>
               </div>
-              <p className="mt-3 text-[12.5px] text-[#8a6a4a]">
+              <p className="mt-3 text-[12.5px] text-[#6e563f]">
                 {Math.min(island.grown, island.total)} of {island.total} grown
               </p>
             </section>
@@ -246,7 +247,7 @@ export function FeedbackReport({
             }}
           />
           {nervousAfter && nervousBefore && (
-            <p className="text-[14px] text-[#5a4430]">
+            <p className="text-[14px] text-[#44311f]">
               Before: <b>{NERVOUSNESS_LABELS[nervousBefore - 1]}</b>. Now: <b>{NERVOUSNESS_LABELS[nervousAfter - 1]}</b>.{" "}
               {nervousAfter < nervousBefore
                 ? "Facing it made it smaller. That's how practice works."
@@ -277,16 +278,16 @@ export function FeedbackReport({
                   <div className="flex items-baseline justify-between gap-4">
                     <h3 className="text-[14.5px] font-bold text-[#4a3424]">{d.name}</h3>
                     {showScores ? (
-                      <span className="text-[13px] text-[#8a6a4a]">
+                      <span className="text-[13px] text-[#6e563f]">
                         {change !== undefined && change !== 0 && (
-                          <span className={`mr-2 ${change > 0 ? "font-bold text-[#3f6b2f]" : ""}`}>
+                          <span className={`mr-2 ${change > 0 ? "font-bold text-[#9a5b12]" : ""}`}>
                             {change > 0 ? "Up" : "Down"} from {score - change}
                           </span>
                         )}
                         {score} of 4 · {SCORE_LABEL[score]}
                       </span>
                     ) : (
-                      change !== undefined && change > 0 && <span className="text-[13px] font-bold text-[#3f6b2f]">Better than last time</span>
+                      change !== undefined && change > 0 && <span className="text-[13px] font-bold text-[#9a5b12]">Better than last time</span>
                     )}
                   </div>
                   {showScores && (
@@ -296,10 +297,10 @@ export function FeedbackReport({
                           <span key={n} className={`h-1.5 flex-1 rounded-full ${n <= score ? "bg-[#e0a43a]" : "bg-[#efe2cc]"}`} />
                         ))}
                       </div>
-                      {level && <p className="mt-2 text-[12.5px] text-[#a08a70]">{level}</p>}
+                      {level && <p className="mt-2 text-[12.5px] text-[#8a7660]">{level}</p>}
                     </>
                   )}
-                  <p className="mt-2 text-[14px] leading-relaxed text-[#5a4430]">{d.evidence}</p>
+                  <p className="mt-2 text-[14px] leading-relaxed text-[#44311f]">{d.evidence}</p>
                   <p className="mt-1.5 text-[14px] leading-relaxed text-[#8a5a1c]">Next time: {d.advice}</p>
                 </li>
               );
@@ -309,7 +310,7 @@ export function FeedbackReport({
 
         {spoke && (
           <Section title="How you sounded" preview={deliveryPreview}>
-            <p className="mb-4 text-[13px] text-[#8a6a4a]">
+            <p className="mb-4 text-[13px] text-[#6e563f]">
               Nerves usually show up here first: speeding up, filling silences, hedging, or rambling. These are habits, not scores,
               compared with your own last session.
             </p>
@@ -380,7 +381,7 @@ export function FeedbackReport({
 
         {stories.length > 0 && (
           <Section title="Stories you told" preview={stories.map((s) => s.title).join(" · ")}>
-            <p className="mb-4 text-[13px] text-[#8a6a4a]">
+            <p className="mb-4 text-[13px] text-[#6e563f]">
               Most behavioral questions can be answered with five or six good stories. These are saved to your story bank, and {interviewer}{" "}
               can remind you of one if you freeze.
             </p>
@@ -388,7 +389,7 @@ export function FeedbackReport({
               {stories.map((story, i) => {
                 const missing = missingParts(story);
                 return (
-                  <li key={i} className="rounded-2xl bg-white/70 p-4 ring-1 ring-[#f0dfc2]">
+                  <li key={i} className="rounded-2xl bg-white/70 p-4 ring-1 ring-[#ead8b8]">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h3 className="text-[14.5px] font-bold text-[#4a3424]">{story.title}</h3>
                       <span className="flex gap-1" aria-label={missing.length ? `Missing: ${missing.join(", ")}` : "All four STAR parts"}>
@@ -397,7 +398,7 @@ export function FeedbackReport({
                             key={part}
                             title={part}
                             className={`grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold ${
-                              missing.includes(part) ? "border border-dashed border-[#d9c3a0] text-[#b8a080]" : "bg-[#e0a43a] text-white"
+                              missing.includes(part) ? "border border-dashed border-[#d9c3a0] text-[#9a8670]" : "bg-[#e0a43a] text-white"
                             }`}
                           >
                             {part[0].toUpperCase()}
@@ -405,15 +406,15 @@ export function FeedbackReport({
                         ))}
                       </span>
                     </div>
-                    <dl className="mt-2 space-y-1 text-[14px] leading-relaxed text-[#5a4430]">
+                    <dl className="mt-2 space-y-1 text-[14px] leading-relaxed text-[#44311f]">
                       {STAR_PARTS.filter((p) => story[p].trim()).map((part) => (
                         <div key={part} className="flex gap-2">
-                          <dt className="w-[70px] shrink-0 text-[12px] font-bold capitalize text-[#a07a4a]">{part}</dt>
+                          <dt className="w-[70px] shrink-0 text-[12px] font-bold capitalize text-[#8a6440]">{part}</dt>
                           <dd>{story[part]}</dd>
                         </div>
                       ))}
                     </dl>
-                    {story.skills.length > 0 && <p className="mt-2 text-[12.5px] text-[#8a6a4a]">Shows: {story.skills.join(", ")}</p>}
+                    {story.skills.length > 0 && <p className="mt-2 text-[12.5px] text-[#6e563f]">Shows: {story.skills.join(", ")}</p>}
                     <p className="mt-1.5 text-[14px] text-[#8a5a1c]">
                       {missing.length ? `Add the ${missing.join(" and ")}. ` : ""}
                       {story.tip}
@@ -423,7 +424,7 @@ export function FeedbackReport({
               })}
             </ul>
             {bankSize !== undefined && (
-              <p className="mt-3 text-[12.5px] text-[#8a6a4a]">
+              <p className="mt-3 text-[12.5px] text-[#6e563f]">
                 Saved. Your story bank has {bankSize} {bankSize === 1 ? "story" : "stories"}.
               </p>
             )}
@@ -438,18 +439,18 @@ export function FeedbackReport({
                   <div key={i} className="space-y-2">
                     <p className="text-[14px] font-bold text-[#4a3424]">
                       {state.questions.find((q) => q.id === w.questionId)?.prompt ?? w.questionId}{" "}
-                      <span className="font-normal text-[#8a6a4a]">· {LANGUAGE_LABELS[w.language]}</span>
+                      <span className="font-normal text-[#6e563f]">· {LANGUAGE_LABELS[w.language]}</span>
                     </p>
                     <pre className="max-h-80 overflow-auto rounded-2xl bg-[#13233f] p-4 font-mono text-[12px] leading-relaxed text-[#e8eef7]">{w.code}</pre>
-                    {w.run && <p className="whitespace-pre-wrap text-[12.5px] text-[#8a6a4a]">{w.run}</p>}
+                    {w.run && <p className="whitespace-pre-wrap text-[12.5px] text-[#6e563f]">{w.run}</p>}
                   </div>
                 ) : (
                   <div key={i} className="space-y-3">
                     {w.image && (
                       // eslint-disable-next-line @next/next/no-img-element -- a data URL exported from the whiteboard
-                      <img src={`data:image/jpeg;base64,${w.image}`} alt="Your system design diagram" className="w-full rounded-2xl ring-1 ring-[#f0dfc2]" />
+                      <img src={`data:image/jpeg;base64,${w.image}`} alt="Your system design diagram" className="w-full rounded-2xl ring-1 ring-[#ead8b8]" />
                     )}
-                    {w.notes && <pre className="whitespace-pre-wrap rounded-2xl bg-white/70 p-4 font-mono text-[12px] text-[#5a4430]">{w.notes}</pre>}
+                    {w.notes && <pre className="whitespace-pre-wrap rounded-2xl bg-white/70 p-4 font-mono text-[12px] text-[#44311f]">{w.notes}</pre>}
                   </div>
                 ),
               )}
@@ -485,7 +486,7 @@ export function FeedbackReport({
             }}
             rows={2}
             placeholder="For example: pause and outline my answer before I start talking"
-            className="w-full rounded-2xl bg-white px-4 py-3 text-[14px] ring-1 ring-[#ead7b8] placeholder:text-[#b8a080] focus:outline-none focus:ring-2 focus:ring-[#e0a43a]"
+            className="w-full rounded-2xl bg-white px-4 py-3 text-[14px] ring-1 ring-[#ead7b8] placeholder:text-[#9a8670] focus:outline-none focus:ring-2 focus:ring-[#e0a43a]"
           />
           <button
             disabled={!reflection.trim() || reflectionSaved}
@@ -525,7 +526,7 @@ export function FeedbackReport({
           )}
         </section>
 
-        <div className="flex flex-wrap justify-end gap-4 px-1 text-[13px] text-[#8a6a4a]">
+        <div className="flex flex-wrap justify-end gap-4 px-1 text-[13px] text-[#6e563f]">
           <button className="hover:text-[#4a3424]" onClick={() => download(`pip-${state.typeId}-transcript.txt`, transcriptText, "text/plain")}>
             Download transcript
           </button>
@@ -567,11 +568,11 @@ function paceTrend(now: number | undefined, before: number | undefined): Trend |
 
 function Stat({ label, value, note, trend }: { label: string; value: string; note?: string; trend?: Trend }) {
   return (
-    <div className="rounded-2xl bg-white/70 p-3.5 ring-1 ring-[#f0dfc2]">
-      <dt className="text-[12px] font-bold text-[#a07a4a]">{label}</dt>
+    <div className="rounded-2xl bg-white/70 p-3.5 ring-1 ring-[#ead8b8]">
+      <dt className="text-[12px] font-bold text-[#8a6440]">{label}</dt>
       <dd className="mt-1 text-[17px] font-bold tracking-tight text-[#3d2a1c]">{value}</dd>
-      {note && <p className="mt-0.5 text-[12.5px] leading-snug text-[#8a6a4a]">{note}</p>}
-      {trend && <p className={`mt-1 text-[12.5px] font-bold ${trend.good ? "text-[#3f6b2f]" : "text-[#b8a080]"}`}>{trend.text}</p>}
+      {note && <p className="mt-0.5 text-[12.5px] leading-snug text-[#6e563f]">{note}</p>}
+      {trend && <p className={`mt-1 text-[12.5px] font-bold ${trend.good ? "text-[#9a5b12]" : "text-[#9a8670]"}`}>{trend.text}</p>}
     </div>
   );
 }
@@ -579,8 +580,8 @@ function Stat({ label, value, note, trend }: { label: string; value: string; not
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[12px] font-bold text-[#a07a4a]">{label}</dt>
-      <dd className="mt-0.5 text-[#5a4430]">{value}</dd>
+      <dt className="text-[12px] font-bold text-[#8a6440]">{label}</dt>
+      <dd className="mt-0.5 text-[#44311f]">{value}</dd>
     </div>
   );
 }
