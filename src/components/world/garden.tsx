@@ -5,6 +5,7 @@ import { useRef, type ReactNode } from "react";
 import * as THREE from "three";
 import { gardenItem, type GardenItemId } from "@/lib/garden";
 import { BoxLantern, GARDEN_SLOTS, POND, groundY } from "./island";
+import { duckPath } from "./pond";
 import { toon } from "./toon";
 
 // The things your island grows as you practise (one per finished session; see lib/garden.ts). Each is a little toy
@@ -200,30 +201,35 @@ function Beehive() {
   );
 }
 
-/** Three ducks paddling slow circles on the pond. Placed relative to the pond, not a slot. */
+/** Three ducklings paddling along in a line behind the mother duck (see pond.tsx). Placed relative to the pond. */
 function Ducks() {
-  const ducks = useRef<THREE.Group>(null);
+  const ducklings = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
-    ducks.current?.children.forEach((d, i) => {
-      const a = t * 0.18 + (i * Math.PI * 2) / 3;
-      d.position.set(Math.cos(a) * (0.9 + i * 0.12), -0.07 + Math.sin(t * 2 + i) * 0.01, Math.sin(a) * (0.9 + i * 0.12));
-      d.rotation.y = -a; // facing along the circle
+    ducklings.current?.children.forEach((d, i) => {
+      const p = duckPath(0, t - 1.6 * (i + 1)); // each a little further behind
+      d.position.set(p.x - POND.x, -0.12 + Math.sin(t * 3 + i) * 0.006, p.z - POND.z);
+      d.rotation.y = p.heading;
     });
   });
   return (
-    <group ref={ducks}>
+    <group ref={ducklings}>
       {[0, 1, 2].map((i) => (
-        <group key={i} scale={i === 2 ? 0.7 : 1}>
-          <mesh scale={[0.7, 0.55, 1]} material={toon(i === 0 ? "#ffffff" : "#f4efe4")}>
-            <sphereGeometry args={[0.16, 14, 10]} />
+        <group key={i}>
+          <mesh scale={[0.065, 0.055, 0.085]} material={toon("#ffd96a", true)} castShadow>
+            <sphereGeometry args={[1, 14, 10]} />
           </mesh>
-          <mesh position={[0, 0.12, 0.12]} material={toon(i === 0 ? "#ffffff" : "#f4efe4")}>
-            <sphereGeometry args={[0.08, 12, 10]} />
+          <mesh position={[0, 0.07, 0.05]} material={toon("#ffd96a", true)}>
+            <sphereGeometry args={[0.045, 12, 10]} />
           </mesh>
-          <mesh position={[0, 0.11, 0.21]} rotation={[Math.PI / 2, 0, 0]} scale={[1.3, 1, 0.6]} material={toon("#f4a35f")}>
-            <coneGeometry args={[0.03, 0.06, 8]} />
+          <mesh position={[0, 0.065, 0.1]} scale={[0.022, 0.01, 0.026]} material={toon("#f4a35f")}>
+            <sphereGeometry args={[1, 8, 6]} />
           </mesh>
+          {[-1, 1].map((side) => (
+            <mesh key={side} position={[side * 0.03, 0.085, 0.08]} material={toon("#2b2420")}>
+              <sphereGeometry args={[0.007, 6, 5]} />
+            </mesh>
+          ))}
         </group>
       ))}
     </group>

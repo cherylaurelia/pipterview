@@ -4,7 +4,7 @@ import type { PrepType } from "@/components/world/script";
 
 /**
  * Your island grows as you practise: every finished session adds something to it (a flower bed, a lantern, a cherry
- * tree, ducks on the pond, eventually a hot-air balloon). Visible progress, a reason to come back, and a gentle way to
+ * tree, ducklings on the pond, eventually a hot-air balloon). Visible progress, a reason to come back, and a gentle way to
  * say "look how far you've come" to someone working through interview nerves. Kept in this browser.
  */
 export interface Garden {
@@ -22,7 +22,7 @@ export const GARDEN_ITEMS = [
   { id: "cherry", label: "Cherry blossom tree", color: "#f6b6c8" },
   { id: "bench", label: "Bench", color: "#b07a4f" },
   { id: "beehive", label: "Beehive", color: "#d9a03a" },
-  { id: "ducks", label: "Ducks on the pond", color: "#9fd3e6" },
+  { id: "ducks", label: "Ducklings on the pond", color: "#9fd3e6" },
   { id: "mushrooms", label: "Mushroom ring", color: "#e0574a" },
   { id: "birdhouse", label: "Birdhouse", color: "#7fb8d8" },
   { id: "scarecrow", label: "Scarecrow", color: "#d9b25a" },

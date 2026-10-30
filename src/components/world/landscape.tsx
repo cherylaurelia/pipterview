@@ -3,17 +3,21 @@
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import type { CritterPick } from "./critters";
 import { daylight } from "./daylight";
-import { groundY, inView, Island, isOpen, nearGardenSlot, rng } from "./island";
+import { groundY, inView, Island, islandRadius, isOpen, nearGardenSlot, rng } from "./island";
+import { Pond } from "./pond";
 import { softDot } from "./textures";
-import { gradientMap, toon } from "./toon";
+import { gradientMap, paleGradientMap, swayingToon, toon, wind } from "./toon";
 
-// The sky and the life around the floating island (see island.tsx for the island itself): a hazy pastel sky that
-// turns to sunset when you finish, clouds high above and drifting below, swaying grass and wildflowers, pine and
-// round trees, butterflies and blossom petals by day, fireflies at dusk.
+// The backdrop and the life around the floating island (see island.tsx for the island itself, pond.tsx for the pond),
+// in the look of a little painted diorama: a plain warm-cream backdrop that turns to sunset when you finish, puffy clay
+// clouds, bright painterly grass with a fuzzy edge and specks of wildflowers, puffy round bubble trees (a few of them
+// pink), butterflies and blossom petals by day, fireflies at dusk.
 
 export const COLORS = {
-  fog: "#e6e0dc",
+  fog: "#ece6dc",
   fogSunset: "#e3aeb0",
 };
 
@@ -32,11 +36,11 @@ function Sky() {
           uniform vec3 sunDir; uniform float uEvening; varying vec3 vDir;
           void main(){
             float h = vDir.y;
-            // golden afternoon: warm cream at the horizon into soft blue; sunset: gold and rose into lavender
-            vec3 horizon = mix(vec3(1.0, 0.91, 0.80), vec3(1.0, 0.74, 0.56), uEvening);
-            vec3 mid = mix(vec3(0.82, 0.86, 0.95), vec3(0.93, 0.62, 0.70), uEvening);
-            vec3 top = mix(vec3(0.56, 0.68, 0.92), vec3(0.47, 0.40, 0.72), uEvening);
-            vec3 haze = mix(vec3(0.86, 0.84, 0.88), vec3(0.78, 0.58, 0.66), uEvening);  // the void below the island
+            // afternoon: a plain warm cream all round, like paper behind a diorama; sunset: gold and rose into lavender
+            vec3 horizon = mix(vec3(0.96, 0.94, 0.89), vec3(1.0, 0.74, 0.56), uEvening);
+            vec3 mid = mix(vec3(0.95, 0.93, 0.88), vec3(0.93, 0.62, 0.70), uEvening);
+            vec3 top = mix(vec3(0.91, 0.91, 0.90), vec3(0.47, 0.40, 0.72), uEvening);
+            vec3 haze = mix(vec3(0.94, 0.91, 0.86), vec3(0.78, 0.58, 0.66), uEvening);  // the void below the island
             vec3 c = mix(horizon, mid, smoothstep(-0.02, 0.22, h));
             c = mix(c, top, smoothstep(0.22, 0.8, h));
             c = mix(c, haze, smoothstep(-0.02, -0.5, h));
@@ -64,36 +68,14 @@ function Sky() {
   );
 }
 
-// The breeze: one clock shared by the grass shader. Each blade leans by its height, in waves that roll across the field.
-const wind = { value: 0 };
-const grassMaterial = (() => {
-  const m = new THREE.MeshToonMaterial({ gradientMap: gradientMap() });
-  m.onBeforeCompile = (shader) => {
-    shader.uniforms.uWind = wind;
-    shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nuniform float uWind;")
-      .replace(
-        "#include <begin_vertex>",
-        `#include <begin_vertex>
-        #ifdef USE_INSTANCING
-          vec2 at = instanceMatrix[3].xz;
-        #else
-          vec2 at = vec2(0.0);
-        #endif
-        float sway = sin(uWind * 1.5 + at.x * 0.3 + at.y * 0.2) * 0.6 + sin(uWind * 2.6 + at.x * 0.9) * 0.2;
-        transformed.x += sway * position.y * 0.9;
-        transformed.z += sway * position.y * 0.35;`,
-      );
-  };
-  return m;
-})();
-
-// Tufts of grass and wildflowers (buttercups, pink clover, daisies, a little lavender) over the island's open ground,
-// as two instanced meshes.
+// Tufts of grass and specks of wildflowers (mostly buttercups, some daisies, a little orange and pink) over the island's
+// open ground, plus a fringe of longer blades leaning out over the rim, so the edge looks soft and brushed rather than
+// cut. Three instanced meshes.
 function Grass() {
   const blades = useRef<THREE.InstancedMesh>(null);
   const flowers = useRef<THREE.InstancedMesh>(null);
-  const BLADES = 9000, FLOWERS = 900;
+  const fringe = useRef<THREE.InstancedMesh>(null);
+  const BLADES = 8000, FLOWERS = 2400, FRINGE = 2600;
   const bladeGeo = useMemo(() => new THREE.ConeGeometry(0.028, 0.2, 3).translate(0, 0.1, 0), []);
 
   useLayoutEffect(() => {
@@ -119,19 +101,44 @@ function Grass() {
         e.set((r() - 0.5) * 0.4, r() * Math.PI, (r() - 0.5) * 0.4);
         const k = 0.5 + r() * 0.7;
         s.set(k, k * (0.7 + r() * 0.8), k);
-        mesh.setColorAt(i, c.setHSL(0.23 + r() * 0.04, 0.5 + r() * 0.12, 0.42 + r() * 0.12));
+        mesh.setColorAt(i, c.setHSL(0.24 + r() * 0.04, 0.55 + r() * 0.15, 0.44 + r() * 0.12));
       });
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
     if (flowers.current) {
       const mesh = flowers.current;
-      const petals = ["#ffe066", "#ffe066", "#ffb8cf", "#ffffff", "#cdb8f5"];
+      const petals = ["#ffd84a", "#ffd84a", "#ffe680", "#ffffff", "#ffffff", "#ffb347", "#ffb8cf"];
       scatter(mesh, FLOWERS, (i) => {
         e.set(0, 0, 0);
-        p.y += 0.1 + r() * 0.08;
-        s.setScalar(0.6 + r() * 0.6);
+        p.y += 0.08 + r() * 0.08;
+        s.setScalar(0.5 + r() * 0.6);
         mesh.setColorAt(i, c.set(petals[Math.floor(r() * petals.length)]));
       });
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    }
+    if (fringe.current) {
+      const mesh = fringe.current, tilt = new THREE.Quaternion(), axis = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+      for (let i = 0; i < FRINGE; i++) {
+        let theta = 0, x = 0, z = 0, y = -1;
+        while (y < -0.05) {
+          // anywhere round the rim except where the stream pours over
+          theta = r() * Math.PI * 2;
+          const R = islandRadius(theta) * (0.975 + r() * 0.035);
+          x = Math.cos(theta) * R;
+          z = Math.sin(theta) * R;
+          y = groundY(x, z);
+        }
+        // leaning outwards over the edge (a turn about the rim's tangent), each at its own angle
+        axis.set(-Math.sin(theta), 0, Math.cos(theta));
+        tilt.setFromAxisAngle(axis, -(0.45 + r() * 0.7));
+        q.setFromAxisAngle(up, r() * Math.PI * 2).premultiply(tilt);
+        const k = 0.9 + r() * 0.8;
+        s.set(k, k * (0.8 + r() * 0.7), k);
+        m.compose(p.set(x, y - 0.02, z), q, s);
+        mesh.setMatrixAt(i, m);
+        mesh.setColorAt(i, c.setHSL(0.24 + r() * 0.04, 0.55 + r() * 0.15, 0.46 + r() * 0.14));
+      }
+      mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
   }, [BLADES, FLOWERS]);
@@ -142,138 +149,146 @@ function Grass() {
 
   return (
     <>
-      <instancedMesh ref={blades} args={[bladeGeo, grassMaterial, BLADES]} receiveShadow />
+      <instancedMesh ref={blades} args={[bladeGeo, swayingToon(), BLADES]} receiveShadow />
+      <instancedMesh ref={fringe} args={[bladeGeo, swayingToon(), FRINGE]} />
       <instancedMesh ref={flowers} args={[undefined, undefined, FLOWERS]}>
-        <sphereGeometry args={[0.03, 8, 6]} />
+        <sphereGeometry args={[0.024, 8, 6]} />
         <meshToonMaterial gradientMap={gradientMap()} emissive="#fff3d0" emissiveIntensity={0.15} />
       </instancedMesh>
     </>
   );
 }
 
-// Trees and bushes on the island: slim cel-shaded pines like the reference, a few round puffy trees, and flowering
-// bushes, placed on open ground away from the table so the view from your seat stays clear.
+/**
+ * A puffy "cauliflower" ball, like the trees and clouds in a clay diorama: a core with overlapping blobs round its
+ * upper part and smaller bumps over those, coloured from `base` underneath to `light` on top. Adds the blobs' geometry
+ * (centred at x, y, z) to `out`, to be merged into one mesh with everything else of its kind.
+ */
+function puff(out: THREE.BufferGeometry[], r: () => number, at: THREE.Vector3, size: number, base: THREE.Color, light: THREE.Color, blobs = 12, flat = 1) {
+  const c = new THREE.Color();
+  const add = (bx: number, by: number, bz: number, rad: number, detail: number) => {
+    const g = new THREE.IcosahedronGeometry(rad, detail).scale(1, flat, 1).translate(at.x + bx, at.y + by * flat, at.z + bz);
+    g.deleteAttribute("uv");
+    const pos = g.attributes.position, colors = new Float32Array(pos.count * 3);
+    const tint = (r() - 0.5) * 0.08; // each blob a shade lighter or darker
+    for (let i = 0; i < pos.count; i++) {
+      const up = (pos.getY(i) - at.y) / (size * flat);
+      c.copy(base).lerp(light, Math.min(1, Math.max(0, up * 0.55 + 0.4 + tint)));
+      colors.set([c.r, c.g, c.b], i * 3);
+    }
+    g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    out.push(g);
+  };
+  add(0, 0, 0, size * 0.78, 3);
+  for (let k = 0; k < blobs; k++) {
+    // spread evenly (a golden-angle spiral) over all but the very bottom of the ball
+    const yk = 1 - ((k + 0.5) / blobs) * 1.5, ring = Math.sqrt(Math.max(0, 1 - yk * yk)), a = k * 2.39996 + r() * 0.5, d = size * 0.6;
+    add(Math.cos(a) * ring * d, yk * d * 0.85, Math.sin(a) * ring * d, size * (0.36 + r() * 0.12), 3);
+  }
+  for (let k = 0; k < Math.round(blobs * 0.7); k++) {
+    const yk = 0.95 - (k / blobs) * 1.2, ring = Math.sqrt(Math.max(0, 1 - yk * yk)), a = k * 2.39996 + 1.2, d = size * 0.86;
+    add(Math.cos(a) * ring * d, yk * d * 0.85, Math.sin(a) * ring * d, size * (0.2 + r() * 0.06), 1);
+  }
+}
+
+// Puffy bubble trees and bushes, as in the reference diorama: mostly green with a few pink ones, on short trunks,
+// placed on open ground away from the table so the view from your seat stays clear. All the crowns are merged into one
+// mesh (and the trunks into another), so a forest of blobs is still only two draw calls.
 function Trees() {
-  const { pines, rounds, bushes } = useMemo(() => {
+  const { crowns, trunks } = useMemo(() => {
     const r = rng(42);
-    const place = <T,>(count: number, minR: number, pad: number, make: (x: number, z: number) => T) => {
-      const out: T[] = [];
-      for (let tries = 0; out.length < count && tries < count * 60; tries++) {
-        const x = (r() - 0.5) * 28, z = (r() - 0.5) * 28;
-        if (Math.hypot(x, z) > minR && isOpen(x, z, pad) && !inView(x, z) && !nearGardenSlot(x, z, 1.6)) out.push(make(x, z));
+    // every crown placed so far (centre and how far its blobs reach), so no two grow into each other
+    const taken: { x: number; z: number; reach: number }[] = [];
+    const place = (count: number, minR: number, pad: number, sizes: () => number, make: (x: number, z: number, s: number) => void) => {
+      for (let placed = 0, tries = 0; placed < count && tries < count * 80; tries++) {
+        const x = (r() - 0.5) * 28, z = (r() - 0.5) * 28, s = sizes(), reach = s * 1.2;
+        if (Math.hypot(x, z) <= minR || !isOpen(x, z, pad) || inView(x, z) || nearGardenSlot(x, z, 1.6)) continue;
+        if (taken.some((t) => Math.hypot(t.x - x, t.z - z) < t.reach + reach + 0.15)) continue;
+        taken.push({ x, z, reach });
+        make(x, z, s);
+        placed++;
       }
-      return out;
     };
-    return {
-      pines: place(26, 6, 0.6, (x, z) => ({ x, z, s: 0.7 + r() * 0.6, tone: Math.floor(r() * 3) })),
-      rounds: place(6, 7, 1.2, (x, z) => ({ x, z, s: 0.55 + r() * 0.3, tone: Math.floor(r() * 3) })),
-      bushes: place(14, 3.2, 0.3, (x, z) => ({ x, z, s: 0.4 + r() * 0.35, tone: Math.floor(r() * 3), flowers: r() > 0.5 })),
-    };
+    const greens = [["#4f9c3c", "#9ad65a"], ["#58a842", "#a6dc63"], ["#468f37", "#8fce52"]].map(([a, b]) => [new THREE.Color(a), new THREE.Color(b)]);
+    const pink = [new THREE.Color("#d9739a"), new THREE.Color("#ffb3cc")];
+    const crownParts: THREE.BufferGeometry[] = [], trunkParts: THREE.BufferGeometry[] = [];
+    const at = new THREE.Vector3();
+    place(18, 6, 1, () => 0.75 + r() * 0.5, (x, z, s) => {
+      const [base, light] = r() < 0.17 ? pink : greens[Math.floor(r() * 3)], y = groundY(x, z);
+      trunkParts.push(new THREE.CapsuleGeometry(0.13 * s, 0.9 * s, 4, 8).translate(x, y + 0.55 * s, z));
+      puff(crownParts, r, at.set(x, y + 1.75 * s, z), 1.05 * s, base, light, 12);
+    });
+    // bushes are about half a tree's crown across, so they're sized (for spacing) at half
+    place(16, 3.2, 0.3, () => (0.45 + r() * 0.35) * 0.55, (x, z, half) => {
+      const s = half / 0.55, [base, light] = greens[Math.floor(r() * 3)];
+      puff(crownParts, r, at.set(x, groundY(x, z) + 0.32 * s, z), 0.55 * s, base, light, 7, 0.85);
+    });
+    return { crowns: mergeGeometries(crownParts), trunks: mergeGeometries(trunkParts) };
   }, []);
-  const pine = ["#4f9a5c", "#5ca865", "#468e55"], leaves = ["#7cc46a", "#8fd177", "#6db760"];
   return (
     <>
-      {pines.map((t, i) => (
-        <group key={`p${i}`} position={[t.x, groundY(t.x, t.z), t.z]} scale={t.s}>
-          <mesh position={[0, 0.3, 0]} material={toon("#8a6248")} castShadow>
-            <cylinderGeometry args={[0.08, 0.11, 0.6, 7]} />
-          </mesh>
-          <mesh position={[0, 1.05, 0]} material={toon(pine[t.tone])} castShadow>
-            <coneGeometry args={[0.55, 1.2, 8]} />
-          </mesh>
-          <mesh position={[0, 1.6, 0]} material={toon(pine[(t.tone + 1) % 3])} castShadow>
-            <coneGeometry args={[0.4, 0.95, 8]} />
-          </mesh>
-        </group>
-      ))}
-      {rounds.map((t, i) => (
-        <group key={`r${i}`} position={[t.x, groundY(t.x, t.z), t.z]} scale={t.s}>
-          <mesh position={[0, 0.9, 0]} material={toon("#a8764f")} castShadow>
-            <capsuleGeometry args={[0.2, 1.4, 4, 10]} />
-          </mesh>
-          {[
-            [0, 2.7, 0, 1.4],
-            [0.9, 2.3, 0.2, 1.0],
-            [-0.8, 2.4, -0.2, 1.05],
-            [0.1, 3.4, 0.1, 0.95],
-          ].map(([x, y, z, rad], j) => (
-            <mesh key={j} position={[x, y, z]} material={toon(leaves[(t.tone + j) % 3])} castShadow>
-              <sphereGeometry args={[rad, 24, 16]} />
-            </mesh>
-          ))}
-        </group>
-      ))}
-      {bushes.map((b, i) => (
-        <group key={`b${i}`} position={[b.x, groundY(b.x, b.z), b.z]} scale={b.s}>
-          {[
-            [0, 0.35, 0, 0.5],
-            [0.45, 0.28, 0.1, 0.38],
-            [-0.42, 0.26, -0.05, 0.36],
-          ].map(([x, y, z, rad], j) => (
-            <mesh key={j} position={[x, y, z]} material={toon(leaves[(b.tone + j) % 3])} castShadow>
-              <sphereGeometry args={[rad, 20, 14]} />
-            </mesh>
-          ))}
-          {b.flowers &&
-            [
-              [0.1, 0.8, 0.3],
-              [-0.3, 0.62, 0.32],
-              [0.5, 0.58, 0.3],
-            ].map(([x, y, z], j) => (
-              <mesh key={`f${j}`} position={[x, y, z]} material={toon(j % 2 ? "#ffffff" : "#ffb8cf")}>
-                <sphereGeometry args={[0.07, 10, 8]} />
-              </mesh>
-            ))}
-        </group>
-      ))}
+      <mesh geometry={trunks} material={toon("#9a6a46")} castShadow />
+      <mesh geometry={crowns} castShadow>
+        <meshToonMaterial vertexColors gradientMap={gradientMap()} />
+      </mesh>
     </>
   );
 }
 
 const CLOUD_SUNSET = new THREE.Color("#ffb08e");
 
-// Soft drifting clouds, high in the sky and drifting below the island (it's floating, after all), all of them blushing
-// at sunset.
+// Puffy clay clouds floating round the island at about its height, white on top and lavender underneath, drifting
+// slowly round and blushing at sunset; and soft hazy clouds drifting below it (it's floating, after all).
 function Clouds() {
-  const group = useRef<THREE.Group>(null);
+  const ring = useRef<THREE.Group>(null);
+  const haze = useRef<THREE.Group>(null);
   const map = useMemo(() => softDot(), []);
-  const clouds = useMemo(() => {
-    const r = rng(3);
-    const high = Array.from({ length: 18 }, () => {
-      const a = -Math.PI * 0.95 + r() * Math.PI * 1.3, d = 140 + r() * 120;
-      return {
-        p: [Math.cos(a) * d, 25 + r() * 55, Math.sin(a) * d] as const,
-        s: [50 + r() * 70, 14 + r() * 14] as const,
-        color: new THREE.Color(r() > 0.55 ? "#ffd9c8" : "#ffffff"),
-        o: 0.4 + r() * 0.4,
-      };
-    });
-    const low = Array.from({ length: 16 }, () => {
-      const a = r() * Math.PI * 2, d = 22 + r() * 60;
-      return {
-        p: [Math.cos(a) * d, -9 - r() * 14, Math.sin(a) * d] as const,
-        s: [24 + r() * 30, 8 + r() * 6] as const,
-        color: new THREE.Color("#ffffff"),
-        o: 0.35 + r() * 0.3,
-      };
-    });
-    return [...high, ...low];
+  // lit softly from within too, so they stay white rather than going grey on their shaded side
+  const material = useMemo(() => new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: paleGradientMap(), emissive: "#fff6ee", emissiveIntensity: 0.3 }), []);
+  const puffy = useMemo(() => {
+    const r = rng(3), parts: THREE.BufferGeometry[] = [], at = new THREE.Vector3();
+    const top = new THREE.Color("#ffffff"), under = new THREE.Color("#e6e3f6");
+    for (let k = 0; k < 9; k++) {
+      const a = (k / 9) * Math.PI * 2 + r() * 0.5, d = 18 + r() * 14, y = k % 3 === 2 ? -5 - r() * 4 : 2 + r() * 6;
+      const cx = Math.cos(a) * d, cz = Math.sin(a) * d, size = 1.3 + r() * 1.1;
+      // three to five puffs in a row, biggest in the middle
+      const n = 3 + Math.floor(r() * 3);
+      for (let j = 0; j < n; j++) {
+        const off = (j - (n - 1) / 2) * size * 0.95, big = 1 - Math.abs(off) / (size * n * 0.6);
+        puff(parts, r, at.set(cx - Math.sin(a) * off, y + big * size * 0.25, cz + Math.cos(a) * off), size * (0.6 + big * 0.45), under, top, 6, 0.8);
+      }
+    }
+    return mergeGeometries(parts);
   }, []);
-  useFrame((_, dt) => {
-    if (!group.current) return;
-    group.current.rotation.y += dt * 0.004;
-    group.current.children.forEach((sprite, i) => {
-      ((sprite as THREE.Sprite).material as THREE.SpriteMaterial).color.copy(clouds[i].color).lerp(CLOUD_SUNSET, daylight.evening * 0.8);
+  const low = useMemo(() => {
+    const r = rng(5);
+    return Array.from({ length: 16 }, () => {
+      const a = r() * Math.PI * 2, d = 22 + r() * 60;
+      return { p: [Math.cos(a) * d, -9 - r() * 14, Math.sin(a) * d] as const, s: [24 + r() * 30, 8 + r() * 6] as const, o: 0.35 + r() * 0.3 };
     });
+  }, []);
+  useFrame(({ clock }, dt) => {
+    if (ring.current) {
+      ring.current.rotation.y += dt * 0.006;
+      ring.current.position.y = Math.sin(clock.getElapsedTime() * 0.3) * 0.3;
+    }
+    if (haze.current) haze.current.rotation.y += dt * 0.004;
+    material.color.set("#ffffff").lerp(CLOUD_SUNSET, daylight.evening * 0.6);
+    haze.current?.children.forEach((sprite) => ((sprite as THREE.Sprite).material as THREE.SpriteMaterial).color.set("#ffffff").lerp(CLOUD_SUNSET, daylight.evening * 0.8));
   });
   return (
-    <group ref={group}>
-      {clouds.map((c, i) => (
-        <sprite key={i} position={[...c.p]} scale={[c.s[0], c.s[1], 1]}>
-          <spriteMaterial map={map} opacity={c.o} transparent depthWrite={false} fog={false} />
-        </sprite>
-      ))}
-    </group>
+    <>
+      <group ref={ring}>
+        <mesh geometry={puffy} material={material} />
+      </group>
+      <group ref={haze}>
+        {low.map((c, i) => (
+          <sprite key={i} position={[...c.p]} scale={[c.s[0], c.s[1], 1]}>
+            <spriteMaterial map={map} opacity={c.o} transparent depthWrite={false} fog={false} />
+          </sprite>
+        ))}
+      </group>
+    </>
   );
 }
 
@@ -387,12 +402,13 @@ function Fireflies() {
   );
 }
 
-export function Landscape() {
+export function Landscape({ critters }: { critters: { interactive: boolean; picked: CritterPick | null; onPick: (pick: CritterPick) => void } }) {
   return (
     <>
       <Sky />
       <Clouds />
       <Island />
+      <Pond {...critters} />
       <Grass />
       <Trees />
       <Butterflies />
