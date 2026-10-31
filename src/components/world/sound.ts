@@ -39,6 +39,8 @@ export interface Ambience {
   chirp(): void;
   /** A pond creature did something. */
   critter(sound: CritterSound): void;
+  /** How close running water is, 0 (far away) to 1 (right beside the stream): its babble rises and falls with it. */
+  setWater(level: number): void;
   /** A footstep of your chick's, on grass, wooden boards or a dirt path. */
   step(surface: "grass" | "wood" | "dirt"): void;
   dispose(): void;
@@ -133,6 +135,34 @@ export function createAmbience(): Ambience {
   swell.connect(swellDepth).connect(windGain.gain);
   wind.connect(windFilter).connect(windGain).connect(nature);
   wind.start();
+
+  // running water: bright noise through a band-pass, its loudness wobbling quickly like a babbling stream; silent
+  // until you're near the stream or the pond (see setWater)
+  const water = ctx.createBufferSource();
+  water.buffer = noiseBuffer(3);
+  water.loop = true;
+  const waterFilter = ctx.createBiquadFilter();
+  waterFilter.type = "bandpass";
+  waterFilter.frequency.value = 950;
+  waterFilter.Q.value = 0.7;
+  const babble = ctx.createGain();
+  babble.gain.value = 0.7;
+  for (const [rate, depth] of [
+    [3.1, 0.18],
+    [1.7, 0.12],
+    [7.3, 0.08],
+  ]) {
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = rate;
+    const d = ctx.createGain();
+    d.gain.value = depth;
+    lfo.connect(d).connect(babble.gain);
+    lfo.start();
+  }
+  const waterGain = ctx.createGain();
+  waterGain.gain.value = 0;
+  water.connect(waterFilter).connect(babble).connect(waterGain).connect(nature);
+  water.start();
   swell.start();
 
   // vinyl crackle: sparse clicks and a faint hiss, looped
@@ -328,6 +358,9 @@ export function createAmbience(): Ambience {
       const at = ctx.currentTime + 0.01;
       tone(fx, 1900, at, { peak: 0.07, attack: 0.004, decay: 0.08, glide: 1.4 });
       tone(fx, 2300, at + 0.11, { peak: 0.06, attack: 0.004, decay: 0.1, glide: 1.35 });
+    },
+    setWater(level: number) {
+      waterGain.gain.setTargetAtTime(Math.max(0, Math.min(1, level)) * 0.5, ctx.currentTime, 0.4);
     },
     step(surface: "grass" | "wood" | "dirt") {
       if (!enabled) return;

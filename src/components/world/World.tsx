@@ -19,7 +19,8 @@ import { createAmbience, type Ambience } from "./sound";
 import { setVoiceVolume } from "@/lib/voice/speak";
 import { BookIcon, ChatIcon, CloseIcon, CodeIcon, HelpIcon, HomeIcon, IslandIcon, SpeakerIcon } from "./icons";
 import { askCritter, CRITTERS, type CritterAction, type CritterPick } from "./critters";
-import { getUp, goHomeSpot, sitOn, type Nearby } from "./explore";
+import { getUp, goHomeSpot, player, sitOn, type Nearby } from "./explore";
+import { waterNearness } from "./island";
 import { BreatheWithPip, CheckIn } from "./checkin";
 import { loadQuality, saveQuality, type QualitySetting } from "./quality";
 import { TouchStick } from "./touchstick";
@@ -456,6 +457,12 @@ export default function World() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [seated, micAsk, canTalk, status, toggleTalk, tableTab]);
+
+  // the stream's babble follows where you are (at the table, it's a soft background)
+  useEffect(() => {
+    const id = window.setInterval(() => sound.ambience.current?.setWater(waterNearness(player.pos.x, player.pos.z)), 300);
+    return () => window.clearInterval(id);
+  }, [sound.ambience]);
 
   const doCritter = (pick: CritterPick, action: CritterAction) => {
     askCritter(pick, action.label);
