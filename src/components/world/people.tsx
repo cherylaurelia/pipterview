@@ -173,7 +173,7 @@ export interface FigureProps {
 const drift = (t: number, seed: number) => Math.sin(t * 0.31 + seed) * 0.5 + Math.sin(t * 0.73 + seed * 2.1) * 0.3 + Math.sin(t * 1.37 + seed * 3.7) * 0.2;
 
 /** What the guide is doing, for its body language. */
-export type Mood = "idle" | "speaking" | "listening" | "thinking" | "happy" | "breathing";
+export type Mood = "idle" | "speaking" | "listening" | "thinking" | "happy" | "breathing" | "dozing";
 
 export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson = false, onPoke, seated = true, occupied = true, gait, watch }: FigureProps) {
   const chick = useRef<THREE.Group>(null);
@@ -182,6 +182,7 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
   const eyeL = useRef<THREE.Group>(null), eyeR = useRef<THREE.Group>(null);
   const wings = [useRef<THREE.Group>(null), useRef<THREE.Group>(null)];
   const talk = useRef(0);
+  const zzz = useRef<THREE.Group>(null);
   const nod = useRef(0), tilt = useRef(0), hop = useRef(0);
   const nextBlink = useRef(outfit === "guide" ? 2.2 : 3.6);
   const world = useRef(new THREE.Vector3());
@@ -202,7 +203,8 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
       // walking: a waddle from foot to foot, with a little hop each step
       const g = gait?.current ?? 0, step = Math.sin(t * (10 + g * 3));
       // breathing with you: a slow swell and settle, in time with the circle on screen (see checkin.tsx)
-      const br = mood === "breathing" ? breathAt((performance.now() - breathing.start) / 1000) : 0;
+      // dozing: slow, deep sleepy breaths
+      const br = mood === "breathing" ? breathAt((performance.now() - breathing.start) / 1000) : mood === "dozing" ? (Math.sin(t * 1.1) + 1) / 2 : 0;
       body.current.scale.set((1 - stretch * 0.5) * (1 + br * 0.05), (1 + stretch) * (1 + br * 0.08), (1 - stretch * 0.5) * (1 + br * 0.05));
       body.current.position.y = bounce + Math.abs(step) * 0.05 * Math.min(1, g);
       body.current.rotation.z = drift(t * 0.5, seed) * 0.04 + th * 0.14 + step * 0.13 * Math.min(1, g); // a slow sway; a curious tilt while thinking
@@ -217,7 +219,18 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
     if (t > nextBlink.current + 0.14) nextBlink.current = t + 2.2 + Math.random() * 3;
     const blink = t > nextBlink.current ? Math.sin(((t - nextBlink.current) / 0.14) * Math.PI) : 0;
     // eyes softly closed while breathing, otherwise the odd blink
-    [eyeL, eyeR].forEach((e) => e.current?.scale.set(1, mood === "breathing" ? 0.2 : 1 - blink * 0.9, 1));
+    [eyeL, eyeR].forEach((e) => e.current?.scale.set(1, mood === "breathing" || mood === "dozing" ? 0.2 : 1 - blink * 0.9, 1));
+    // dozing: the head droops to one side, and little z's drift up
+    if (body.current && mood === "dozing") body.current.rotation.z += 0.12;
+    if (zzz.current) {
+      zzz.current.visible = mood === "dozing";
+      zzz.current.children.forEach((z, i) => {
+        const k = (t * 0.35 + i / 3) % 1;
+        z.position.set(0.18 + k * 0.25, 1.05 + k * 0.6, 0.05);
+        z.scale.setScalar(0.16 + k * 0.18);
+        ((z as THREE.Sprite).material as THREE.SpriteMaterial).opacity = Math.sin(k * Math.PI) * 0.9;
+      });
+    }
     wings.forEach((w, i) => {
       if (!w.current) return;
       const side = i ? 1 : -1;
@@ -314,12 +327,36 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
         </group>
         <Foot side={-1} />
         <Foot side={1} />
+        <group ref={zzz} visible={false}>
+          {[0, 1, 2].map((i) => (
+            <sprite key={i}>
+              <spriteMaterial map={zTexture()} transparent opacity={0} depthWrite={false} />
+            </sprite>
+          ))}
+        </group>
       </group>
     </group>
   );
 }
 
 export const TABLE_TOP = 0.76;
+
+let zTex: THREE.Texture | null = null;
+/** A soft hand-drawn "z", for a dozing chick. */
+function zTexture() {
+  if (zTex) return zTex;
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#6b5a8a";
+  g.font = "bold 52px sans-serif";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText("z", 32, 34);
+  zTex = new THREE.CanvasTexture(c);
+  zTex.colorSpace = THREE.SRGBColorSpace;
+  return zTex;
+}
 
 /** A mug of tea with a wisp of steam. */
 function Mug({ position, color }: { position: V3; color: string }) {
