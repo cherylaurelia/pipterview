@@ -383,6 +383,101 @@ export const INTERVIEW_TYPES: Record<InterviewTypeId, InterviewType> = {
           "Forgetting to delete the evicted key from the map",
         ],
       },
+      {
+        id: "valid-anagram",
+        prompt: "Given two strings, decide whether one is an anagram of the other: the same letters, the same number of times, in any order.",
+        difficulty: "easy",
+        topics: ["hash maps", "strings"],
+        strongAnswer:
+          "Checks the lengths first, then counts each letter in one string and subtracts for the other (or uses a fixed array of 26 counts), returning false as soon as a count goes negative. O(n) time, O(1) space for a fixed alphabet. Mentions that sorting both works too, at O(n log n).",
+        followUps: [
+          "Why is checking the lengths first worth doing?",
+          "How does your answer change if the strings can contain any Unicode characters?",
+          "Can you do it in a single pass over both strings?",
+        ],
+        hints: [
+          "What would two anagrams have in common if you counted their letters?",
+          "Try keeping a count for each letter as you go through the first string.",
+          "Then go through the second string and undo those counts.",
+        ],
+        commonMistakes: ["Forgetting to compare lengths", "Sorting without mentioning the cost", "Counting only one string"],
+      },
+      {
+        id: "maximum-subarray",
+        prompt: "Given a list of integers, which can be negative, find the largest sum of any contiguous run of numbers.",
+        difficulty: "medium",
+        topics: ["dynamic programming", "arrays"],
+        strongAnswer:
+          "Walks through the list keeping the best sum of a run ending here: either extend the previous run or start fresh at this number, whichever is bigger, and tracks the best seen overall (Kadane's algorithm). O(n) time, O(1) space. Handles an all-negative list correctly.",
+        followUps: [
+          "Why can you throw away a running sum once it goes negative?",
+          "What does your code return if every number is negative?",
+          "How would you also return where the best run starts and ends?",
+        ],
+        hints: [
+          "Brute force checks every start and end. What work is repeated?",
+          "At each position, would you rather continue the run you had or start a new one here?",
+          "Keep the best sum of a run that ends at the current position, and the best overall.",
+        ],
+        commonMistakes: ["Starting the running best at zero, which breaks all-negative input", "O(n squared) or O(n cubed) brute force", "Mixing up the running sum and the overall best"],
+      },
+      {
+        id: "missing-number",
+        prompt: "You're given n distinct numbers taken from 0 to n, so exactly one is missing. Find the missing number.",
+        difficulty: "easy",
+        topics: ["math", "arrays"],
+        strongAnswer:
+          "Uses the sum of 0 to n, n times n plus 1 over 2, minus the actual sum; or XORs every index and value so the pairs cancel. O(n) time, O(1) space. Mentions overflow for the sum approach in fixed-width languages, and why XOR avoids it.",
+        followUps: [
+          "What's the risk with adding everything up in Java or C++?",
+          "How does the XOR version work?",
+          "What if two numbers were missing?",
+        ],
+        hints: [
+          "If nothing were missing, what would all the numbers add up to?",
+          "Compare that total with the sum of what you were given.",
+          "The formula for 0 + 1 + ... + n is n times n plus 1, divided by 2.",
+        ],
+        commonMistakes: ["Sorting first, at O(n log n)", "Using a set when constant space was possible", "Off-by-one: the range is 0 to n, not 1 to n"],
+      },
+      {
+        id: "house-robber",
+        prompt: "Houses along a street each hold some money, and you can't take from two houses next to each other. What's the most you can take?",
+        difficulty: "medium",
+        topics: ["dynamic programming"],
+        strongAnswer:
+          "Defines the best total up to each house as the larger of skipping it (the best up to the previous house) or taking it (its money plus the best up to two houses back). Iterates with two variables: O(n) time, O(1) space. Handles zero or one house.",
+        followUps: [
+          "Why does looking back just two houses capture every choice?",
+          "Can you do it without an extra array?",
+          "What changes if the houses are in a circle, so the first and last are neighbours?",
+        ],
+        hints: [
+          "For the last house, you either take it or you don't.",
+          "If you take it, you can't take the one before it. What's left to decide?",
+          "Keep the best total up to the previous house and the one before that.",
+        ],
+        commonMistakes: ["Greedily taking every other house", "Wrong base cases for zero or one house", "Exponential recursion without memoization"],
+      },
+      {
+        id: "spiral-matrix",
+        prompt: "Given a grid of numbers, return every number in spiral order: along the top, down the right side, back along the bottom and up the left, then inward.",
+        difficulty: "medium",
+        topics: ["arrays", "simulation"],
+        strongAnswer:
+          "Keeps four boundaries (top, bottom, left, right) and walks each side in turn, shrinking that boundary after each pass, stopping when they cross. O(m times n) time and O(1) extra space beyond the output. Handles single rows, single columns and non-square grids without repeating numbers.",
+        followUps: [
+          "How do you avoid visiting a number twice on a single row or column?",
+          "Walk me through a 3 by 4 grid with your boundaries.",
+          "How would you build a spiral grid from 1 to n squared instead?",
+        ],
+        hints: [
+          "Try tracing the order on a small 3 by 3 grid with your finger.",
+          "Each lap goes right, down, left, up. What changes after each side?",
+          "Keep a top, bottom, left and right boundary, and move one in after each side.",
+        ],
+        commonMistakes: ["Repeating numbers on a single middle row or column", "Only handling square grids", "Off-by-one when the boundaries meet"],
+      },
     ],
     rubric: [
       {
