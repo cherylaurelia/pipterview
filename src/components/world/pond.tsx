@@ -36,7 +36,8 @@ const ripples: { x: number; z: number; t0: number; size: number }[] = [];
 const drops: { x: number; z: number; vx: number; vy: number; vz: number; t0: number }[] = [];
 let now = 0; // the scene clock, as of this frame
 
-function ripple(x: number, z: number, size = 1) {
+/** A ring spreading on the pond at (x, z). Also used by your chick, when it walks along the shore. */
+export function ripple(x: number, z: number, size = 1) {
   ripples.push({ x, z, t0: now, size });
   if (ripples.length > RING_POOL) ripples.shift();
 }

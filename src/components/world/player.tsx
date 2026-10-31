@@ -5,8 +5,9 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { nearestCritter } from "./critters";
 import { canStand, getUp, held, nearestSeat, player, seatAt, type Nearby } from "./explore";
-import { surfaceY } from "./island";
+import { POND, pondEdge, surfaceY } from "./island";
 import { slideRoundPlants } from "./landscape";
+import { ripple } from "./pond";
 import { Figure } from "./people";
 
 // You, out on the island: your chick walks where you steer it (WASD or the arrow keys, relative to the camera, Shift to
@@ -23,6 +24,7 @@ export function Player({ active, visible, onNear }: { active: boolean; visible: 
   const gait = useRef(0);
   const marker = useRef<THREE.Mesh>(null);
   const lastNear = useRef("");
+  const nextRipple = useRef(0);
   const tmp = useRef({ f: new THREE.Vector2(), move: new THREE.Vector2() });
 
   useFrame(({ camera, clock }, delta) => {
@@ -83,6 +85,13 @@ export function Player({ active, visible, onNear }: { active: boolean; visible: 
       onNear(null);
     }
     gait.current += ((speed > 0 ? speed / WALK : 0) - gait.current) * Math.min(1, dt * 10);
+    // walking along the shore or out on the dock sends little rings across the water
+    const edge = pondEdge(p.pos.x, p.pos.z);
+    if (speed > 0 && edge < 0.6 && clock.getElapsedTime() > nextRipple.current) {
+      const d = Math.hypot(POND.x - p.pos.x, POND.z - p.pos.z) || 1, inward = Math.max(0.3, edge + 0.35);
+      ripple(p.pos.x + ((POND.x - p.pos.x) / d) * inward, p.pos.z + ((POND.z - p.pos.z) / d) * inward, 0.5);
+      nextRipple.current = clock.getElapsedTime() + 0.45;
+    }
     const seat = p.sitting ? seatAt(p.sitting) : undefined;
     if (seat) {
       // on the bench: settled into the seat, looking out the way it faces
