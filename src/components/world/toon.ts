@@ -94,11 +94,28 @@ export const NOISE_GLSL = /* glsl */ `
  * island (for the ground); "dabs" are rounder, blotchy ones that don't band on curved shapes (for tree crowns).
  * `scale` is how big they are (bigger is finer); `strength` how much they vary the colour.
  */
-export function painterly(material: THREE.MeshToonMaterial, scale = 1, strength = 1, kind: "strokes" | "dabs" = "strokes") {
+export function painterly(
+  material: THREE.MeshToonMaterial,
+  scale = 1,
+  strength = 1,
+  kind: "strokes" | "dabs" = "strokes",
+  /** `local`: the paint is fixed to the object (for things that move, so it doesn't crawl over them); `rim`: a soft
+   * warm light round the edges, as if lit from behind, for soft, fluffy things. */
+  { local = false, rim = 0 }: { local?: boolean; rim?: number } = {},
+) {
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vPaintPos;")
-      .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvPaintPos = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      .replace("#include <worldpos_vertex>", `#include <worldpos_vertex>\nvPaintPos = ${local ? "transformed" : "(modelMatrix * vec4(transformed, 1.0)).xyz"};`);
+    if (rim > 0)
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "#include <emissivemap_fragment>",
+        `#include <emissivemap_fragment>
+        {
+          float facing = abs(dot(normalize(normal), normalize(vViewPosition)));
+          totalEmissiveRadiance += vec3(1.0, 0.86, 0.66) * pow(1.0 - facing, 2.5) * ${rim.toFixed(3)};
+        }`,
+      );
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", `#include <common>\nvarying vec3 vPaintPos;\n${NOISE_GLSL}`)
       .replace(
@@ -118,6 +135,22 @@ export function painterly(material: THREE.MeshToonMaterial, scale = 1, strength 
         }`,
       );
   };
-  material.customProgramCacheKey = () => `painterly-${scale}-${strength}-${kind}`;
+  material.customProgramCacheKey = () => `painterly-${scale}-${strength}-${kind}-${local}-${rim}`;
   return material;
+}
+
+const fluffy = new Map<string, THREE.MeshToonMaterial>();
+
+/**
+ * The chicks' material: soft-shaded like everything else, with small paint dabs fixed to the body that read as
+ * feathers, and a warm rim of light round the edges, so they look soft and stand out from the scenery.
+ */
+export function fluffyToon(color: string, pale = false) {
+  const key = `${color}:${pale}`;
+  let m = fluffy.get(key);
+  if (!m) {
+    m = painterly(new THREE.MeshToonMaterial({ color, gradientMap: pale ? paleGradientMap() : gradientMap() }), 9, 0.55, "dabs", { local: true, rim: 0.45 });
+    fluffy.set(key, m);
+  }
+  return m;
 }
