@@ -604,6 +604,7 @@ export default function World() {
           critter={picked}
           onPickCritter={setCritter}
           onNear={onNear}
+          onStep={(surface) => sound.ambience.current?.step(surface)}
           onPokePip={pokePip}
           onSit={sitDown}
           onArrive={onArrive}

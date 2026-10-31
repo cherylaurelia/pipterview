@@ -165,6 +165,8 @@ export interface FigureProps {
   occupied?: boolean;
   /** How fast it's walking, 0 (still) to 1 (walking) or more (running), for its waddle. */
   gait?: React.RefObject<number>;
+  /** Someone to keep an eye on: the chick turns (a little, not all the way round) to face them while they're nearby. */
+  watch?: () => { x: number; z: number } | null;
 }
 
 // gentle, never-repeating drift: a few sines at unrelated rates
@@ -173,7 +175,7 @@ const drift = (t: number, seed: number) => Math.sin(t * 0.31 + seed) * 0.5 + Mat
 /** What the guide is doing, for its body language. */
 export type Mood = "idle" | "speaking" | "listening" | "thinking" | "happy" | "breathing";
 
-export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson = false, onPoke, seated = true, occupied = true, gait }: FigureProps) {
+export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson = false, onPoke, seated = true, occupied = true, gait, watch }: FigureProps) {
   const chick = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const jaw = useRef<THREE.Group>(null);
@@ -222,6 +224,16 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
       const g = Math.min(1, gait?.current ?? 0);
       w.current.rotation.z = side * (0.08 + k * (0.15 + 0.2 * Math.sin(t * 5 + i)) + hp * (0.5 + 0.4 * Math.sin(t * 9)) + g * (0.25 + 0.15 * Math.sin(t * 13)));
     });
+    if (chick.current && watch) {
+      // turn towards whoever it's watching (within reach), easing back to straight ahead otherwise
+      const who = watch(), c = chick.current;
+      let want = 0;
+      if (who) {
+        const dx = who.x - position[0], dz = who.z - position[2];
+        if (Math.hypot(dx, dz) < 7) want = Math.max(-0.9, Math.min(0.9, Math.atan2(Math.sin(Math.atan2(dx, dz) - rotationY), Math.cos(Math.atan2(dx, dz) - rotationY))));
+      }
+      c.rotation.y += (want - c.rotation.y) * Math.min(1, dt * 3);
+    }
     if (chick.current) {
       if (!occupied) chick.current.visible = false;
       else if (firstPerson) {

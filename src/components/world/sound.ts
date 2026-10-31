@@ -37,6 +37,8 @@ export interface Ambience {
   chirp(): void;
   /** A pond creature did something. */
   critter(sound: CritterSound): void;
+  /** A footstep of your chick's, on grass, wooden boards or a dirt path. */
+  step(surface: "grass" | "wood" | "dirt"): void;
   dispose(): void;
 }
 
@@ -324,6 +326,24 @@ export function createAmbience(): Ambience {
       const at = ctx.currentTime + 0.01;
       tone(fx, 1900, at, { peak: 0.07, attack: 0.004, decay: 0.08, glide: 1.4 });
       tone(fx, 2300, at + 0.11, { peak: 0.06, attack: 0.004, decay: 0.1, glide: 1.35 });
+    },
+    step(surface: "grass" | "wood" | "dirt") {
+      if (!enabled) return;
+      const at = ctx.currentTime + 0.005;
+      if (surface === "wood") tone(nature, 170 + Math.random() * 40, at, { type: "triangle", peak: 0.06, attack: 0.002, decay: 0.07, glide: 0.8 });
+      const src = ctx.createBufferSource();
+      src.buffer = white;
+      const filter = ctx.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.value = surface === "grass" ? 2600 + Math.random() * 800 : surface === "dirt" ? 1300 + Math.random() * 300 : 900;
+      filter.Q.value = 1.2;
+      const g = ctx.createGain();
+      const peak = surface === "grass" ? 0.05 : surface === "dirt" ? 0.07 : 0.04;
+      g.gain.setValueAtTime(peak, at);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.06);
+      src.connect(filter).connect(g).connect(nature);
+      src.start(at, Math.random() * 0.5);
+      src.stop(at + 0.08);
     },
     critter(sound: CritterSound) {
       if (!enabled) return;

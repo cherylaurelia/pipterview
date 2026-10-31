@@ -5,7 +5,7 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { nearestCritter } from "./critters";
 import { canStand, getUp, held, nearestSeat, player, seatAt, stick, type Nearby } from "./explore";
-import { POND, pondEdge, surfaceY } from "./island";
+import { groundY, onPath, POND, pondEdge, surfaceY } from "./island";
 import { slideRoundPlants } from "./landscape";
 import { ripple } from "./pond";
 import { Figure } from "./people";
@@ -19,12 +19,24 @@ const WALK = 2.4, RUN = 4.4, BODY = 0.22;
 const turn = (from: number, to: number, f: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * f;
 const nearKey = (n: Nearby | null) => (!n ? "" : n.type === "table" ? "table" : n.type === "seat" ? `seat:${n.id}:${n.sitting}` : `${n.pick.kind}${n.pick.index}`);
 
-export function Player({ active, visible, onNear }: { active: boolean; visible: boolean; onNear: (near: Nearby | null) => void }) {
+export function Player({
+  active,
+  visible,
+  onNear,
+  onStep,
+}: {
+  active: boolean;
+  visible: boolean;
+  onNear: (near: Nearby | null) => void;
+  /** Each footstep, and what it landed on. */
+  onStep?: (surface: "grass" | "wood" | "dirt") => void;
+}) {
   const group = useRef<THREE.Group>(null);
   const gait = useRef(0);
   const marker = useRef<THREE.Mesh>(null);
   const lastNear = useRef("");
   const nextRipple = useRef(0);
+  const stepClock = useRef(0);
   const tmp = useRef({ f: new THREE.Vector2(), move: new THREE.Vector2() });
 
   useFrame(({ camera, clock }, delta) => {
@@ -89,6 +101,15 @@ export function Player({ active, visible, onNear }: { active: boolean; visible: 
       onNear(null);
     }
     gait.current += ((speed > 0 ? speed / WALK : 0) - gait.current) * Math.min(1, dt * 10);
+    // footsteps, faster when running: hollow on the dock and bridge, crunchy on the paths, soft on grass
+    if (speed > 0) {
+      stepClock.current -= dt * (speed / WALK);
+      if (stepClock.current <= 0) {
+        stepClock.current = 0.3;
+        const x = p.pos.x, z = p.pos.z;
+        onStep?.(surfaceY(x, z) > groundY(x, z) + 0.05 ? "wood" : onPath(x, z) ? "dirt" : "grass");
+      }
+    } else stepClock.current = 0;
     // walking along the shore or out on the dock sends little rings across the water
     const edge = pondEdge(p.pos.x, p.pos.z);
     if (speed > 0 && edge < 0.6 && clock.getElapsedTime() > nextRipple.current) {

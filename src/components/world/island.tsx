@@ -191,6 +191,9 @@ export function walkable(x: number, z: number) {
   return true;
 }
 
+/** Whether (x, z) is on one of the dirt paths. */
+export const onPath = (x: number, z: number) => distTo(PATHS, x, z) < 0.55;
+
 /** The height you stand at, at (x, z): the ground, the dock's boards or the bridge's arch. */
 export function surfaceY(x: number, z: number) {
   if (onDock(x, z)) return 0.095;
