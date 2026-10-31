@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { z } from "zod";
 import { rateLimited } from "@/lib/server/rate-limit";
 
@@ -18,6 +19,7 @@ const SPEED = Number(process.env.ELEVENLABS_SPEED?.trim() || "1");
 const VOICE_SETTINGS = { stability: 0.4, similarity_boost: 0.8, style: 0, use_speaker_boost: true, speed: Number.isFinite(SPEED) ? SPEED : 1 };
 
 export async function GET() {
+  await connection(); // checked at request time: the key may be set on the server but not at build time
   return Response.json({ available: Boolean(process.env.ELEVENLABS_API_KEY) });
 }
 
