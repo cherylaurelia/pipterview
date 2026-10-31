@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { MOCK_ENABLED } from "@/lib/mock";
 import { nativeRunnerEnabled } from "@/lib/server/native-runner";
 
@@ -7,6 +8,7 @@ import { nativeRunnerEnabled } from "@/lib/server/native-runner";
  * C++ and C (the code editor only offers them if so). Never returns the keys.
  */
 export async function GET() {
+  await connection(); // answer for the running server, not whatever the environment was at build time
   const ai = MOCK_ENABLED ? "mock" : process.env.ANTHROPIC_API_KEY ? "live" : "missing-key";
   const voice = process.env.ELEVENLABS_API_KEY ? "elevenlabs" : "browser";
   return Response.json({ ai, voice, nativeRunner: nativeRunnerEnabled() });
