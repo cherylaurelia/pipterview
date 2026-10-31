@@ -4,7 +4,8 @@ import Editor, { type OnMount } from "@monaco-editor/react";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import type { Question } from "@/lib/interview/types";
 import { preloadRunner, runCode, summarizeRun, type RunResult } from "@/lib/workspace/runner";
-import { CODE_LANGUAGES, LANGUAGE_LABELS, type CodeLanguage, type CodeSnapshot } from "@/lib/workspace/types";
+import { availableLanguages, useNativeRunner } from "@/lib/workspace/available";
+import { CODE_LANGUAGES, LANGUAGE_LABELS, NATIVE_LANGUAGES, type CodeLanguage, type CodeSnapshot } from "@/lib/workspace/types";
 import type { WorkspaceHandle } from "./handle";
 
 const LANGUAGE_KEY = "mock-interviewer:language";
@@ -36,7 +37,10 @@ export default function CodeWorkspace({
   /** Called on every edit, so hands-free voice doesn't send while the candidate is typing. */
   onActivity?: () => void;
 }) {
-  const [language, setLanguageState] = useState<CodeLanguage>("python");
+  const [chosen, setLanguageState] = useState<CodeLanguage>("python");
+  const native = useNativeRunner();
+  // a saved Java, C++ or C choice falls back to Python where the server won't run them
+  const language: CodeLanguage = !native && NATIVE_LANGUAGES.includes(chosen) ? "python" : chosen;
   const [buffers, setBuffers] = useState<Record<string, string>>({});
   const [runs, setRuns] = useState<Record<string, { result: RunResult; code: string }>>({});
   const [running, setRunning] = useState(false);
@@ -169,7 +173,7 @@ export default function CodeWorkspace({
           className="rounded-full bg-white px-3 py-1 text-slate-700 ring-1 ring-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500"
           aria-label="Language"
         >
-          {CODE_LANGUAGES.map((lang) => (
+          {availableLanguages(native).map((lang) => (
             <option key={lang} value={lang}>
               {LANGUAGE_LABELS[lang]}
             </option>
