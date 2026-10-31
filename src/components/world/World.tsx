@@ -477,10 +477,16 @@ export default function World() {
     return () => clearInterval(id);
   }, [seated]);
 
-  const choose = (t: PrepType) => {
+  // straight to your seat at the table (practice first); exploring the island is there whenever you want it
+  const go = (t: PrepType, explore: boolean) => {
+    if (explore) return setMode("world");
+    setPanel(t === "technical" ? "code" : "chat");
+    setMode("seated");
+  };
+  const choose = (t: PrepType, explore = false) => {
     setType(t);
     if (t === "resume" && !isTailored(profileDraft)) return setStep("resume"); // offer (not require) a resume first
-    setMode("world");
+    go(t, explore);
   };
   const sitDown = () => {
     setPanel(tableTab);
@@ -618,7 +624,7 @@ export default function World() {
                   onBack={() => setStep("pick")}
                   continueLabel={step === "context" ? "Save" : "Continue"}
                   onContinue={() => {
-                    if (step === "resume") setMode("world");
+                    if (step === "resume") go(type, false);
                     setStep("pick");
                   }}
                 />
@@ -628,6 +634,11 @@ export default function World() {
                 <NavButton tone="yellow" onClick={() => choose("behavioral")} className="w-full py-3 text-[16px]">
                   Start practising
                 </NavButton>
+                <p className="-mt-1 text-center">
+                  <button onClick={() => choose(type, true)} className="text-[13px] font-bold text-[#8a6a4a] underline-offset-2 hover:underline">
+                    or wander the island first
+                  </button>
+                </p>
                 <p className="text-center text-[12.5px] text-[#8a6a4a]">
                   {PRESSURE.find((o) => o.value === settings.intensity)?.label} pressure · {LENGTH.find((o) => o.value === settings.length)?.label} ·{" "}
                   <button onClick={() => setCustomizing((v) => !v)} className="font-bold text-[#b0702a] underline underline-offset-2" aria-expanded={customizing}>
