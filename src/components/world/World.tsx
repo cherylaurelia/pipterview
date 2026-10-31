@@ -522,20 +522,30 @@ export default function World() {
     setPanel(tableTab);
     setMode("seated");
   };
-  const standUp = () => {
-    goHomeSpot(); // back on your feet, just behind your chair
+  // the end of a session (or leaving one): everything about it cleared away
+  const clearSession = () => {
     setCheckIn(null);
     setNervousBefore(undefined);
     reset();
     setElapsed(0);
-    setArrived(null);
-    setPanel(null);
     setLingered(false);
     setWatchingSunset(false);
     setGrewNow(null);
     setImproved([]);
     setStories(loadStories()); // the report just saved this session's stories
+  };
+  const standUp = () => {
+    clearSession();
+    goHomeSpot(); // back on your feet, just behind your chair
+    setArrived(null);
+    setPanel(null);
     setMode("world");
+  };
+  // straight into another round at the table while you've got momentum: the sun comes back up and Pip checks in again
+  const anotherRound = () => {
+    clearSession();
+    setPanel(tableTab);
+    setCheckIn("ask");
   };
 
   // on the island: E or Enter by the table sits you down; 1, 2, 3 do the actions of the creature you're by
@@ -885,8 +895,9 @@ export default function World() {
               </span>
             )}
             <NavButton onClick={() => setWatchingSunset(true)}>Watch the sunset</NavButton>
-            <NavButton tone="yellow" onClick={standUp}>
-              Back to my island
+            <NavButton onClick={standUp}>Back to my island</NavButton>
+            <NavButton tone="yellow" onClick={anotherRound}>
+              Another round
             </NavButton>
           </div>
           <div className="mx-auto max-w-4xl pb-10">
