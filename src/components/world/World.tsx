@@ -626,7 +626,7 @@ export default function World() {
           mood={mood}
           yourTurn={yourTurn}
           evening={evening}
-          aside={seated ? (wide ? 0.32 : 0.16) : 0}
+          aside={seated && !watchingSunset ? (wide ? 0.32 : 0.16) : 0} // watching the sunset: the panel's away, so face Pip square on
           garden={{ count: viewingIsland ? garden.grown : garden.seen, freshFrom: garden.seen, blooms: garden.blooms ?? 0 }}
           critter={picked}
           onPickCritter={setCritter}
@@ -779,7 +779,7 @@ export default function World() {
       {/* 3. the side panel: chat and code at the table (kept mounted, so switching tabs loses nothing); stories and help any time */}
       {showPanel && (
         <section
-          className={`absolute inset-x-3 bottom-20 z-20 flex h-[58vh] flex-col rounded-[22px] bg-[#fff8ec]/95 p-3 shadow-[0_12px_32px_rgba(70,45,20,0.22)] ring-1 ring-[#f0dfc2] backdrop-blur sm:inset-x-auto sm:top-5 sm:right-5 sm:bottom-24 sm:h-auto ${
+          className={`absolute inset-x-3 bottom-20 z-20 flex h-[58vh] flex-col rounded-[22px] ${watchingSunset ? "hidden" : ""} bg-[#fff8ec]/95 p-3 shadow-[0_12px_32px_rgba(70,45,20,0.22)] ring-1 ring-[#f0dfc2] backdrop-blur sm:inset-x-auto sm:top-5 sm:right-5 sm:bottom-24 sm:h-auto ${
             wide ? "sm:w-[min(660px,54vw)]" : "sm:w-[400px]"
           }`}
         >
