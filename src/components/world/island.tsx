@@ -126,7 +126,7 @@ const SPUR_PTS = (() => {
 })();
 const PATHS = [...PATH_PTS, ...SPUR_PTS];
 
-const BRIDGE = (() => {
+export const BRIDGE = (() => {
   let best = { i: 0, d: Infinity };
   PATH_PTS.forEach((p, i) => {
     const d = distTo(STREAM_PTS, p.x, p.z);
