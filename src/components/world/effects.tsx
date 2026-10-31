@@ -10,6 +10,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { daylight } from "./daylight";
+import { measureFrame, quality } from "./quality";
 
 // The "shader pack" look, after cozy Minecraft shaders: soft ambient occlusion where things meet (contact shadows under
 // the chairs, in the grass, along the banks), soft ink outlines round shapes (like an illustration), a gentle bloom on
@@ -170,9 +171,14 @@ export function Effects() {
   }, [gl, size, scene, camera]);
 
   // priority 1: R3F stops rendering on its own and leaves it to us
+  const setDpr = useThree((s) => s.setDpr);
   useFrame((_, dt) => {
-    const c = chain.current;
-    if (!c) return gl.render(scene, camera);
+    measureFrame(dt); // auto quality: steps down if the first seconds run slowly (see quality.ts)
+    const c = chain.current, level = quality.level;
+    if (level === 0 && gl.getPixelRatio() > 1) setDpr(1);
+    // lite: no post-processing at all (the renderer still tone-maps and converts colour on its own)
+    if (!c || level === 0) return gl.render(scene, camera);
+    c.outline.enabled = level >= 2;
     c.grade.uniforms.uEvening.value = daylight.evening;
     c.bloom.strength = 0.3 + daylight.evening * 0.25; // lanterns and fireflies glow more at dusk
     c.composer.render(dt);
