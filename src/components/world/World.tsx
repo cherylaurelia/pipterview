@@ -18,6 +18,7 @@ import { BookIcon, ChatIcon, CloseIcon, CodeIcon, HelpIcon, HomeIcon, IslandIcon
 import { askCritter, CRITTERS, type CritterAction, type CritterPick } from "./critters";
 import { getUp, goHomeSpot, sitOn, type Nearby } from "./explore";
 import { BreatheWithPip, CheckIn } from "./checkin";
+import { loadQuality, saveQuality, type QualitySetting } from "./quality";
 import { IslandPanel } from "./islandpanel";
 import { StoryBook } from "./storybook";
 import { GardenIcon } from "../GardenIcon";
@@ -297,6 +298,7 @@ export default function World() {
   const [tourDone, setTourDone] = useState<TourStep[] | null>(null);
   const [soundOpen, setSoundOpen] = useState(false);
   const [micAsk, setMicAsk] = useState(false);
+  const [graphics, setGraphics] = useState<QualitySetting>("auto");
   // at the table, before the first question: how nervous you are (one tap), and an optional breather with Pip
   const [checkIn, setCheckIn] = useState<"ask" | "breathe" | null>(null);
   const [nervousBefore, setNervousBefore] = useState<number>();
@@ -305,6 +307,7 @@ export default function World() {
     setGarden(loadGarden());
     setStories(loadStories());
     setTourDone(loadTourDone());
+    setGraphics(loadQuality());
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
@@ -914,7 +917,7 @@ export default function World() {
       {/* volume, from the dock */}
       {soundOpen && (
         <div className="absolute inset-x-0 bottom-20 z-30 flex justify-center px-4">
-          <Panel title="Sound" icon={<SpeakerIcon />} className="w-[min(360px,100%)]">
+          <Panel title="Sound & graphics" icon={<SpeakerIcon />} className="w-[min(360px,100%)]">
             <div className="space-y-2.5 px-1.5 pb-1">
               <label className="flex items-center gap-2 text-[13.5px] font-bold text-[#4a3424]">
                 <input type="checkbox" checked={sound.enabled} onChange={(e) => sound.setEnabled(e.target.checked)} className="accent-[#e8a93b]" />
@@ -923,6 +926,32 @@ export default function World() {
               <Slider label="Music" value={sound.levels.music} disabled={!sound.enabled} onChange={(music) => sound.setLevels({ ...sound.levels, music })} />
               <Slider label="Birds & breeze" value={sound.levels.nature} disabled={!sound.enabled} onChange={(nature) => sound.setLevels({ ...sound.levels, nature })} />
               <Slider label={`${GUIDE_NAME}'s voice`} value={sound.levels.voice} onChange={(voice) => sound.setLevels({ ...sound.levels, voice })} />
+              {/* how much the scene draws: auto steps down on slower machines; lite is the lightest */}
+              <div className="flex items-center gap-3 text-[13px]">
+                <span className="w-[86px] shrink-0 font-bold text-[#1b1d22]">Graphics</span>
+                <div className="flex flex-1 gap-1 rounded-full bg-[#f3e6cf] p-1" role="radiogroup" aria-label="Graphics">
+                  {(
+                    [
+                      ["auto", "Auto"],
+                      ["lite", "Lite"],
+                      ["full", "Full"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      role="radio"
+                      aria-checked={graphics === value}
+                      onClick={() => {
+                        saveQuality(value);
+                        setGraphics(value);
+                      }}
+                      className={`flex-1 rounded-full py-1 text-[12.5px] font-bold transition-colors ${graphics === value ? "bg-white text-[#3d2a1c] shadow-sm" : "text-[#8a6a4a] hover:text-[#3d2a1c]"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex justify-end">
                 <NavButton onClick={() => setSoundOpen(false)}>Done</NavButton>
               </div>

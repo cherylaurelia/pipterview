@@ -7,6 +7,7 @@ import { isDrag } from "./controls";
 import { reportSpot, takeAction, type CritterKind, type CritterPick } from "./critters";
 import { BoxLantern, DOCK, POND, WATER_COMMON, WATER_END, groundY, isOpen, pondEdge, pondRadius, rng, tickWater, waterMaterial } from "./island";
 import { lilyPadTexture } from "./textures";
+import { quality } from "./quality";
 import { NOISE_GLSL, swayingToon, toon } from "./toon";
 
 // The pond, after a little painted diorama of a busy afternoon at a pond: teal water that's darker and cloudier in the
@@ -122,6 +123,7 @@ const POND_VERTEX = /* glsl */ `
 
 const POND_FRAGMENT = /* glsl */ `${WATER_COMMON}
   uniform sampler2D tReflect;
+  uniform float uReflectOn;
   varying float vRim;
   varying float vToShore;
   varying vec3 vWorld;
@@ -144,7 +146,7 @@ const POND_FRAGMENT = /* glsl */ `${WATER_COMMON}
     refl /= 5.0;
     float facing = max(dot(normalize(cameraPosition - vWorld), vec3(0.0, 1.0, 0.0)), 0.0);
     float fresnel = 0.14 + 0.4 * pow(1.0 - facing, 4.0);
-    col = mix(col, mix(refl * 0.85, col, 0.3), fresnel); // tinted by the water, so the pond stays teal
+    col = mix(col, mix(refl * 0.85, col, 0.3), fresnel * uReflectOn); // tinted by the water, so the pond stays teal
 
     // drifting glints: short pale dashes across the surface, like brush strokes
     float lines = smoothstep(0.93, 1.0, sin(vUv.y * 10.0 + pnNoise(vUv * 1.3) * 5.0));
@@ -172,7 +174,7 @@ const REFLECT_SIZE = 512;
 function createMirroredWater() {
   const target = new THREE.WebGLRenderTarget(REFLECT_SIZE, REFLECT_SIZE, { type: THREE.HalfFloatType });
   // (waterMaterial clones its uniforms, which can't carry a render target's texture: both are wired in afterwards)
-  const material = waterMaterial(POND_FRAGMENT, { tReflect: { value: null }, uReflectMatrix: { value: new THREE.Matrix4() } }, false, POND_VERTEX);
+  const material = waterMaterial(POND_FRAGMENT, { tReflect: { value: null }, uReflectMatrix: { value: new THREE.Matrix4() }, uReflectOn: { value: 1 } }, false, POND_VERTEX);
   material.uniforms.tReflect.value = target.texture;
   const matrix: THREE.Matrix4 = material.uniforms.uReflectMatrix.value;
   const cam = new THREE.PerspectiveCamera(), rot = new THREE.Matrix4(), up = new THREE.Vector3(0, 1, 0);
@@ -181,6 +183,9 @@ function createMirroredWater() {
   function render(this: THREE.Object3D, renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
     if (!due) return;
     due = false;
+    // the reflection is a whole second render of the scene: only at full quality
+    material.uniforms.uReflectOn.value = quality.level >= 2 ? 1 : 0;
+    if (quality.level < 2) return;
     eye.setFromMatrixPosition(camera.matrixWorld);
     if (eye.y < WATER_Y) return;
     rot.extractRotation(camera.matrixWorld);

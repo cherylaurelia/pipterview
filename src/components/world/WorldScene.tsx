@@ -12,6 +12,7 @@ import { goHomeSpot, held, player, walkTo, type Nearby } from "./explore";
 import { surfaceY } from "./island";
 import { Figure, RoundTable, type Mood } from "./people";
 import { Player, TableMarker } from "./player";
+import { reducedMotion } from "./quality";
 
 export type WorldMode = "splash" | "world" | "seated";
 
@@ -54,7 +55,7 @@ function blockedAt(from: THREE.Vector3, to: THREE.Vector3) {
 
 function goalFor(mode: WorldMode, t: number, view: UserView, aside: number, pos: THREE.Vector3, look: THREE.Vector3) {
   if (mode === "splash") {
-    const a = 0.55 + t * 0.03 + view.spin;
+    const a = 0.55 + (reducedMotion() ? 0 : t * 0.03) + view.spin; // a slow orbit, unless you've asked for less motion
     pos.set(Math.sin(a) * SPLASH.radius, SPLASH.height, Math.cos(a) * SPLASH.radius);
     look.set(0, -1.5, 0);
     return SPLASH.fov;
@@ -192,7 +193,8 @@ function CameraRig({ mode, aside, onArrive }: { mode: WorldMode; aside: number; 
 
   // every mode change is a flight: from wherever the camera is now to the new mode's pose
   useEffect(() => {
-    tween.current = { t0: performance.now(), dur: mode === "splash" ? 900 : 1700, from: null };
+    // reduced motion: a cut rather than a flight
+    tween.current = { t0: performance.now(), dur: reducedMotion() ? 1 : mode === "splash" ? 900 : 1700, from: null };
   }, [mode]);
 
   useFrame(({ clock, camera }, dt) => {

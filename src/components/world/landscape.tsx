@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CritterPick } from "./critters";
 import { daylight } from "./daylight";
+import { reducedMotion } from "./quality";
 import { groundY, Island, islandRadius, isOpen, nearGardenSlot, rng } from "./island";
 import { Pond } from "./pond";
 import { Village } from "./village";
@@ -182,7 +183,7 @@ function Grass() {
   }, [BLADES, FLOWERS]);
 
   useFrame(({ clock }) => {
-    wind.value = clock.getElapsedTime();
+    wind.value = clock.getElapsedTime() * (reducedMotion() ? 0.3 : 1); // a gentler breeze for reduced motion
   });
 
   return (
