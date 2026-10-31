@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canStand, DOORS, getUp, nearestDoor, nearestSeat, player, setSeat, sitOn } from "./explore";
-import { BRIDGE, DOCK, groundY, POND, surfaceY, walkable } from "./island";
+import { BRIDGE, DOCK, groundY, POND, surfaceY, walkable, waterNearness } from "./island";
 import { CROWNS, slideRoundPlants } from "./landscape";
 
 // The rules for walking about the island as your chick (see explore.ts and player.tsx).
@@ -68,5 +68,17 @@ describe("doors", () => {
 
   it("aren't offered from across the island", () => {
     expect(nearestDoor(0.9, 2.4, 1.2)).toBeNull();
+  });
+});
+
+describe("the sound of water", () => {
+  it("is loud by the stream, soft at the table, and all but gone across the island", () => {
+    const byStream = waterNearness(BRIDGE.x + Math.cos(BRIDGE.angle) * 1.6, BRIDGE.z - Math.sin(BRIDGE.angle) * 1.6);
+    const atTable = waterNearness(0.9, 2.4);
+    const farAway = waterNearness(9, 6);
+    expect(byStream).toBeGreaterThan(0.8);
+    expect(atTable).toBeGreaterThan(0.05);
+    expect(atTable).toBeLessThan(byStream);
+    expect(farAway).toBeLessThan(0.1);
   });
 });

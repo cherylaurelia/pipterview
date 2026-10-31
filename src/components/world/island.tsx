@@ -191,6 +191,16 @@ export function walkable(x: number, z: number) {
   return true;
 }
 
+/**
+ * How loud running water should sound at (x, z), 0 to 1: rising as you near the stream (most) or the pond (stiller,
+ * so softer), over the last few metres.
+ */
+export function waterNearness(x: number, z: number) {
+  const stream = Math.max(0, distTo(STREAM_PTS, x, z) - 1.15), pond = Math.max(0, pondEdge(x, z));
+  const near = (d: number, reach: number) => Math.pow(Math.max(0, 1 - d / reach), 1.5);
+  return Math.max(near(stream, 10), near(pond, 4) * 0.4);
+}
+
 /** Whether (x, z) is on one of the dirt paths. */
 export const onPath = (x: number, z: number) => distTo(PATHS, x, z) < 0.55;
 
@@ -621,6 +631,7 @@ function Stream() {
     <>
       <mesh ref={ref} geometry={geometry} material={material} />
       <StreamBanks />
+      <StreamLeaves />
       {/* mossy rocks where the stream bubbles up */}
       {[[0, 0, 0.55], [0.6, 0.35, 0.4], [-0.3, 0.6, 0.35], [0.4, -0.55, 0.3]].map(([dx, dz, s], i) => (
         <mesh key={i} position={[STREAM_PTS[0].x - 0.5 + dx, -0.1, STREAM_PTS[0].z + dz]} scale={[s, s * 0.7, s]} material={toon(i % 2 ? "#bfc0bb" : "#cfd0ca")} castShadow>
@@ -639,6 +650,46 @@ function Stream() {
         </group>
       </group>
     </>
+  );
+}
+
+/** A few leaves and petals floating down the stream, turning slowly, until they tip over the waterfall and start again. */
+function StreamLeaves() {
+  const mesh = useRef<THREE.InstancedMesh>(null);
+  const COUNT = 14;
+  const leaves = useMemo(() => {
+    const r = rng(83);
+    return Array.from({ length: COUNT }, () => ({ start: r(), speed: 0.012 + r() * 0.01, side: (r() - 0.5) * 1.3, spin: (r() - 0.5) * 2, s: 0.7 + r() * 0.6 }));
+  }, []);
+  const tmp = useMemo(() => new THREE.Object3D(), []);
+  useLayoutEffect(() => {
+    const colors = ["#7cc46a", "#e8c45a", "#ffc4d6", "#a6d46a", "#f2a66a"];
+    const c = new THREE.Color();
+    leaves.forEach((_, i) => mesh.current?.setColorAt(i, c.set(colors[i % colors.length])));
+    if (mesh.current?.instanceColor) mesh.current.instanceColor.needsUpdate = true;
+  }, [leaves]);
+  useFrame(({ clock }) => {
+    const m = mesh.current;
+    if (!m) return;
+    const t = clock.getElapsedTime();
+    leaves.forEach((leaf, i) => {
+      const u = (leaf.start + t * leaf.speed) % 1, f = u * FALL_INDEX, k = Math.floor(f);
+      const a = STREAM_PTS[k], b = STREAM_PTS[Math.min(k + 1, FALL_INDEX)], w = f - k;
+      const tx = b.x - a.x, tz = b.z - a.z, len = Math.hypot(tx, tz) || 1;
+      const drift = leaf.side + Math.sin(t * 0.7 + i) * 0.1;
+      tmp.position.set(a.x + tx * w - (tz / len) * drift, -0.12, a.z + tz * w + (tx / len) * drift);
+      tmp.rotation.set(-Math.PI / 2, 0, t * leaf.spin + i);
+      tmp.scale.setScalar(leaf.s);
+      tmp.updateMatrix();
+      m.setMatrixAt(i, tmp.matrix);
+    });
+    m.instanceMatrix.needsUpdate = true;
+  });
+  return (
+    <instancedMesh ref={mesh} args={[undefined, undefined, COUNT]} frustumCulled={false}>
+      <circleGeometry args={[0.06, 5]} />
+      <meshToonMaterial gradientMap={gradientMap()} side={THREE.DoubleSide} />
+    </instancedMesh>
   );
 }
 
