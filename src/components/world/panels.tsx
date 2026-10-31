@@ -4,7 +4,8 @@ import Editor, { type BeforeMount } from "@monaco-editor/react";
 import { useEffect, useRef, useState } from "react";
 import type { Question } from "@/lib/interview/types";
 import { runCode, summarizeRun, type RunResult } from "@/lib/workspace/runner";
-import { CODE_LANGUAGES, LANGUAGE_LABELS, type CodeLanguage } from "@/lib/workspace/types";
+import { availableLanguages, useNativeRunner } from "@/lib/workspace/available";
+import { LANGUAGE_LABELS, type CodeLanguage } from "@/lib/workspace/types";
 import { NavButton, Portrait, sunken } from "./retro";
 import { GUIDE_NAME, STARTER_CODE } from "./script";
 import type { ChatMessage, ConvoStatus } from "./useConversation";
@@ -284,6 +285,7 @@ export function CodePanel({
   onRun: (summary: string, code: string, language: CodeLanguage) => void;
 }) {
   const [language, setLanguage] = useState<CodeLanguage>("python");
+  const languages = availableLanguages(useNativeRunner());
   const [buffers, setBuffers] = useState<Partial<Record<CodeLanguage, string>>>({});
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<RunResult | null>(null);
@@ -372,7 +374,7 @@ export function CodePanel({
             className="bg-transparent text-[13px] font-bold text-[#3d2a1c] outline-none"
             aria-label="Language"
           >
-            {CODE_LANGUAGES.map((l) => (
+            {languages.map((l) => (
               <option key={l} value={l}>
                 {LANGUAGE_LABELS[l]}
               </option>
@@ -381,7 +383,7 @@ export function CodePanel({
         </label>
         <span className="min-w-0 flex-1 truncate text-[12px] text-[#a08a70]">{GUIDE_NAME} sees your code each time you answer</span>
         <NavButton onClick={onAskHint} disabled={!canAsk} className="shrink-0" title={`Ask ${GUIDE_NAME} for a small hint`}>
-          💡 Ask {GUIDE_NAME}
+          Ask {GUIDE_NAME}
         </NavButton>
         <NavButton tone="yellow" onClick={() => void run()} disabled={running} className="shrink-0">
           {running ? "Trying…" : "Try it ▶"}
