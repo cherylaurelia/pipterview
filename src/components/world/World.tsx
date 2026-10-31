@@ -23,6 +23,7 @@ import { getUp, goHomeSpot, sitOn, type Nearby } from "./explore";
 import { BreatheWithPip, CheckIn } from "./checkin";
 import { loadQuality, saveQuality, type QualitySetting } from "./quality";
 import { TouchStick } from "./touchstick";
+import { canUseWebGL, SceneBoundary, SceneFallback } from "./fallback";
 import { IslandPanel } from "./islandpanel";
 import { StoryBook } from "./storybook";
 import { GardenIcon } from "../GardenIcon";
@@ -309,6 +310,8 @@ export default function World() {
   const [soundOpen, setSoundOpen] = useState(false);
   const [micAsk, setMicAsk] = useState(false);
   const [graphics, setGraphics] = useState<QualitySetting>("auto");
+  // whether this device can show the 3D island (if not, practice still works over a plain backdrop)
+  const [webgl, setWebgl] = useState(true);
   // at the table, before the first question: how nervous you are (one tap), and an optional breather with Pip
   const [checkIn, setCheckIn] = useState<"ask" | "breathe" | null>(null);
   const [nervousBefore, setNervousBefore] = useState<number>();
@@ -318,6 +321,7 @@ export default function World() {
     setStories(loadStories());
     setTourDone(loadTourDone());
     setGraphics(loadQuality());
+    setWebgl(canUseWebGL());
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
@@ -627,21 +631,27 @@ export default function World() {
       style={{ "--panel-w": seated ? (wide ? "min(680px, 56vw)" : "440px") : "0px" } as CSSProperties}
     >
       <div className="absolute inset-0" role="img" aria-label={`A small floating island with a pond, a windmill and a cottage, where ${GUIDE_NAME} the chick waits at a table to practise interviews with you.`}>
-        <WorldScene
-          mode={mode}
-          mood={mood}
-          yourTurn={yourTurn}
-          evening={evening}
-          aside={seated && !watchingSunset ? (wide ? 0.32 : 0.16) : 0} // watching the sunset: the panel's away, so face Pip square on
-          garden={{ count: viewingIsland ? garden.grown : garden.seen, freshFrom: garden.seen, blooms: garden.blooms ?? 0 }}
-          critter={picked}
-          onPickCritter={setCritter}
-          onNear={onNear}
-          onStep={(surface) => sound.ambience.current?.step(surface)}
-          onPokePip={pokePip}
-          onSit={sitDown}
-          onArrive={onArrive}
-        />
+        {!webgl ? (
+          <SceneFallback mode={mode} onArrive={onArrive} reason="unsupported" />
+        ) : (
+          <SceneBoundary fallback={<SceneFallback mode={mode} onArrive={onArrive} reason="crashed" />}>
+            <WorldScene
+              mode={mode}
+              mood={mood}
+              yourTurn={yourTurn}
+              evening={evening}
+              aside={seated && !watchingSunset ? (wide ? 0.32 : 0.16) : 0} // watching the sunset: the panel's away, so face Pip square on
+              garden={{ count: viewingIsland ? garden.grown : garden.seen, freshFrom: garden.seen, blooms: garden.blooms ?? 0 }}
+              critter={picked}
+              onPickCritter={setCritter}
+              onNear={onNear}
+              onStep={(surface) => sound.ambience.current?.step(surface)}
+              onPokePip={pokePip}
+              onSit={sitDown}
+              onArrive={onArrive}
+            />
+          </SceneBoundary>
+        )}
       </div>
 
       {/* 1. the welcome card: one big way to start, or choose a round. Centred in the space above the dock; on short screens
@@ -682,7 +692,7 @@ export default function World() {
                 <NavButton tone="yellow" onClick={() => choose("behavioral")} className="w-full py-3 text-[16px]">
                   Start practising
                 </NavButton>
-                <p className="-mt-1 text-center">
+                <p className={`-mt-1 text-center ${webgl ? "" : "hidden"}`}>
                   <button onClick={() => choose(type, true)} className="text-[13px] font-bold text-[#8a6a4a] underline-offset-2 hover:underline">
                     or wander the island first
                   </button>
