@@ -272,6 +272,16 @@ export default function World() {
   // the one side panel: chat and code while you're at the table; stories and help any time
   const [panel, setPanel] = useState<PanelTab | null>(null);
   const [poked, setPoked] = useState(false);
+  // Pip says hello (a happy flap and a chirp) when you walk up to the table
+  const greetTimer = useRef(0);
+  const onNear = (n: Nearby | null) => {
+    setNear(n);
+    if (n?.type !== "table") return;
+    sound.ambience.current?.chirp();
+    setPoked(true);
+    window.clearTimeout(greetTimer.current);
+    greetTimer.current = window.setTimeout(() => setPoked(false), 1600);
+  };
   // the pond creature you've clicked on; only on the island (it lets go when you sit down or go home)
   const [critter, setCritter] = useState<CritterPick | null>(null);
   // what you've walked up to on the island (the table, a creature)
@@ -437,15 +447,13 @@ export default function World() {
     code.current = { text: null, language: "python", run: null, sentKey: null, questionId: convo.question?.id ?? null };
   }, [convo.question?.id]);
 
-  const onArrive = useCallback(
-    (m: WorldMode) => {
-      setArrived(m);
-      if (m === "world") setHintUntil(Date.now() + 12000);
-      if (m !== "seated" || status !== "idle") return;
-      setCheckIn("ask"); // a quick check-in first; see beginSession
-    },
-    [status],
-  );
+  // (no useCallback: the React Compiler memoizes this, and the camera keeps it in a ref anyway)
+  const onArrive = (m: WorldMode) => {
+    setArrived(m);
+    if (m === "world") setHintUntil(Date.now() + 12000);
+    if (m !== "seated" || status !== "idle") return;
+    setCheckIn("ask"); // a quick check-in first; see beginSession
+  };
   // after the check-in: the first time, ask about the microphone before the browser does; then the guide says hello
   const beginSession = () => {
     setCheckIn(null);
@@ -589,7 +597,7 @@ export default function World() {
           garden={{ count: viewingIsland ? garden.grown : garden.seen, freshFrom: garden.seen }}
           critter={picked}
           onPickCritter={setCritter}
-          onNear={setNear}
+          onNear={onNear}
           onPokePip={pokePip}
           onSit={sitDown}
           onArrive={onArrive}

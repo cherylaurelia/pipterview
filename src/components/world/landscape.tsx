@@ -331,10 +331,16 @@ function Clouds() {
   }, []);
   const low = useMemo(() => {
     const r = rng(5);
-    return Array.from({ length: 16 }, () => {
+    const below = Array.from({ length: 16 }, () => {
       const a = r() * Math.PI * 2, d = 22 + r() * 60;
       return { p: [Math.cos(a) * d, -9 - r() * 14, Math.sin(a) * d] as const, s: [24 + r() * 30, 8 + r() * 6] as const, o: 0.35 + r() * 0.3 };
     });
+    // a soft band of cloud all round the horizon, so the view from the island has distance rather than a flat wall
+    const horizon = Array.from({ length: 22 }, (_, i) => {
+      const a = (i / 22) * Math.PI * 2 + r() * 0.2, d = 120 + r() * 50;
+      return { p: [Math.cos(a) * d, -4 + r() * 10, Math.sin(a) * d] as const, s: [60 + r() * 50, 12 + r() * 10] as const, o: 0.22 + r() * 0.2 };
+    });
+    return [...below, ...horizon];
   }, []);
   useFrame(({ clock }, dt) => {
     if (ring.current) {
@@ -362,6 +368,44 @@ function Clouds() {
 }
 
 // A few butterflies looping lazily around the table (they go home at sunset).
+/** A few small birds wheeling high over the island by day, wings beating then gliding. */
+function Birds() {
+  const group = useRef<THREE.Group>(null);
+  const birds = useMemo(() => {
+    const r = rng(61);
+    return Array.from({ length: 5 }, (_, i) => ({ r: 9 + r() * 7, y: 7 + r() * 4, speed: (0.08 + r() * 0.05) * (i % 2 ? 1 : -1), phase: r() * Math.PI * 2, flap: 6 + r() * 3 }));
+  }, []);
+  const wing = useMemo(() => new THREE.PlaneGeometry(0.34, 0.09).translate(0.17, 0, 0), []);
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime(), g = group.current;
+    if (!g) return;
+    g.visible = daylight.evening < 0.7;
+    g.children.forEach((b, i) => {
+      const k = birds[i], a = t * k.speed + k.phase;
+      b.position.set(Math.cos(a) * k.r, k.y + Math.sin(t * 0.5 + i) * 0.6, Math.sin(a) * k.r);
+      b.rotation.y = -a + (k.speed > 0 ? 0 : Math.PI);
+      // beat for a bit, then glide
+      const beating = Math.sin(t * 0.7 + i * 1.3) > -0.2;
+      const f = beating ? Math.sin(t * k.flap + i) * 0.7 : 0.12;
+      b.children[0].rotation.z = f;
+      b.children[1].rotation.z = Math.PI - f;
+    });
+  });
+  return (
+    <group ref={group}>
+      {birds.map((_, i) => (
+        <group key={i}>
+          {[0, 1].map((side) => (
+            <mesh key={side} geometry={wing} rotation={[-Math.PI / 2, 0, 0]}>
+              <meshBasicMaterial color="#5e5560" side={THREE.DoubleSide} fog={false} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
+  );
+}
+
 function Butterflies() {
   const group = useRef<THREE.Group>(null);
   const flyers = useMemo(() => {
@@ -482,6 +526,7 @@ export function Landscape({ critters }: { critters: { interactive: boolean; pick
       <Grass />
       <Trees />
       <Butterflies />
+      <Birds />
       <Petals />
       <Fireflies />
     </>
