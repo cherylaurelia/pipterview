@@ -156,14 +156,14 @@ export function StatusBanner({ status, handsFree, holding }: { status: ConvoStat
 }
 
 const HELP: [string, ReactNode][] = [
-  ["Start", <>Walk up to the table and press <b>E</b> (or just click the table). {GUIDE_NAME} says hello and asks the first question.</>],
+  ["Start", <>Press <b>Start practising</b> to go straight to the table, or walk up to it and press <b>E</b> (or just click it). {GUIDE_NAME} checks in, says hello and asks the first question.</>],
   ["Answer", <>Talk out loud, or type in the box. With <b>Auto-send: on</b>, a pause sends your answer; saying &ldquo;that&apos;s my answer&rdquo; sends it right away.</>],
   ["Need time", <>Press <b>I need a moment</b> and {GUIDE_NAME} waits until you speak again. Asking for a moment is normal in real interviews too.</>],
-  ["Keys", <><b>Space</b>: talk, or send now while talking. <b>Esc</b>: close windows.</>],
-  ["Finish", <>Press <b>Finish</b> any time for feedback. Every finished session grows something on your island.</>],
+  ["Keys", <><b>Space</b>: talk, or send now while talking. <b>E</b>: sit at the table or on a bench. <b>1 2 3</b>: a creature&apos;s actions. <b>Esc</b>: close windows.</>],
+  ["Finish", <>Press <b>I&apos;m done</b> any time for feedback. Every finished session grows something on your island, and getting better at something makes wildflowers bloom.</>],
   ["Get about", <>On the island: <b>WASD</b> or the arrow keys to walk (Shift to run), or click where you want to go. Drag to look, scroll to zoom, <b>R</b> to come back to the table. Walk up to a creature and press <b>1</b>, <b>2</b> or <b>3</b>.</>],
   ["Stories", <>The stories you tell are saved here, with tips. If you freeze, {GUIDE_NAME} can remind you of one.</>],
-  ["Sound", <><b>Mute {GUIDE_NAME}</b> to read instead of listen; <b>Sound</b> in the dock sets the volumes.</>],
+  ["Sound", <><b>Mute {GUIDE_NAME}</b> to read instead of listen. The speaker in the dock sets the volumes and the graphics (Lite for older laptops).</>],
 ];
 
 const AI_LABEL: Record<string, string> = {

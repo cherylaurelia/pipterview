@@ -332,7 +332,7 @@ export function CodePanel({
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-[#eadfc4] bg-[#fffaf0]">
         <div className="flex shrink-0 items-baseline justify-between gap-2 border-b border-[#eadfc4] px-3 py-1.5">
           <span className="text-[13px] font-bold text-[#5a4430]">📝 my scratchpad</span>
-          <span className="truncate text-[12px] text-[#a08a70]">kept while you&apos;re at the table</span>
+          <span className="truncate text-[12px] text-[#86705a]">kept while you&apos;re at the table</span>
         </div>
         <div className="min-h-0 flex-1 pt-1">
           <Editor
@@ -381,7 +381,7 @@ export function CodePanel({
             ))}
           </select>
         </label>
-        <span className="min-w-0 flex-1 truncate text-[12px] text-[#a08a70]">{GUIDE_NAME} sees your code each time you answer</span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-[#86705a]">{GUIDE_NAME} sees your code each time you answer</span>
         <NavButton onClick={onAskHint} disabled={!canAsk} className="shrink-0" title={`Ask ${GUIDE_NAME} for a small hint`}>
           Ask {GUIDE_NAME}
         </NavButton>

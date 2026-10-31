@@ -84,10 +84,10 @@ export function IslandPanel({ garden, streak }: { garden: Garden; streak: number
           const isNext = i === garden.grown;
           return (
             <li key={item.id} className={`flex items-center gap-3 rounded-xl px-2 py-1.5 ${isNext ? "bg-white ring-1 ring-[#f0dfc2]" : ""}`}>
-              <span className="w-5 text-right font-mono text-[11.5px] text-[#b8a080]">{i + 1}</span>
+              <span className="w-5 text-right font-mono text-[11.5px] text-[#8f7a5e]">{i + 1}</span>
               <GardenIcon id={item.id} size={32} grown={grown} />
               <span className={`flex-1 text-[14px] ${grown ? "font-bold text-[#3d2a1c]" : "text-[#8a6a4a]"}`}>{item.label}</span>
-              <span className="text-[12px] text-[#a08a70]">{grown ? date(i) : isNext ? "Next" : `Session ${i + 1}`}</span>
+              <span className="text-[12px] text-[#86705a]">{grown ? date(i) : isNext ? "Next" : `Session ${i + 1}`}</span>
             </li>
           );
         })}
