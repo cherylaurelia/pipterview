@@ -298,6 +298,9 @@ export default function World() {
   const picked = mode === "world" ? (critter ?? (near?.type === "critter" ? near.pick : null)) : null;
   const atTable = mode === "world" && near?.type === "table";
   const bySeat = mode === "world" && near?.type === "seat" ? near : null;
+  const byDoor = mode === "world" && near?.type === "door" ? near : null;
+  // the cottage keeps your story bank, the windmill how you're doing
+  const DOOR_ACTION = { cottage: { label: "Read your story bank", tab: "stories" }, windmill: { label: "See how you're doing", tab: "island" } } as const;
   // the controls hint, shown when you first step onto the island and then fading away
   const [hintUntil, setHintUntil] = useState(0);
   // first-visit help: which tour bubbles you've seen (null until loaded, so nothing flashes), the help window, and the
@@ -558,6 +561,9 @@ export default function World() {
       if ((key === "e" || key === "enter") && atTable) {
         e.preventDefault();
         sitDown();
+      } else if ((key === "e" || key === "enter") && byDoor) {
+        e.preventDefault();
+        toggleTab(DOOR_ACTION[byDoor.id].tab);
       } else if ((key === "e" || key === "enter") && bySeat) {
         e.preventDefault();
         if (bySeat.sitting) getUp();
@@ -748,7 +754,18 @@ export default function World() {
       {/* 2. on the island the world is the interface: just a word about how to get about, when you first arrive, and a
           prompt when you walk up to the table (the creatures' actions show below, when you're by one) */}
       <TouchStick show={mode === "world" && arrived === "world"} />
-      <IslandHint show={mode === "world" && arrived === "world" && !picked && !atTable && !bySeat} until={hintUntil} />
+      <IslandHint show={mode === "world" && arrived === "world" && !picked && !atTable && !bySeat && !byDoor} until={hintUntil} />
+      {byDoor && !picked && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-3">
+          <button
+            onClick={() => toggleTab(DOOR_ACTION[byDoor.id].tab)}
+            className="pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#fff8ec]/95 py-2 pr-5 pl-2 text-[15px] font-bold text-[#4a3424] shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur transition-colors hover:bg-[#fff0d4]"
+          >
+            <Key>E</Key>
+            {DOOR_ACTION[byDoor.id].label}
+          </button>
+        </div>
+      )}
       {bySeat && !picked && (
         <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-3">
           <button

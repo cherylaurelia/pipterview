@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canStand, getUp, nearestSeat, player, setSeat, sitOn } from "./explore";
+import { canStand, DOORS, getUp, nearestDoor, nearestSeat, player, setSeat, sitOn } from "./explore";
 import { BRIDGE, DOCK, groundY, POND, surfaceY, walkable } from "./island";
 import { CROWNS, slideRoundPlants } from "./landscape";
 
@@ -53,5 +53,20 @@ describe("benches", () => {
     expect(player.pos.z).toBeCloseTo(3.75, 2); // just in front of it
     setSeat("test", null);
     expect(nearestSeat(3, 3.8, 1.3)).toBeNull();
+  });
+});
+
+describe("doors", () => {
+  it("can be reached from open ground outside them", () => {
+    for (const door of DOORS) {
+      // somewhere within reach of the door that you can actually stand on
+      const spot = [0.4, 0.6, 0.8, 1.0].flatMap((r) => Array.from({ length: 16 }, (_, i) => ({ x: door.x + Math.cos(i) * r, z: door.z + Math.sin(i) * r }))).find((p) => canStand(p.x, p.z));
+      expect(spot, door.id).toBeDefined();
+      expect(nearestDoor(spot!.x, spot!.z, 1.2)).toBe(door.id);
+    }
+  });
+
+  it("aren't offered from across the island", () => {
+    expect(nearestDoor(0.9, 2.4, 1.2)).toBeNull();
   });
 });

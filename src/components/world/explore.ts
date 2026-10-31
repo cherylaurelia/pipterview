@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { CritterPick } from "./critters";
-import { walkable } from "./island";
+import { COTTAGE, COTTAGE_TURN, walkable, WINDMILL, WINDMILL_TURN } from "./island";
 
 
 // Walking about the island as your own chick, like a little game: where you are, where you're headed, the keys held
@@ -92,5 +92,30 @@ const inSeat = (x: number, z: number) =>
 /** Whether you can stand at (x, z) (trees and bushes you slide round instead: see `slideRoundPlants`). */
 export const canStand = (x: number, z: number) => walkable(x, z) && !inSeat(x, z);
 
-/** Something you're close enough to use: the table (to sit down), a bench, or a creature. */
-export type Nearby = { type: "table" } | { type: "seat"; id: string; sitting: boolean } | { type: "critter"; pick: CritterPick };
+/** Doors you can walk up to: the cottage keeps your story bank, the windmill how you're doing. */
+export type DoorId = "cottage" | "windmill";
+const doorAt = (x: number, z: number, turn: number, out: number) => ({ x: x + Math.sin(turn) * out, z: z + Math.cos(turn) * out });
+export const DOORS: { id: DoorId; x: number; z: number }[] = [
+  { id: "cottage", ...doorAt(COTTAGE.x, COTTAGE.z, COTTAGE_TURN, 1.25) },
+  { id: "windmill", ...doorAt(WINDMILL.x, WINDMILL.z, WINDMILL_TURN, 0.95) },
+];
+
+/** The door nearest (x, z), if one is within `reach` metres. */
+export function nearestDoor(x: number, z: number, reach: number): DoorId | null {
+  let best: DoorId | null = null, bestD = reach;
+  for (const d of DOORS) {
+    const dist = Math.hypot(d.x - x, d.z - z);
+    if (dist < bestD) {
+      bestD = dist;
+      best = d.id;
+    }
+  }
+  return best;
+}
+
+/** Something you're close enough to use: the table (to sit down), a bench, a door, or a creature. */
+export type Nearby =
+  | { type: "table" }
+  | { type: "seat"; id: string; sitting: boolean }
+  | { type: "door"; id: DoorId }
+  | { type: "critter"; pick: CritterPick };
