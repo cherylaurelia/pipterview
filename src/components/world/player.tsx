@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
 import { nearestCritter } from "./critters";
-import { canStand, getUp, held, nearestSeat, player, seatAt, stick, type Nearby } from "./explore";
+import { canStand, getUp, held, nearestDoor, nearestSeat, player, seatAt, stick, type Nearby } from "./explore";
 import { groundY, onPath, POND, pondEdge, surfaceY } from "./island";
 import { slideRoundPlants } from "./landscape";
 import { ripple } from "./pond";
@@ -17,7 +17,8 @@ import { Figure } from "./people";
 
 const WALK = 2.4, RUN = 4.4, BODY = 0.22;
 const turn = (from: number, to: number, f: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * f;
-const nearKey = (n: Nearby | null) => (!n ? "" : n.type === "table" ? "table" : n.type === "seat" ? `seat:${n.id}:${n.sitting}` : `${n.pick.kind}${n.pick.index}`);
+const nearKey = (n: Nearby | null) =>
+  !n ? "" : n.type === "table" ? "table" : n.type === "seat" ? `seat:${n.id}:${n.sitting}` : n.type === "door" ? `door:${n.id}` : `${n.pick.kind}${n.pick.index}`;
 
 export function Player({
   active,
@@ -88,6 +89,8 @@ export function Player({
         if (Math.hypot(p.pos.x, p.pos.z) < 2.1) return { type: "table" };
         const seat = nearestSeat(p.pos.x, p.pos.z, 1.3);
         if (seat) return { type: "seat", id: seat, sitting: false };
+        const door = nearestDoor(p.pos.x, p.pos.z, 1.2);
+        if (door) return { type: "door", id: door };
         const pick = nearestCritter(p.pos.x, p.pos.z, 2.4); // generous: most of them are out on the water
         return pick ? { type: "critter", pick } : null;
       })();
