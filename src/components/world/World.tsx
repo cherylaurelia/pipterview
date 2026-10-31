@@ -620,7 +620,7 @@ export default function World() {
       // the side panel's width, so the status banner can centre itself in the space left over
       style={{ "--panel-w": seated ? (wide ? "min(680px, 56vw)" : "440px") : "0px" } as CSSProperties}
     >
-      <div className="absolute inset-0">
+      <div className="absolute inset-0" role="img" aria-label={`A small floating island with a pond, a windmill and a cottage, where ${GUIDE_NAME} the chick waits at a table to practise interviews with you.`}>
         <WorldScene
           mode={mode}
           mood={mood}
@@ -701,7 +701,7 @@ export default function World() {
                   </div>
                 )}
                 <div>
-                  <p className="px-1 pb-1 text-[12.5px] font-bold text-[#a08060]">or choose a round</p>
+                  <p className="px-1 pb-1 text-[12.5px] font-bold text-[#86664a]">or choose a round</p>
                   <div className="grid gap-1.5 sm:grid-cols-3">
                     {PREP_TYPES.map((t) => (
                       <button
