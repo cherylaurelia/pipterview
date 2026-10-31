@@ -105,11 +105,35 @@ function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
   }, [mode, canvas]);
   useEffect(() => {
     let down: { x: number; y: number } | null = null, pressedAt = { x: 0, y: 0 };
+    // two fingers on a touch screen: pinch to zoom (and no orbiting or walking while they're down)
+    const touches = new Map<number, { x: number; y: number }>();
+    let pinch: { span: number; dist: number; zoom: number } | null = null;
+    const span = () => {
+      const [a, b] = [...touches.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    };
     const onDown = (e: PointerEvent) => {
       down = { x: e.clientX, y: e.clientY };
       pressedAt = { ...down };
+      if (e.pointerType !== "touch") return;
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.size === 2) {
+        pinch = { span: span(), dist: view.current.dist, zoom: view.current.zoom };
+        down = null;
+        pressedAt = { x: -1e9, y: -1e9 }; // a pinch is never a tap-to-walk
+      }
     };
     const onMove = (e: PointerEvent) => {
+      if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch && touches.size >= 2) {
+        const v = view.current, k = pinch.span / span();
+        if (modeRef.current === "world") v.dist = clamp(pinch.dist * k, LIMITS.dist);
+        else if (modeRef.current === "seated") {
+          v.zoom = clamp(pinch.zoom * k, LIMITS.zoom);
+          v.lastDrag = performance.now();
+        }
+        return;
+      }
       if (!down) return;
       const dx = e.clientX - down.x, dy = e.clientY - down.y;
       down = { x: e.clientX, y: e.clientY };
@@ -124,8 +148,10 @@ function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
         v.pitch = clamp(v.pitch - dy * 0.003, LIMITS.pitch);
       }
     };
-    const onUp = () => {
+    const onUp = (e: PointerEvent) => {
       down = null;
+      touches.delete(e.pointerId);
+      if (touches.size < 2) pinch = null;
     };
     const onWheel = (e: WheelEvent) => {
       const v = view.current, m = modeRef.current;
@@ -339,6 +365,7 @@ export default function WorldScene({
       gl={{ toneMapping: THREE.NeutralToneMapping }}
       dpr={[1, 1.5]} // the effects chain is per pixel; 1.5x is plenty
       camera={{ position: [Math.sin(0.55) * SPLASH.radius, SPLASH.height, Math.cos(0.55) * SPLASH.radius], fov: SPLASH.fov, near: 0.05, far: 900 }}
+      style={{ touchAction: "none" }} // touch drags and pinches are ours, not the page's
       onPointerMissed={(e) => {
         document.body.style.cursor = "";
         clickToWalk.current?.(e);

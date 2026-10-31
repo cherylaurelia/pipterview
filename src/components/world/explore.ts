@@ -22,6 +22,9 @@ export const player = {
 /** Keys held down (lower case), for walking. */
 export const held = new Set<string>();
 
+/** The on-screen joystick (touch screens): x to the right, y forwards, each -1 to 1. */
+export const stick = { x: 0, y: 0 };
+
 export function walkTo(x: number, z: number) {
   getUp();
   player.goal = new THREE.Vector3(x, 0, z);

@@ -19,6 +19,7 @@ import { askCritter, CRITTERS, type CritterAction, type CritterPick } from "./cr
 import { getUp, goHomeSpot, sitOn, type Nearby } from "./explore";
 import { BreatheWithPip, CheckIn } from "./checkin";
 import { loadQuality, saveQuality, type QualitySetting } from "./quality";
+import { TouchStick } from "./touchstick";
 import { IslandPanel } from "./islandpanel";
 import { StoryBook } from "./storybook";
 import { GardenIcon } from "../GardenIcon";
@@ -396,7 +397,9 @@ export default function World() {
   const tourStep: TourStep | null = (() => {
     if (!tourDone || micAsk || panel === "help") return null;
     const open = (step: TourStep) => !tourDone.includes(step);
-    if (mode === "splash" && step === "pick" && open("welcome")) return "welcome";
+    // on a phone the welcome bubble would cover the welcome card, which already says the same thing
+    const narrow = window.innerWidth < 640;
+    if (mode === "splash" && step === "pick" && open("welcome") && !narrow) return "welcome";
     if (mode === "world" && arrived === "world" && open("island")) return "island";
     if (seated && open("table")) return "table";
     if (mode === "world" && arrived === "world" && garden.grown > 0 && open("grow")) return "grow";
@@ -716,6 +719,7 @@ export default function World() {
 
       {/* 2. on the island the world is the interface: just a word about how to get about, when you first arrive, and a
           prompt when you walk up to the table (the creatures' actions show below, when you're by one) */}
+      <TouchStick show={mode === "world" && arrived === "world"} />
       <IslandHint show={mode === "world" && arrived === "world" && !picked && !atTable && !bySeat} until={hintUntil} />
       {bySeat && !picked && (
         <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-3">

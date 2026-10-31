@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
 import { nearestCritter } from "./critters";
-import { canStand, getUp, held, nearestSeat, player, seatAt, type Nearby } from "./explore";
+import { canStand, getUp, held, nearestSeat, player, seatAt, stick, type Nearby } from "./explore";
 import { POND, pondEdge, surfaceY } from "./island";
 import { slideRoundPlants } from "./landscape";
 import { ripple } from "./pond";
@@ -34,8 +34,12 @@ export function Player({ active, visible, onNear }: { active: boolean; visible: 
       // the camera's forward along the ground, and its right
       f.set(p.pos.x - camera.position.x, p.pos.z - camera.position.z).normalize();
       const has = (...k: string[]) => k.some((x) => held.has(x));
-      const ahead = (has("w", "arrowup") ? 1 : 0) - (has("s", "arrowdown") ? 1 : 0);
-      const side = (has("d", "arrowright") ? 1 : 0) - (has("a", "arrowleft") ? 1 : 0);
+      const keyAhead = (has("w", "arrowup") ? 1 : 0) - (has("s", "arrowdown") ? 1 : 0);
+      const keySide = (has("d", "arrowright") ? 1 : 0) - (has("a", "arrowleft") ? 1 : 0);
+      // the joystick (touch screens) steers too, and how far it's pushed sets the pace
+      const push = Math.min(1, Math.hypot(stick.x, stick.y));
+      const usingStick = !keyAhead && !keySide && push > 0.12;
+      const ahead = usingStick ? stick.y : keyAhead, side = usingStick ? stick.x : keySide;
       move.set(f.x * ahead - f.y * side, f.y * ahead + f.x * side);
       if (move.lengthSq() > 0) {
         p.goal = null;
@@ -49,7 +53,7 @@ export function Player({ active, visible, onNear }: { active: boolean; visible: 
         }
       }
       if (move.lengthSq() > 0) {
-        speed = has("shift") ? RUN : WALK;
+        speed = usingStick ? (push > 0.92 ? RUN : WALK * Math.max(0.35, push)) : has("shift") ? RUN : WALK;
         move.normalize().multiplyScalar(speed * dt);
         // glide round trees and bushes; slide along anything else that's in the way rather than stopping dead
         const to = slideRoundPlants(p.pos.x + move.x, p.pos.z + move.y, BODY);
