@@ -17,6 +17,7 @@ import { setVoiceVolume } from "@/lib/voice/speak";
 import { BookIcon, ChatIcon, CloseIcon, CodeIcon, HelpIcon, HomeIcon, IslandIcon, SpeakerIcon } from "./icons";
 import { askCritter, CRITTERS, type CritterAction, type CritterPick } from "./critters";
 import { getUp, goHomeSpot, sitOn, type Nearby } from "./explore";
+import { BreatheWithPip, CheckIn } from "./checkin";
 import { IslandPanel } from "./islandpanel";
 import { StoryBook } from "./storybook";
 import { GardenIcon } from "../GardenIcon";
@@ -286,6 +287,9 @@ export default function World() {
   const [tourDone, setTourDone] = useState<TourStep[] | null>(null);
   const [soundOpen, setSoundOpen] = useState(false);
   const [micAsk, setMicAsk] = useState(false);
+  // at the table, before the first question: how nervous you are (one tap), and an optional breather with Pip
+  const [checkIn, setCheckIn] = useState<"ask" | "breathe" | null>(null);
+  const [nervousBefore, setNervousBefore] = useState<number>();
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- restore saved progress once */
     setGarden(loadGarden());
@@ -335,7 +339,8 @@ export default function World() {
   const tableTab: PanelTab = type === "technical" ? "code" : "chat"; // what the side panel shows when you sit down
   // the guide's body language: nods while you talk, tilts its head while thinking, bounces when you're done
   const mood: Mood =
-    poked ? "happy"
+    checkIn === "breathe" ? "breathing"
+    : poked ? "happy"
     : status === "speaking" ? "speaking"
     : status === "listening" || status === "your-turn" ? "listening"
     : status === "thinking" || status === "connecting" ? "thinking"
@@ -437,13 +442,17 @@ export default function World() {
       setArrived(m);
       if (m === "world") setHintUntil(Date.now() + 12000);
       if (m !== "seated" || status !== "idle") return;
-      // the first time, ask about the microphone before the browser does; then the guide says hello
-      const speech = "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
-      if (speech && micChoice() === null) setMicAsk(true);
-      else start();
+      setCheckIn("ask"); // a quick check-in first; see beginSession
     },
-    [start, status],
+    [status],
   );
+  // after the check-in: the first time, ask about the microphone before the browser does; then the guide says hello
+  const beginSession = () => {
+    setCheckIn(null);
+    const speech = "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
+    if (speech && micChoice() === null) setMicAsk(true);
+    else start();
+  };
   const chooseMic = async () => {
     setMicAsk(false);
     saveMicChoice("mic");
@@ -479,6 +488,8 @@ export default function World() {
   };
   const standUp = () => {
     goHomeSpot(); // back on your feet, just behind your chair
+    setCheckIn(null);
+    setNervousBefore(undefined);
     reset();
     setElapsed(0);
     setArrived(null);
@@ -835,6 +846,7 @@ export default function World() {
               state={convo.scored.state}
               transcript={convo.scored.transcript}
               work={convo.scored.work}
+              nervousBefore={nervousBefore}
               embedded
               island={grewNow ? { grew: grewNow, next: nextItem, grown: garden.grown, total: GARDEN_ITEMS.length } : undefined}
             />
@@ -856,7 +868,21 @@ export default function World() {
       )}
 
       {/* whose turn it is, in big plain words */}
-      {seated && !micAsk && convo.status !== "report" && <StatusBanner status={convo.status} handsFree={convo.handsFree} holding={convo.holding} />}
+      {seated && checkIn === "ask" && (
+        <CheckIn
+          onDone={(n) => {
+            setNervousBefore(n ?? undefined);
+            beginSession();
+          }}
+          onBreathe={(n) => {
+            setNervousBefore(n ?? undefined);
+            setCheckIn("breathe");
+          }}
+        />
+      )}
+      {seated && checkIn === "breathe" && <BreatheWithPip onDone={beginSession} />}
+
+      {seated && !micAsk && !checkIn && convo.status !== "report" && <StatusBanner status={convo.status} handsFree={convo.handsFree} holding={convo.holding} />}
 
       {micAsk && <MicPrimer onMic={() => void chooseMic()} onType={typeInstead} />}
 
