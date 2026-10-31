@@ -751,6 +751,192 @@ export const INTERVIEW_TYPES: Record<InterviewTypeId, InterviewType> = {
           "Stopping at the fix, with no prevention or lesson",
         ],
       },
+      {
+        id: "outside-comfort-zone",
+        prompt: "Tell me about a time you did something that scared you or was well outside your comfort zone.",
+        difficulty: "easy",
+        topics: ["growth", "courage"],
+        strongAnswer:
+          "Names what made it uncomfortable honestly (a talk, a new stack, a hard conversation), what they did to prepare or push through anyway, how it actually went, including what didn't go perfectly, and how it changed what they're willing to try now.",
+        followUps: [
+          "What specifically made it feel scary at the time?",
+          "What did you do to get ready, or to keep going when it got hard?",
+          "Would you do it differently now? What has it made easier since?",
+        ],
+        hints: [
+          "It can be small: presenting in class, a first code review, asking a question in a big meeting.",
+          "Start with the moment you decided to do it anyway, then what happened.",
+        ],
+        commonMistakes: [
+          "Picking something that wasn't really a stretch",
+          "Skipping how it actually went",
+          "No sense of what they took from it",
+        ],
+      },
+      {
+        id: "juggling-commitments",
+        prompt: "Tell me about a time you had to balance several big commitments at once, like classes, a job and a project.",
+        difficulty: "easy",
+        topics: ["prioritization", "time management"],
+        strongAnswer:
+          "Lays out the commitments and why they collided, the system they used to decide what mattered most (deadlines, stakes, who depended on them), a trade-off they made deliberately and communicated, and the outcome, including anything that slipped and how they handled it.",
+        followUps: [
+          "How did you decide what came first?",
+          "What did you let slip, and how did you tell the people affected?",
+          "What would you set up differently if it happened again?",
+        ],
+        hints: [
+          "Think of a week or a term when everything was due at once.",
+          "Focus on one decision you made about what to drop or delay.",
+        ],
+        commonMistakes: [
+          "Claiming they did everything perfectly with no trade-offs",
+          "A list of tasks with no method for choosing between them",
+          "Not mentioning how they kept others informed",
+        ],
+      },
+      {
+        id: "idea-rejected",
+        prompt: "Tell me about a time an idea you cared about was turned down. What did you do?",
+        difficulty: "medium",
+        topics: ["resilience", "communication"],
+        strongAnswer:
+          "A real idea with a clear reason they believed in it, how they pitched it, understanding why it was turned down (and whether they agreed in the end), what they did next (improved it, gathered evidence, or let it go gracefully), and what they learned about persuading people.",
+        followUps: [
+          "Why did they say no? Did you agree with their reasons?",
+          "What did you do after that?",
+          "What would you change about how you pitched it?",
+        ],
+        hints: BEHAVIORAL_HINTS,
+        commonMistakes: [
+          "Sounding bitter, or blaming the people who said no",
+          "Never understanding why it was turned down",
+          "Pushing on regardless, with no listening",
+        ],
+      },
+      {
+        id: "explain-technical",
+        prompt: "Tell me about a time you had to explain something technical to someone without a technical background.",
+        difficulty: "easy",
+        topics: ["communication", "empathy"],
+        strongAnswer:
+          "Who the audience was and what they needed to decide or do, how they found out what the person already knew, the analogy or simplification they used, how they checked it landed, and what happened because the person understood.",
+        followUps: [
+          "How did you work out what they already knew?",
+          "What analogy or example did you use, and why that one?",
+          "How could you tell whether they'd understood?",
+        ],
+        hints: [
+          "Think of explaining a project to a family member, a manager, or a teammate from another field.",
+          "Try giving the explanation you used, briefly, as part of your answer.",
+        ],
+        commonMistakes: [
+          "Using jargon while describing how they avoided jargon",
+          "Never checking whether it landed",
+          "Condescending to the listener",
+        ],
+      },
+      {
+        id: "changed-your-mind",
+        prompt: "Tell me about a time you changed your mind about something important after getting new information.",
+        difficulty: "medium",
+        topics: ["self-awareness", "judgment"],
+        strongAnswer:
+          "What they believed and why it was reasonable at the time, the specific evidence or argument that changed it, how they updated their plan and told anyone affected, and what it taught them about holding opinions loosely.",
+        followUps: [
+          "What made you so sure at first?",
+          "What exactly changed your mind?",
+          "Who else did the change affect, and how did you handle that?",
+        ],
+        hints: BEHAVIORAL_HINTS,
+        commonMistakes: [
+          "A trivial change of mind with nothing at stake",
+          "Being talked into it with no reasoning of their own",
+          "Not saying what they did differently afterwards",
+        ],
+      },
+      {
+        id: "missed-commitment",
+        prompt: "Tell me about a time you couldn't deliver something you'd promised. How did you handle it?",
+        difficulty: "medium",
+        topics: ["ownership", "communication"],
+        strongAnswer:
+          "Owns the miss without excuses, explains when they realised it was at risk, how early and clearly they told the people depending on them, what they offered instead (a smaller scope, a new date, help), and what they changed so it happens less.",
+        followUps: [
+          "When did you first realise it was at risk?",
+          "How did you tell the people depending on you, and how did they take it?",
+          "What do you do differently now?",
+        ],
+        hints: BEHAVIORAL_HINTS,
+        commonMistakes: [
+          "Blaming other people or circumstances",
+          "Only telling people at the last minute",
+          "No change in how they plan or commit since",
+        ],
+      },
+      {
+        id: "improved-process",
+        prompt: "Tell me about a time you made the way a team worked better, like a tool, a habit or a process.",
+        difficulty: "medium",
+        topics: ["initiative", "impact"],
+        strongAnswer:
+          "The pain everyone was living with, how they noticed it and checked it was worth fixing, the change they made and how they got people to actually adopt it, and the measurable difference (time saved, fewer mistakes, less confusion).",
+        followUps: [
+          "How did you know it was worth fixing?",
+          "How did you get people to actually use it?",
+          "What changed afterwards, and how could you tell?",
+        ],
+        hints: [
+          "Think of a script, a checklist, a shared doc or a meeting change that saved people time.",
+          "Club, class project and part-time job examples count.",
+        ],
+        commonMistakes: [
+          "A change nobody ended up using",
+          "No before and after",
+          "Forcing it on people without asking",
+        ],
+      },
+      {
+        id: "quality-vs-speed",
+        prompt: "Tell me about a time you had to choose between doing something perfectly and getting it done on time.",
+        difficulty: "medium",
+        topics: ["judgment", "prioritization"],
+        strongAnswer:
+          "What was at stake on each side, how they decided what 'good enough' meant (who it was for, what could break), the trade-off they made and made visible to others, and how it turned out, including any clean-up they did later.",
+        followUps: [
+          "How did you decide what good enough meant here?",
+          "Who did you check the trade-off with?",
+          "Did you go back and improve it later? Why or why not?",
+        ],
+        hints: BEHAVIORAL_HINTS,
+        commonMistakes: [
+          "Saying they never compromise on quality",
+          "Cutting corners silently, without telling anyone",
+          "No sense of the risk they accepted",
+        ],
+      },
+      {
+        id: "inclusive-team",
+        prompt: "Tell me about a time you helped someone feel included on a team or in a group.",
+        difficulty: "easy",
+        topics: ["teamwork", "empathy"],
+        strongAnswer:
+          "Notices who was being left out and why (new, quieter, different background, remote), what they specifically did to bring them in, how the person and the team responded, and what they learned about the way groups work.",
+        followUps: [
+          "What made you notice they were being left out?",
+          "What exactly did you do?",
+          "How did it change the way the group worked?",
+        ],
+        hints: [
+          "Think of a new teammate, a quieter classmate in a group project, or someone joining remotely.",
+          "Focus on one concrete thing you did, and what happened next.",
+        ],
+        commonMistakes: [
+          "Vague values with no specific action",
+          "Making it about how good it made them look",
+          "No effect on the person or the team",
+        ],
+      },
     ],
     rubric: [
       {
