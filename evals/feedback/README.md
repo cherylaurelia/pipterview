@@ -36,5 +36,5 @@ EVAL_RUNS=1 EVAL_ONLY=two-sum npm run eval:feedback     # one question's cases, 
 MOCK_AI=1 EVAL_RUNS=1 npm run eval:feedback             # free dry run of the pipeline (mock feedback, so the grades mean nothing)
 ```
 
-Each run writes a Markdown report and the raw results (JSON) to `results/` (gitignored; copy a report into a PR when you change the prompt, rubric or model). The run fails only if a report is malformed (missing a rubric dimension or the question's review); the other checks are reported, not enforced, since with 13 question groups they're a smoke test, not a fine-grained score. Token usage and cost aren't recorded yet: `generateFeedback` doesn't return the usage.
+Each run writes a Markdown report and the raw results (JSON) to `results/` (gitignored; copy a report into a PR when you change the prompt, rubric or model). The run fails only if a report is malformed (missing a rubric dimension or the question's review); the other checks are reported, not enforced, since with 13 question groups they're a smoke test, not a fine-grained score. The report ends with the run's total tokens (input, output and cache), from the same usage the server logs for every call (`claude usage {...}` lines).
 

@@ -36,6 +36,42 @@ import { MOCK_ENABLED, mockFeedback, mockInterviewerTurn, mockTailoring } from "
 // Override with CLAUDE_MODEL in .env.local. Turns need a model that supports
 // mid-conversation system messages.
 const MODEL = process.env.CLAUDE_MODEL?.trim() || "claude-opus-5-5"; // a blank CLAUDE_MODEL= falls back too
+
+/** Tokens one call used. */
+export interface Usage {
+  kind: "turn" | "tailor" | "feedback";
+  model: string;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+
+const usageListeners = new Set<(u: Usage) => void>();
+
+/** Hears about every call's token usage (the feedback eval uses this to total a run); returns a way to stop. */
+export function onUsage(listener: (u: Usage) => void) {
+  usageListeners.add(listener);
+  return () => void usageListeners.delete(listener);
+}
+
+/**
+ * Logs one line of token usage per call (so the server logs show what each kind of call costs) and tells any
+ * listeners. Never logs content.
+ */
+function recordUsage(kind: Usage["kind"], response: { model?: string; usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } }) {
+  const u = response.usage ?? {};
+  const usage: Usage = {
+    kind,
+    model: response.model ?? MODEL,
+    input: u.input_tokens ?? 0,
+    output: u.output_tokens ?? 0,
+    cacheRead: u.cache_read_input_tokens ?? 0,
+    cacheWrite: u.cache_creation_input_tokens ?? 0,
+  };
+  console.info(`claude usage ${JSON.stringify(usage)}`);
+  usageListeners.forEach((l) => l(usage));
+}
 // Interviewer turns are short and latency-sensitive; tailoring and feedback need more care.
 const TURN_EFFORT = "low";
 const TAILOR_EFFORT = "medium";
@@ -155,6 +191,7 @@ export async function interviewerTurn(
     }
   }
   const response = await stream.finalMessage();
+  recordUsage("turn", response);
 
   if (response.stop_reason === "refusal" || !response.parsed_output) {
     // Stay on the same step and let the candidate try again.
@@ -214,6 +251,7 @@ export async function startSession(typeId: InterviewTypeId, settings?: SessionSe
     system: tailoringSystemPrompt(typeId),
     messages: [{ role: "user", content }],
   });
+  recordUsage("tailor", response);
 
   if (response.stop_reason === "refusal" || !response.parsed_output) {
     throw new Error(`Couldn't tailor questions (${response.stop_reason}). Try again, or start without a resume.`);
@@ -262,6 +300,7 @@ export async function generateFeedback(
     system: FEEDBACK_SYSTEM_PROMPT,
     messages: [{ role: "user", content: withImages(feedbackRequest(state, transcript, finalWork), finalWork) }],
   });
+  recordUsage("feedback", response);
 
   if (response.stop_reason === "refusal" || !response.parsed_output) {
     throw new Error(`Feedback generation stopped early (${response.stop_reason})`);

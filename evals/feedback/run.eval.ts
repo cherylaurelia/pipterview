@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, it } from "vitest";
-import { generateFeedback } from "@/lib/claude";
+import { generateFeedback, onUsage, type Usage } from "@/lib/claude";
 import { INTERVIEW_TYPES, rubricFor } from "@/lib/interview/catalog";
 import { createSession } from "@/lib/interview/flow";
 import { MOCK_ENABLED } from "@/lib/mock";
@@ -30,6 +30,8 @@ it("feedback eval", async () => {
   console.log(`${jobs.length} feedback reports (${picked.length} cases x ${RUNS})${MOCK_ENABLED ? ", mock mode" : ""}`);
 
   const results: CaseResult[] = [];
+  const usage: Usage[] = [];
+  const stop = onUsage((u) => usage.push(u));
   let next = 0;
   const worker = async () => {
     while (next < jobs.length) {
@@ -45,10 +47,13 @@ it("feedback eval", async () => {
     }
   };
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  stop();
+  const sum = (k: keyof Omit<Usage, "kind" | "model">) => usage.reduce((s, u) => s + u[k], 0);
 
   const g = grade(results, (typeId) => rubricFor(typeId).map((d) => d.name));
   const date = new Date().toISOString().slice(0, 16).replace("T", " ");
-  const md = report(g, results, { model: MOCK_ENABLED ? "mock" : (process.env.CLAUDE_MODEL?.trim() || "default"), runs: RUNS, date });
+  const tokens = usage.length ? `\n\nTokens: ${sum("input")} in, ${sum("output")} out, ${sum("cacheRead")} read from cache, ${sum("cacheWrite")} written to cache (${usage.length} calls).\n` : "";
+  const md = report(g, results, { model: MOCK_ENABLED ? "mock" : (process.env.CLAUDE_MODEL?.trim() || "default"), runs: RUNS, date }) + tokens;
   const dir = path.join(HERE, "results");
   mkdirSync(dir, { recursive: true });
   const stamp = date.replace(/[: ]/g, "-");
