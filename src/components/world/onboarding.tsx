@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { NavButton, Panel, Portrait, raised } from "./retro";
+import { YourData } from "./yourdata";
 import { GUIDE_NAME } from "./script";
 import type { ConvoStatus } from "./useConversation";
 
@@ -207,6 +208,7 @@ export function HelpPanel({ onReplayTour }: { onReplayTour: () => void }) {
         ))}
       </dl>
       <SetupStatus />
+      <YourData />
       <div className="flex justify-end px-1 pt-3">
         <NavButton onClick={onReplayTour}>Show the tour again</NavButton>
       </div>
