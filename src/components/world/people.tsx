@@ -4,6 +4,7 @@ import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useRef, useState } from "react";
 import * as THREE from "three";
 import { gradientMap, toon } from "./toon";
+import { breathAt, breathing } from "./checkin";
 import { isDrag } from "./controls";
 
 // The two characters at the table: soft, matte, clay-toy chicks after the Pip logo (public/design/logo/pip-logo.png):
@@ -170,7 +171,7 @@ export interface FigureProps {
 const drift = (t: number, seed: number) => Math.sin(t * 0.31 + seed) * 0.5 + Math.sin(t * 0.73 + seed * 2.1) * 0.3 + Math.sin(t * 1.37 + seed * 3.7) * 0.2;
 
 /** What the guide is doing, for its body language. */
-export type Mood = "idle" | "speaking" | "listening" | "thinking" | "happy";
+export type Mood = "idle" | "speaking" | "listening" | "thinking" | "happy" | "breathing";
 
 export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson = false, onPoke, seated = true, occupied = true, gait }: FigureProps) {
   const chick = useRef<THREE.Group>(null);
@@ -198,7 +199,9 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
       const stretch = k * (Math.abs(Math.sin(t * 6.5)) - 0.5) * 0.04 + hp * (Math.abs(Math.sin(t * 4.5)) - 0.5) * 0.14 + Math.sin(t * 1.3 + seed) * 0.012;
       // walking: a waddle from foot to foot, with a little hop each step
       const g = gait?.current ?? 0, step = Math.sin(t * (10 + g * 3));
-      body.current.scale.set(1 - stretch * 0.5, 1 + stretch, 1 - stretch * 0.5);
+      // breathing with you: a slow swell and settle, in time with the circle on screen (see checkin.tsx)
+      const br = mood === "breathing" ? breathAt((performance.now() - breathing.start) / 1000) : 0;
+      body.current.scale.set((1 - stretch * 0.5) * (1 + br * 0.05), (1 + stretch) * (1 + br * 0.08), (1 - stretch * 0.5) * (1 + br * 0.05));
       body.current.position.y = bounce + Math.abs(step) * 0.05 * Math.min(1, g);
       body.current.rotation.z = drift(t * 0.5, seed) * 0.04 + th * 0.14 + step * 0.13 * Math.min(1, g); // a slow sway; a curious tilt while thinking
       // listening: an encouraging nod every couple of seconds
@@ -211,7 +214,8 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
     // quick blinks: the dot eyes squash flat for a moment
     if (t > nextBlink.current + 0.14) nextBlink.current = t + 2.2 + Math.random() * 3;
     const blink = t > nextBlink.current ? Math.sin(((t - nextBlink.current) / 0.14) * Math.PI) : 0;
-    [eyeL, eyeR].forEach((e) => e.current?.scale.set(1, 1 - blink * 0.9, 1));
+    // eyes softly closed while breathing, otherwise the odd blink
+    [eyeL, eyeR].forEach((e) => e.current?.scale.set(1, mood === "breathing" ? 0.2 : 1 - blink * 0.9, 1));
     wings.forEach((w, i) => {
       if (!w.current) return;
       const side = i ? 1 : -1;
