@@ -364,10 +364,22 @@ export default function World() {
   const { start, reset, status } = convo;
   const seated = mode === "seated" && arrived === "seated";
   const exploring = mode === "world";
+  // Pip dozes off at the table if you've wandered off for a while (and wakes to say hello when you come back)
+  const [dozing, setDozing] = useState(false);
+  useEffect(() => {
+    let away = 0;
+    const id = window.setInterval(() => {
+      away = mode === "world" && Math.hypot(player.pos.x, player.pos.z) > 6 ? away + 1 : 0;
+      setDozing(away >= 15);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [mode]);
+
   const tableTab: PanelTab = type === "technical" ? "code" : "chat"; // what the side panel shows when you sit down
   // the guide's body language: nods while you talk, tilts its head while thinking, bounces when you're done
   const mood: Mood =
     checkIn === "breathe" ? "breathing"
+    : dozing ? "dozing"
     : poked ? "happy"
     : status === "speaking" ? "speaking"
     : status === "listening" || status === "your-turn" ? "listening"
