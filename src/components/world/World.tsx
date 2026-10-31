@@ -104,7 +104,7 @@ const DEFAULT_LEVELS: SoundLevels = { music: 0.7, nature: 0.7, voice: 1 };
  * The soundscape, on unless you've turned it off. Browsers only allow audio after you've interacted with the page, so
  * it starts on your first click or key press.
  */
-function useAmbience(state: { listening: boolean; speaking: boolean; evening: boolean }) {
+function useAmbience(state: { listening: boolean; speaking: boolean; evening: boolean; resting: boolean }) {
   const [enabled, setEnabledState] = useState(true);
   const [levels, setLevelsState] = useState<SoundLevels>(DEFAULT_LEVELS);
   const [interacted, setInteracted] = useState(false);
@@ -151,10 +151,10 @@ function useAmbience(state: { listening: boolean; speaking: boolean; evening: bo
     ambience.current?.setVolumes({ music: levels.music, nature: levels.nature });
     setVoiceVolume(levels.voice);
   }, [levels, interacted, enabled]);
-  const { listening, speaking, evening } = state;
+  const { listening, speaking, evening, resting } = state;
   useEffect(() => {
-    ambience.current?.setState({ listening, speaking, evening });
-  }, [listening, speaking, evening, interacted, enabled]);
+    ambience.current?.setState({ listening, speaking, evening, resting });
+  }, [listening, speaking, evening, resting, interacted, enabled]);
 
   const setEnabled = useCallback((on: boolean) => {
     setEnabledState(on);
@@ -371,7 +371,7 @@ export default function World() {
     : "idle";
   const evening = status === "scoring" || status === "report";
   const yourTurn = seated && (status === "your-turn" || status === "listening");
-  const sound = useAmbience({ listening: status === "listening", speaking: status === "speaking", evening });
+  const sound = useAmbience({ listening: status === "listening", speaking: status === "speaking", evening, resting: bySeat?.sitting === true });
 
   // a soft pop for each new thing the guide says, and a chime when it's your turn
   const guideLines = convo.messages.filter((m) => m.from === "guide").length;

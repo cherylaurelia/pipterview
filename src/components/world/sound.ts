@@ -17,6 +17,8 @@ export interface SoundState {
   speaking: boolean;
   /** Sunset: crickets instead of birds. */
   evening: boolean;
+  /** Sitting on a bench: the music softens and the birds and breeze come forward. */
+  resting?: boolean;
 }
 
 /** Your volume choices, 0 to 1 each. */
@@ -288,7 +290,7 @@ export function createAmbience(): Ambience {
 
   const ramp = (param: AudioParam, value: number, seconds = 0.4) => param.setTargetAtTime(value, ctx.currentTime, seconds / 3);
   const mix = () => {
-    const duck = state.listening ? DUCK.listening : state.speaking ? DUCK.speaking : { music: 1, nature: 1 };
+    const duck = state.listening ? DUCK.listening : state.speaking ? DUCK.speaking : state.resting ? { music: 0.55, nature: 1.4 } : { music: 1, nature: 1 };
     // your volume scales each bus; 0.7 is the designed mix
     ramp(music.gain, LEVELS.music * duck.music * (volumes.music / 0.7));
     ramp(nature.gain, LEVELS.nature * duck.nature * (volumes.nature / 0.7));
