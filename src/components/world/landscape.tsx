@@ -369,6 +369,37 @@ function Clouds() {
 }
 
 // A few butterflies looping lazily around the table (they go home at sunset).
+/** Stars that come out overhead as the sun sets, twinkling a little. */
+function Stars() {
+  const points = useRef<THREE.Points>(null);
+  const map = useMemo(() => softDot(), []);
+  const positions = useMemo(() => {
+    const r = rng(97), COUNT = 420, out = new Float32Array(COUNT * 3);
+    for (let i = 0; i < COUNT; i++) {
+      // spread over the upper sky, thinning towards the horizon
+      const a = r() * Math.PI * 2, up = 0.18 + Math.pow(r(), 0.7) * 0.82, R = 330;
+      const flat = Math.sqrt(1 - up * up);
+      out.set([Math.cos(a) * flat * R, up * R, Math.sin(a) * flat * R], i * 3);
+    }
+    return out;
+  }, []);
+  useFrame(({ clock }) => {
+    const p = points.current;
+    if (!p) return;
+    const night = Math.max(0, daylight.evening - 0.35) / 0.65;
+    p.visible = night > 0.01;
+    (p.material as THREE.PointsMaterial).opacity = night * (0.75 + Math.sin(clock.getElapsedTime() * 1.7) * 0.15);
+  });
+  return (
+    <points ref={points} frustumCulled={false} visible={false}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial map={map} color="#fff6dc" size={3.2} sizeAttenuation={false} transparent opacity={0} depthWrite={false} fog={false} />
+    </points>
+  );
+}
+
 /** A few small birds wheeling high over the island by day, wings beating then gliding. */
 function Birds() {
   const group = useRef<THREE.Group>(null);
@@ -528,6 +559,7 @@ export function Landscape({ critters }: { critters: { interactive: boolean; pick
       <Trees />
       <Butterflies />
       <Birds />
+      <Stars />
       <Petals />
       <Fireflies />
     </>
