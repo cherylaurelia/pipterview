@@ -198,6 +198,9 @@ function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
   }, [canvas, camera, view]);
 }
 
+/** Pip keeps an eye on you while you're out on the island. */
+const watchPlayer = () => player.pos;
+
 /** Set by the controls (inside the canvas), called by the canvas when a click lands on nothing clickable. */
 const clickToWalk: { current: ((e: MouseEvent) => void) | null } = { current: null };
 
@@ -333,6 +336,7 @@ export default function WorldScene({
   critter,
   onPickCritter,
   onNear,
+  onStep,
   onPokePip,
   onSit,
   onArrive,
@@ -353,6 +357,8 @@ export default function WorldScene({
   onPickCritter: (pick: CritterPick) => void;
   /** What you've walked up to (the table, a creature), or nothing. */
   onNear: (near: Nearby | null) => void;
+  /** Your chick's footsteps, for their sound. */
+  onStep?: (surface: "grass" | "wood" | "dirt") => void;
   onPokePip: () => void;
   onSit: () => void;
   onArrive: (mode: WorldMode) => void;
@@ -377,10 +383,10 @@ export default function WorldScene({
       <Landscape critters={{ interactive: mode === "world", picked: critter, onPick: onPickCritter }} />
       <Garden count={garden.count} freshFrom={garden.freshFrom} />
       <RoundTable interactive={mode === "world"} yourTurn={yourTurn || evening} onSelect={onSit} />
-      <Figure position={[0, 0, -1.15]} rotationY={0} outfit="guide" mood={mood} onPoke={onPokePip} />
+      <Figure position={[0, 0, -1.15]} rotationY={0} outfit="guide" mood={mood} onPoke={onPokePip} watch={mode === "world" ? watchPlayer : undefined} />
       {/* your chair: you're in it at the table, otherwise it waits empty while you walk about as your chick */}
       <Figure position={[0, 0, 1.15]} rotationY={Math.PI} outfit="you" firstPerson occupied={mode === "seated"} />
-      <Player active={mode === "world"} visible={mode !== "seated"} onNear={onNear} />
+      <Player active={mode === "world"} visible={mode !== "seated"} onNear={onNear} onStep={onStep} />
       <TableMarker visible={mode === "world"} />
 
       <CameraRig mode={mode} aside={aside} onArrive={onArrive} />
