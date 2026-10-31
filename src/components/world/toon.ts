@@ -154,3 +154,16 @@ export function fluffyToon(color: string, pale = false) {
   }
   return m;
 }
+
+const painted = new Map<string, THREE.MeshToonMaterial>();
+
+/** A soft-shaded material with blotchy paint dabs, for walls and other big flat surfaces that would look plastic. */
+export function paintedToon(color: string, pale = false) {
+  const key = `${color}:${pale}`;
+  let m = painted.get(key);
+  if (!m) {
+    m = painterly(new THREE.MeshToonMaterial({ color, gradientMap: pale ? paleGradientMap() : gradientMap() }), 3.2, 0.7, "dabs");
+    painted.set(key, m);
+  }
+  return m;
+}

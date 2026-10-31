@@ -7,7 +7,7 @@ import { daylight } from "./daylight";
 import { setSeat } from "./explore";
 import { BENCHES, BoxLantern, COTTAGE, COTTAGE_TURN, FIELD, groundY, rng, WINDMILL, WINDMILL_TURN } from "./island";
 import { softDot } from "./textures";
-import { swayingToon, toon } from "./toon";
+import { paintedToon, swayingToon, toon } from "./toon";
 
 // The island's little bits of village: a half-timbered cottage with shuttered windows, flower boxes and a smoking
 // chimney; a windmill on a stone base with a balcony, latticed sails and flour sacks at the door; a field of swaying
@@ -144,6 +144,33 @@ function CottageWindow({ position, rotationY = 0, glass }: { position: [number, 
   );
 }
 
+/** Rows of overlapping roof shingles down both slopes of the cottage roof, a little uneven, in two shades of red. */
+function Shingles() {
+  const SLOPE = Math.atan2(1.15, 1.38), LENGTH = Math.hypot(1.38, 1.15), ROWS = 7;
+  return (
+    <>
+      {[-1, 1].flatMap((side) =>
+        Array.from({ length: ROWS }, (_, k) => {
+          const along = 0.12 + (k / ROWS) * (LENGTH - 0.2);
+          const x = side * (1.38 - along * Math.cos(SLOPE)) + side * Math.sin(SLOPE) * 0.035;
+          const y = along * Math.sin(SLOPE) + Math.cos(SLOPE) * 0.035;
+          return (
+            <mesh
+              key={`${side}${k}`}
+              position={[x, y, ((k * 37) % 5) * 0.004 - 0.008]}
+              rotation={[0, 0, side * -SLOPE + ((k * 13) % 3 - 1) * 0.01]}
+              material={toon(k % 2 ? "#c8644c" : "#d2704f")}
+              castShadow
+            >
+              <boxGeometry args={[0.3, 0.05, 2.56]} />
+            </mesh>
+          );
+        }),
+      )}
+    </>
+  );
+}
+
 /**
  * The cottage: cream walls with dark timber framing on a stone footing, a deep red roof that overhangs, a chimney with
  * smoke, a front door with a step, knob and lantern, shuttered windows with flower boxes that light up at sunset, and
@@ -164,7 +191,7 @@ function Cottage() {
       <mesh position={[0, 0.08, 0]} material={toon("#c9c0b2", true)} castShadow receiveShadow>
         <boxGeometry args={[2.22, 0.16, 2.12]} />
       </mesh>
-      <mesh position={[0, 0.73, 0]} material={toon("#f6ecdc", true)} castShadow receiveShadow>
+      <mesh position={[0, 0.73, 0]} rotation={[0, 0, 0.012]} material={paintedToon("#f6ecdc", true)} castShadow receiveShadow>
         <boxGeometry args={[2.1, 1.3, 2.0]} />
       </mesh>
       {/* timber framing: corner posts and a band under the eaves */}
@@ -180,7 +207,10 @@ function Cottage() {
           <boxGeometry args={[2.14, 0.09, 0.06]} />
         </mesh>
       ))}
-      <mesh position={[0, 1.38, 0]} geometry={roof} material={toon("#c8644c")} castShadow />
+      <group position={[0, 1.38, 0]} rotation={[0, 0, -0.018]}>
+        <mesh geometry={roof} material={toon("#b9573f")} castShadow />
+        <Shingles />
+      </group>
       <mesh position={[0, 2.54, 0]} rotation={[Math.PI / 2, 0, 0]} material={toon("#9e4a38")} castShadow>
         <cylinderGeometry args={[0.07, 0.07, 2.56, 8]} />
       </mesh>
@@ -239,7 +269,7 @@ function Windmill() {
       <mesh position={[0, 0.17, 0]} material={stone} castShadow receiveShadow>
         <cylinderGeometry args={[0.78, 0.84, 0.34, 12]} />
       </mesh>
-      <mesh position={[0, 1.35, 0]} material={toon("#efe6d6", true)} castShadow receiveShadow>
+      <mesh position={[0, 1.35, 0]} rotation={[0.012, 0, -0.01]} material={paintedToon("#efe6d6", true)} castShadow receiveShadow>
         <cylinderGeometry args={[0.45, 0.68, 2.4, 10]} />
       </mesh>
       <mesh position={[0, 2.9, 0]} material={toon("#c8644c")} castShadow>
