@@ -2,8 +2,11 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { GARDEN_ITEMS, gardenItem, growGarden, loadGarden, markGardenSeen, streakDays, type Garden } from "@/lib/garden";
-import type { Intensity, SessionLength } from "@/lib/interview/types";
+import { bloomGarden, GARDEN_ITEMS, gardenItem, growGarden, loadGarden, markGardenSeen, streakDays, type Garden } from "@/lib/garden";
+import { loadHistory } from "@/lib/history";
+import { improvementsSince } from "@/lib/improvement";
+import { deliveryStats } from "@/lib/interview/delivery";
+import type { Intensity, SessionLength, TranscriptEntry } from "@/lib/interview/types";
 import { loadStories, storyLines, type SavedStory } from "@/lib/stories";
 import type { CodeLanguage, WorkspaceSnapshot } from "@/lib/workspace/types";
 import { FeedbackReport } from "../FeedbackReport";
@@ -270,6 +273,9 @@ export default function World() {
   // what you've grown on the island, and the stories you've told (both kept in this browser)
   const [garden, setGarden] = useState<Garden>({ grown: 0, seen: 0, log: [] });
   const [grewNow, setGrewNow] = useState<ReturnType<typeof gardenItem> | null>(null);
+  // what got better than last time, if anything (and so bloomed on the island)
+  const [improved, setImproved] = useState<string[]>([]);
+  const scoredTranscript = useRef<TranscriptEntry[] | null>(null);
   const [stories, setStories] = useState<SavedStory[]>([]);
   // the one side panel: chat and code while you're at the table; stories and help any time
   const [panel, setPanel] = useState<PanelTab | null>(null);
@@ -373,16 +379,26 @@ export default function World() {
     if (yourTurn) sound.ambience.current?.chime();
   }, [yourTurn, sound.ambience]);
 
+  useEffect(() => {
+    scoredTranscript.current = convo.scored?.transcript ?? null;
+  }, [convo.scored]);
+
   // a few seconds into the sunset: something new grows on your island, and the report opens
   useEffect(() => {
     if (status !== "report") return;
     const id = window.setTimeout(() => {
       setGrewNow(gardenItem(loadGarden().grown));
-      setGarden(growGarden(type));
+      growGarden(type);
+      // and if a habit got better than last time, wildflowers bloom (this session isn't in the history yet: the
+      // report records it when it opens)
+      const transcript = scoredTranscript.current;
+      const better = transcript ? improvementsSince(loadHistory().at(-1), { stats: deliveryStats(transcript), nervousBefore }) : [];
+      setImproved(better);
+      setGarden(better.length ? bloomGarden() : loadGarden());
       setLingered(true);
     }, 2500);
     return () => clearTimeout(id);
-  }, [status, type]);
+  }, [status, type, nervousBefore]);
 
   // back at the island: new things pop in, then count as seen
   const viewingIsland = mode === "splash" || (mode === "world" && arrived === "world");
@@ -517,6 +533,7 @@ export default function World() {
     setLingered(false);
     setWatchingSunset(false);
     setGrewNow(null);
+    setImproved([]);
     setStories(loadStories()); // the report just saved this session's stories
     setMode("world");
   };
@@ -600,7 +617,7 @@ export default function World() {
           yourTurn={yourTurn}
           evening={evening}
           aside={seated ? (wide ? 0.32 : 0.16) : 0}
-          garden={{ count: viewingIsland ? garden.grown : garden.seen, freshFrom: garden.seen }}
+          garden={{ count: viewingIsland ? garden.grown : garden.seen, freshFrom: garden.seen, blooms: garden.blooms ?? 0 }}
           critter={picked}
           onPickCritter={setCritter}
           onNear={onNear}
@@ -860,6 +877,11 @@ export default function World() {
               <span className="mr-auto flex items-center gap-2 rounded-full bg-[#fffdf8] px-3.5 py-1.5 text-[13.5px] font-bold text-[#3d2a1c] ring-1 ring-[#ead8b8]">
                 <GardenIcon id={grewNow.id} size={20} />
                 New on your island: {grewNow.label}
+              </span>
+            )}
+            {improved.length > 0 && (
+              <span className="flex items-center gap-2 rounded-full bg-[#fdeaf1] px-3.5 py-1.5 text-[13px] text-[#6b3a4a] ring-1 ring-[#f3c9d8]" title="Compared with your last session">
+                <b>Wildflowers bloomed:</b> {improved.join(", ")}
               </span>
             )}
             <NavButton onClick={() => setWatchingSunset(true)}>Watch the sunset</NavButton>

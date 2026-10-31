@@ -13,6 +13,8 @@ export interface Garden {
   /** How many of them you've already watched appear; the rest pop in next time you look at the island. */
   seen: number;
   log: { date: string; type: PrepType; item: string }[];
+  /** Patches of wildflowers, one for each session where you got better at something (see lib/improvement.ts). */
+  blooms?: number;
 }
 
 export const GARDEN_ITEMS = [
@@ -65,6 +67,12 @@ export function growGarden(type: PrepType): Garden {
   const garden = loadGarden();
   const item = gardenItem(garden.grown);
   return save({ grown: garden.grown + 1, seen: garden.seen, log: [...garden.log, { date: new Date().toISOString(), type, item: item.id }] });
+}
+
+/** You improved on something this session: a patch of wildflowers blooms. */
+export function bloomGarden(): Garden {
+  const garden = loadGarden();
+  return save({ ...garden, blooms: (garden.blooms ?? 0) + 1 });
 }
 
 /** You've watched the new things appear. */

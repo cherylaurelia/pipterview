@@ -1,13 +1,13 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import * as THREE from "three";
 import { gardenItem, type GardenItemId } from "@/lib/garden";
-import { BoxLantern, GARDEN_SLOTS, POND, groundY } from "./island";
+import { BoxLantern, GARDEN_SLOTS, POND, groundY, isOpen, nearGardenSlot, rng } from "./island";
 import { duckPath } from "./pond";
 import { Bench } from "./village";
-import { toon } from "./toon";
+import { gradientMap, toon } from "./toon";
 
 // The things your island grows as you practise (one per finished session; see lib/garden.ts). Each is a little toy
 // placed at its slot. New ones pop in with a bouncy grow and a burst of sparkles the first time you see them.
@@ -332,10 +332,57 @@ const MODELS: Record<GardenItemId, () => ReactNode> = {
 /**
  * Everything you've grown, `count` items in all. Items from `freshFrom` on are new since you last looked and pop in.
  */
-export function Garden({ count, freshFrom }: { count: number; freshFrom: number }) {
+/**
+ * Patches of wildflowers, one for each session where you got better at something: little clusters of bright flower
+ * heads scattered over open ground near the paths, in a fixed order so your island always blooms the same way.
+ */
+const BLOOM_SPOTS = (() => {
+  const r = rng(271), out: { x: number; z: number }[] = [];
+  for (let tries = 0; out.length < 40 && tries < 5000; tries++) {
+    const x = (r() - 0.5) * 22, z = (r() - 0.5) * 22;
+    if (Math.hypot(x, z) < 2.6 || !isOpen(x, z, 0.3) || nearGardenSlot(x, z, 1.2)) continue;
+    if (out.some((p) => Math.hypot(p.x - x, p.z - z) < 1.6)) continue;
+    out.push({ x, z });
+  }
+  return out;
+})();
+const BLOOM_COLORS = ["#ff9fc0", "#ffd84a", "#c9a8f0", "#ffffff", "#ff8a6a"];
+
+function Blooms({ count }: { count: number }) {
+  const mesh = useRef<THREE.InstancedMesh>(null);
+  const PER = 14, shown = Math.min(count, BLOOM_SPOTS.length), total = shown * PER;
+  useLayoutEffect(() => {
+    const m = mesh.current;
+    if (!m) return;
+    const r = rng(272), o = new THREE.Object3D(), c = new THREE.Color();
+    for (let i = 0; i < total; i++) {
+      const spot = BLOOM_SPOTS[Math.floor(i / PER)], a = r() * Math.PI * 2, d = Math.sqrt(r()) * 0.6;
+      const x = spot.x + Math.cos(a) * d, z = spot.z + Math.sin(a) * d;
+      o.position.set(x, groundY(x, z) + 0.12 + r() * 0.08, z);
+      const k = 0.8 + r() * 0.5;
+      o.scale.set(k * 1.3, k * 0.45, k * 1.3);
+      o.updateMatrix();
+      m.setMatrixAt(i, o.matrix);
+      m.setColorAt(i, c.set(BLOOM_COLORS[(Math.floor(i / PER) + (i % 3)) % BLOOM_COLORS.length]));
+    }
+    m.count = total;
+    m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  }, [total]);
+  if (!total) return null;
+  return (
+    <instancedMesh ref={mesh} args={[undefined, undefined, BLOOM_SPOTS.length * PER]} castShadow>
+      <sphereGeometry args={[0.08, 10, 8]} />
+      <meshToonMaterial gradientMap={gradientMap()} emissive="#fff0e0" emissiveIntensity={0.2} />
+    </instancedMesh>
+  );
+}
+
+export function Garden({ count, freshFrom, blooms = 0 }: { count: number; freshFrom: number; blooms?: number }) {
   const shown = Math.min(count, GARDEN_SLOTS.length);
   return (
     <>
+      <Blooms count={blooms} />
       {Array.from({ length: shown }, (_, i) => {
         const item = gardenItem(i);
         const fresh = i >= freshFrom;

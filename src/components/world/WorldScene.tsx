@@ -351,7 +351,7 @@ export default function WorldScene({
   /** Seated: how far (radians) to turn right, so the guide shows beside the side panel rather than behind it. */
   aside?: number;
   /** What you've grown on the island by practising; items from `freshFrom` on pop in. */
-  garden: { count: number; freshFrom: number };
+  garden: { count: number; freshFrom: number; blooms: number };
   /** The pond creature you've clicked on (on the island only), if any. */
   critter: CritterPick | null;
   onPickCritter: (pick: CritterPick) => void;
@@ -381,7 +381,7 @@ export default function WorldScene({
       <DayCycle evening={evening} />
 
       <Landscape critters={{ interactive: mode === "world", picked: critter, onPick: onPickCritter }} />
-      <Garden count={garden.count} freshFrom={garden.freshFrom} />
+      <Garden count={garden.count} freshFrom={garden.freshFrom} blooms={garden.blooms} />
       <RoundTable interactive={mode === "world"} yourTurn={yourTurn || evening} onSelect={onSit} />
       <Figure position={[0, 0, -1.15]} rotationY={0} outfit="guide" mood={mood} onPoke={onPokePip} watch={mode === "world" ? watchPlayer : undefined} />
       {/* your chair: you're in it at the table, otherwise it waits empty while you walk about as your chick */}
