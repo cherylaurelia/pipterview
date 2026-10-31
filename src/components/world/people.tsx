@@ -3,7 +3,7 @@
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { useRef, useState } from "react";
 import * as THREE from "three";
-import { gradientMap, toon } from "./toon";
+import { fluffyToon, gradientMap, toon } from "./toon";
 import { breathAt, breathing } from "./checkin";
 import { isDrag } from "./controls";
 
@@ -232,7 +232,7 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
     }
   });
 
-  const bodyMat = toon(pal.body, outfit === "guide"); // Pip stays pale cream in the sunset, as in the logo
+  const bodyMat = fluffyToon(pal.body, outfit === "guide"); // Pip stays pale cream in the sunset, as in the logo
   const beakAt = surface(0, BEAK_Y, -0.004);
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
@@ -271,7 +271,7 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
             const side = i ? 1 : -1;
             return (
               <group key={i} ref={wings[i]} position={[side * (radiusAt(0.4) - 0.02), 0.4, 0.02]}>
-                <mesh geometry={wingGeometry} position={[side * 0.042, -0.075, -0.01]} rotation={[0.3, 0, side * 0.24]} scale={[0.051, 0.103, 0.105]} material={toon(pal.wing, outfit === "guide")} castShadow />
+                <mesh geometry={wingGeometry} position={[side * 0.042, -0.075, -0.01]} rotation={[0.3, 0, side * 0.24]} scale={[0.051, 0.103, 0.105]} material={fluffyToon(pal.wing, outfit === "guide")} castShadow />
               </group>
             );
           })}
