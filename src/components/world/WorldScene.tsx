@@ -8,7 +8,7 @@ import { daylight } from "./daylight";
 import { Effects } from "./effects";
 import { Garden } from "./garden";
 import { COLORS, CROWNS, GRASS_LAYER, Landscape } from "./landscape";
-import { goHomeSpot, held, player, walkTo, type Nearby } from "./explore";
+import { goHomeSpot, held, player, seatAt, walkTo, type Nearby } from "./explore";
 import { surfaceY } from "./island";
 import { Figure, RoundTable, type Mood } from "./people";
 import { Player, TableMarker } from "./player";
@@ -61,8 +61,17 @@ function goalFor(mode: WorldMode, t: number, view: UserView, aside: number, pos:
     return SPLASH.fov;
   }
   if (mode === "world") {
-    const { az, el, dist } = view;
+    let { az, el, dist } = view;
     look.set(player.pos.x, surfaceY(player.pos.x, player.pos.z) + ISLAND.lift, player.pos.z);
+    // sitting on a bench: the camera settles in just behind you, looking out at the view with you (your own angle
+    // comes back when you get up)
+    const seat = player.sitting ? seatAt(player.sitting) : undefined;
+    if (seat) {
+      az = seat.heading + Math.PI;
+      el = 0.26;
+      dist = 4.2;
+      look.y = seat.y + 0.6;
+    }
     // if a tree (or Pip, or the table) is between you and the camera, the camera rises over it, and only if that's not
     // enough does it come in closer, rather than sitting inside the leaves
     let nearest = 1;
