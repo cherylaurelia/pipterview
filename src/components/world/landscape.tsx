@@ -79,7 +79,21 @@ function Grass() {
   const blades = useRef<THREE.InstancedMesh>(null);
   const flowers = useRef<THREE.InstancedMesh>(null);
   const fringe = useRef<THREE.InstancedMesh>(null);
-  const BLADES = 8000, FLOWERS = 2400, FRINGE = 2600;
+  const tufts = useRef<THREE.InstancedMesh>(null);
+  const BLADES = 8000, FLOWERS = 2400, FRINGE = 2600, TUFTS = 3200;
+  // a tuft: six short, wide blades splayed out from one spot, darker at the root, for a soft, thick carpet underfoot
+  const tuftGeo = useMemo(() => {
+    const parts = Array.from({ length: 6 }, (_, i) => {
+      const a = (i / 6) * Math.PI * 2, h = 0.1 + (i % 3) * 0.025;
+      const g = new THREE.ConeGeometry(0.03, h, 4).translate(0, h / 2, 0).rotateZ(0.35).rotateY(a).translate(Math.cos(a) * 0.025, 0, -Math.sin(a) * 0.025);
+      g.deleteAttribute("uv");
+      const pos = g.attributes.position, colors = new Float32Array(pos.count * 3);
+      for (let k = 0; k < pos.count; k++) colors.fill(0.6 + (pos.getY(k) / h) * 0.55, k * 3, k * 3 + 3);
+      g.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      return g;
+    });
+    return mergeGeometries(parts);
+  }, []);
   // a soft four-sided blade, darker at the root and catching the light at the tip
   const bladeGeo = useMemo(() => {
     const g = new THREE.ConeGeometry(0.034, 0.2, 4).translate(0, 0.1, 0);
@@ -107,7 +121,17 @@ function Grass() {
       mesh.instanceMatrix.needsUpdate = true;
     };
     // the grass lives on layer 1, which the pond's reflection (and click picking) skip: thousands of blades for little gain
-    for (const mesh of [blades.current, flowers.current, fringe.current]) mesh?.layers.set(GRASS_LAYER);
+    for (const mesh of [blades.current, flowers.current, fringe.current, tufts.current]) mesh?.layers.set(GRASS_LAYER);
+    if (tufts.current) {
+      const mesh = tufts.current;
+      scatter(mesh, TUFTS, (i) => {
+        e.set(0, r() * Math.PI * 2, 0);
+        const k = 0.8 + r() * 0.7;
+        s.set(k, k * (0.7 + r() * 0.5), k);
+        mesh.setColorAt(i, c.setHSL(0.24 + r() * 0.04, 0.55 + r() * 0.15, 0.46 + r() * 0.12));
+      });
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    }
     if (blades.current) {
       const mesh = blades.current;
       scatter(mesh, BLADES, (i) => {
@@ -165,6 +189,7 @@ function Grass() {
     <>
       <instancedMesh ref={blades} args={[bladeGeo, swayingToon(true), BLADES]} receiveShadow />
       <instancedMesh ref={fringe} args={[bladeGeo, swayingToon(true), FRINGE]} />
+      <instancedMesh ref={tufts} args={[tuftGeo, swayingToon(true), TUFTS]} receiveShadow />
       <instancedMesh ref={flowers} args={[undefined, undefined, FLOWERS]}>
         <sphereGeometry args={[0.024, 8, 6]} />
         <meshToonMaterial gradientMap={gradientMap()} emissive="#fff3d0" emissiveIntensity={0.15} />
