@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { bloomGarden, GARDEN_ITEMS, gardenItem, growGarden, loadGarden, markGardenSeen, MAX_BLOOMS, streakDays, type Garden } from "@/lib/garden";
 import { loadHistory } from "@/lib/history";
 import { improvementsSince } from "@/lib/improvement";
@@ -254,6 +254,15 @@ function Slider({ label, value, onChange, disabled }: { label: string; value: nu
   );
 }
 
+// a phone: narrow, or a touch screen (a phone on its side is wide but short)
+const PHONE = "(max-width: 639px), (pointer: coarse)";
+const isPhone = () => window.matchMedia(PHONE).matches;
+function onPhoneChange(change: () => void) {
+  const q = window.matchMedia(PHONE);
+  q.addEventListener("change", change);
+  return () => q.removeEventListener("change", change);
+}
+
 /**
  * The 3D practice world: a welcome window over the scene where you pick a kind of prep, then the open field with you
  * and your guide at a table. Click the table and the camera takes your seat; a real conversation with the
@@ -312,7 +321,7 @@ export default function World() {
   const [micAsk, setMicAsk] = useState(false);
   const [graphics, setGraphics] = useState<QualitySetting>("auto");
   // whether this device can show the 3D island (if not, practice still works over a plain backdrop)
-  const [webgl, setWebgl] = useState(true);
+  const [scene, setScene] = useState<"ok" | "unsupported" | "crashed">("ok"); // whether the 3D island can be shown
   // at the table, before the first question: how nervous you are (one tap), and an optional breather with Pip
   const [checkIn, setCheckIn] = useState<"ask" | "breathe" | null>(null);
   const [nervousBefore, setNervousBefore] = useState<number>();
@@ -322,7 +331,7 @@ export default function World() {
     setStories(loadStories());
     setTourDone(loadTourDone());
     setGraphics(loadQuality());
-    setWebgl(canUseWebGL());
+    setScene(canUseWebGL() ? "ok" : "unsupported");
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
@@ -379,8 +388,8 @@ export default function World() {
   // the guide's body language: nods while you talk, tilts its head while thinking, bounces when you're done
   const mood: Mood =
     checkIn === "breathe" ? "breathing"
-    : dozing ? "dozing"
-    : poked ? "happy"
+    : poked ? "happy" // before dozing, so coming back wakes Pip at once
+    : dozing && mode === "world" ? "dozing"
     : status === "speaking" ? "speaking"
     : status === "listening" || status === "your-turn" ? "listening"
     : status === "thinking" || status === "connecting" ? "thinking"
@@ -432,11 +441,11 @@ export default function World() {
   const streak = garden.log.length ? streakDays(garden.log) : 0; // (the log is empty when prerendering, so no clock read then)
 
   // the tour bubble for where you are, if you haven't seen it
+  const narrow = useSyncExternalStore(onPhoneChange, isPhone, () => false);
   const tourStep: TourStep | null = (() => {
-    if (!tourDone || micAsk || panel === "help") return null;
+    if (!tourDone || micAsk || checkIn || panel === "help") return null;
     const open = (step: TourStep) => !tourDone.includes(step);
     // on a phone the welcome bubble would cover the welcome card, which already says the same thing
-    const narrow = window.innerWidth < 640;
     if (mode === "splash" && step === "pick" && open("welcome") && !narrow) return "welcome";
     if (mode === "world" && arrived === "world" && open("island")) return "island";
     if (seated && open("table")) return "table";
@@ -474,9 +483,10 @@ export default function World() {
 
   // the stream's babble follows where you are (at the table, it's a soft background)
   useEffect(() => {
-    const id = window.setInterval(() => sound.ambience.current?.setWater(waterNearness(player.pos.x, player.pos.z)), 300);
+    // off the island, where you walked last doesn't count: you're at the table (or looking at it)
+    const id = window.setInterval(() => sound.ambience.current?.setWater(mode === "world" ? waterNearness(player.pos.x, player.pos.z) : waterNearness(0, 0)), 300);
     return () => window.clearInterval(id);
-  }, [sound.ambience]);
+  }, [sound.ambience, mode]);
 
   const doCritter = (pick: CritterPick, action: CritterAction) => {
     askCritter(pick, action.label);
@@ -491,6 +501,11 @@ export default function World() {
   const toggleTab = (tab: "island" | "stories" | "help") => {
     if (tab === "stories") setStories(loadStories());
     setPanel((p) => (p === tab ? (seated ? tableTab : null) : tab));
+  };
+  // a door only ever opens what's behind it: going in again shouldn't close it
+  const openTab = (tab: "island" | "stories" | "help") => {
+    if (tab === "stories") setStories(loadStories());
+    setPanel(tab);
   };
 
   useEffect(() => {
@@ -530,14 +545,15 @@ export default function World() {
   };
 
   useEffect(() => {
-    if (!seated) return;
+    if (!seated || checkIn) return; // the check-in and the breather aren't practice time
     const id = window.setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(id);
-  }, [seated]);
+  }, [seated, checkIn]);
 
   // straight to your seat at the table (practice first); exploring the island is there whenever you want it
   const go = (t: PrepType, explore: boolean) => {
     if (explore) return setMode("world");
+    setCritter(null);
     setPanel(t === "technical" ? "code" : "chat");
     setMode("seated");
   };
@@ -547,6 +563,7 @@ export default function World() {
     go(t, explore);
   };
   const sitDown = () => {
+    setCritter(null);
     setPanel(tableTab);
     setMode("seated");
   };
@@ -554,6 +571,7 @@ export default function World() {
   const clearSession = () => {
     setCheckIn(null);
     setNervousBefore(undefined);
+    setShowClock(false); // hidden again until you ask, each session
     reset();
     setElapsed(0);
     setLingered(false);
@@ -588,7 +606,7 @@ export default function World() {
         sitDown();
       } else if ((key === "e" || key === "enter") && byDoor) {
         e.preventDefault();
-        toggleTab(DOOR_ACTION[byDoor.id].tab);
+        openTab(DOOR_ACTION[byDoor.id].tab);
       } else if ((key === "e" || key === "enter") && bySeat) {
         e.preventDefault();
         if (bySeat.sitting) getUp();
@@ -621,6 +639,7 @@ export default function World() {
   ];
   const goHome = () => {
     if (mode === "seated") standUp();
+    setCritter(null);
     setPanel(null);
     setStep("pick");
     setMode("splash");
@@ -628,6 +647,7 @@ export default function World() {
   const chatProps = {
     messages: convo.messages,
     status: convo.status,
+    ready: convo.ready,
     liveText: convo.liveText,
     notice: convo.notice,
     error: convo.error,
@@ -651,11 +671,11 @@ export default function World() {
       // the side panel's width, so the status banner can centre itself in the space left over
       style={{ "--panel-w": seated ? (wide ? "min(680px, 56vw)" : "440px") : "0px" } as CSSProperties}
     >
-      <div className="absolute inset-0" role="img" aria-label={`A small floating island with a pond, a windmill and a cottage, where ${GUIDE_NAME} the chick waits at a table to practise interviews with you.`}>
-        {!webgl ? (
-          <SceneFallback mode={mode} onArrive={onArrive} reason="unsupported" />
+      <div className="absolute inset-0" role={scene === "ok" ? "img" : undefined} aria-label={scene !== "ok" ? undefined : `A small floating island with a pond, a windmill and a cottage, where ${GUIDE_NAME} the chick waits at a table to practise interviews with you.`}>
+        {scene !== "ok" ? (
+          <SceneFallback mode={mode} onArrive={onArrive} reason={scene} />
         ) : (
-          <SceneBoundary fallback={<SceneFallback mode={mode} onArrive={onArrive} reason="crashed" />}>
+          <SceneBoundary onCrash={() => setScene("crashed")}>
             <WorldScene
               mode={mode}
               mood={mood}
@@ -713,8 +733,9 @@ export default function World() {
                 <NavButton tone="yellow" onClick={() => choose("behavioral")} className="w-full py-3 text-[16px]">
                   Start practising
                 </NavButton>
-                <p className={`-mt-1 text-center ${webgl ? "" : "hidden"}`}>
-                  <button onClick={() => choose(type, true)} className="text-[13px] font-bold text-[#8a6a4a] underline-offset-2 hover:underline">
+                <p className={`-mt-1 text-center ${scene === "ok" ? "" : "hidden"}`}>
+                  {/* go, not choose: exploring doesn't need the resume step */}
+                  <button onClick={() => go(type, true)} className="text-[13px] font-bold text-[#8a6a4a] underline-offset-2 hover:underline">
                     or wander the island first
                   </button>
                 </p>
@@ -784,12 +805,12 @@ export default function World() {
 
       {/* 2. on the island the world is the interface: just a word about how to get about, when you first arrive, and a
           prompt when you walk up to the table (the creatures' actions show below, when you're by one) */}
-      <TouchStick show={mode === "world" && arrived === "world"} />
-      <IslandHint show={mode === "world" && arrived === "world" && !picked && !atTable && !bySeat && !byDoor} until={hintUntil} />
+      <TouchStick show={scene === "ok" && mode === "world" && arrived === "world"} />
+      <IslandHint show={scene === "ok" && mode === "world" && arrived === "world" && !picked && !atTable && !bySeat && !byDoor} until={hintUntil} />
       {byDoor && !picked && (
         <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-3">
           <button
-            onClick={() => toggleTab(DOOR_ACTION[byDoor.id].tab)}
+            onClick={() => openTab(DOOR_ACTION[byDoor.id].tab)}
             className="pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#fff8ec]/95 py-2 pr-5 pl-2 text-[15px] font-bold text-[#4a3424] shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur transition-colors hover:bg-[#fff0d4]"
           >
             <Key>E</Key>
@@ -867,8 +888,8 @@ export default function World() {
                   key={convo.question?.id ?? "starter"}
                   question={convo.question}
                   guideLine={lastGuideLine}
-                  canAsk={convo.status === "your-turn" || convo.status === "speaking" || convo.status === "listening"}
-                  onAskHint={() => void convo.answer("Could I have a small hint?")}
+                  canAsk={convo.ready}
+                  onAskHint={convo.askHint}
                   onChange={(text, language) => {
                     code.current.text = text;
                     code.current.language = language;
@@ -910,7 +931,7 @@ export default function World() {
                 {gentle ? (
                   "Take your time"
                 ) : (
-                  <button onClick={() => setShowClock((v) => !v)} className="underline-offset-2 hover:underline" aria-pressed={showClock}>
+                  <button onClick={() => setShowClock((v) => !v)} className="underline-offset-2 hover:underline">
                     {showClock ? clock : "Show timer"}
                   </button>
                 )}

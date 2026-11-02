@@ -41,16 +41,17 @@ export function SceneFallback({ mode, onArrive, reason }: { mode: WorldMode; onA
   );
 }
 
-/** Catches a crash inside the 3D scene and shows `fallback` instead of a blank page. */
-export class SceneBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { crashed: boolean }> {
+/** Catches a crash inside the 3D scene: shows nothing in its place, and tells the page so it can show the fallback. */
+export class SceneBoundary extends Component<{ onCrash: () => void; children: ReactNode }, { crashed: boolean }> {
   state = { crashed: false };
   static getDerivedStateFromError() {
     return { crashed: true };
   }
   componentDidCatch(error: unknown) {
     console.error("3D scene crashed", error);
+    this.props.onCrash();
   }
   render() {
-    return this.state.crashed ? this.props.fallback : this.props.children;
+    return this.state.crashed ? null : this.props.children;
   }
 }
