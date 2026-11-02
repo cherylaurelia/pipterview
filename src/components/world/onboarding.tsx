@@ -101,6 +101,39 @@ export function TourBubble({ step, touch, onNext, onSkip, className = "" }: { st
   );
 }
 
+/** Leaving the table mid-session ends it: said plainly, with the way to keep what you've said (get feedback) first. */
+export function LeaveCheck({ canFinish, onStay, onFinish, onLeave }: { canFinish: boolean; onStay: () => void; onFinish: () => void; onLeave: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onStay();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onStay]);
+  return (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#3d2a1c]/20 px-4" role="alertdialog" aria-label="Leave this session?">
+      <Panel title="Leave this session?" tone="active" className="w-[min(420px,100%)]">
+        <div className="flex gap-3 px-3 pt-2 pb-3">
+          <Portrait size={52} />
+          <p className="text-[13.5px] leading-snug text-[#1b1d22]">
+            Leaving ends this session, and what you&apos;ve said so far won&apos;t be kept.
+            {canFinish ? " Want feedback on it first? That counts as a finished session, and it grows something on your island." : ""}
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2 px-2 pb-2">
+          <NavButton onClick={onLeave}>Leave anyway</NavButton>
+          <NavButton onClick={onStay} tone={canFinish ? "plain" : "yellow"} autoFocus={!canFinish}>
+            Stay
+          </NavButton>
+          {canFinish && (
+            <NavButton tone="yellow" onClick={onFinish} autoFocus>
+              Get feedback
+            </NavButton>
+          )}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 /** Asked once, before the browser's own microphone prompt, so it isn't a surprise. */
 export function MicPrimer({ onMic, onType }: { onMic: () => void; onType: () => void }) {
   return (
@@ -144,8 +177,8 @@ export function StatusBanner({ status, handsFree, holding, touch }: { status: Co
   const line = lines[status];
   if (!line) return null;
   return (
-    // centred in the space left of the side panel (its width comes in as --panel-w)
-    <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center px-4 sm:top-5 sm:right-[var(--panel-w,440px)]">
+    // under the dock's icons, centred in the space left of the side panel (its width comes in as --panel-w)
+    <div className="pointer-events-none absolute inset-x-0 top-16 z-10 flex justify-center px-4 sm:right-[var(--panel-w,440px)]">
       <p
         role="status"
         aria-live="polite"
@@ -159,16 +192,19 @@ export function StatusBanner({ status, handsFree, holding, touch }: { status: Co
   );
 }
 
-const HELP: [string, ReactNode][] = [
-  ["Start", <>Walk up to the table and press <b>E</b> (or just click it); from the welcome screen, <b>Start practising</b> takes you straight there. {GUIDE_NAME} checks in, says hello and asks the first question.</>],
-  ["Answer", <>Talk out loud, or type in the box. With <b>Auto-send: on</b>, a pause sends your answer; saying &ldquo;that&apos;s my answer&rdquo; sends it right away.</>],
-  ["Need time", <>Press <b>I need a moment</b> and {GUIDE_NAME} waits until you speak again. Asking for a moment is normal in real interviews too.</>],
-  ["Keys", <><b>Space</b>: talk, or send now while talking. <b>E</b>: sit at the table or on a bench. <b>1 2 3</b>: a creature&apos;s actions. <b>Esc</b>: close windows.</>],
-  ["Finish", <>Press <b>I&apos;m done</b> once you&apos;ve answered at least once, for feedback on what you&apos;ve said. Every finished session grows something on your island, and getting better at something makes wildflowers bloom.</>],
-  ["Get about", <>On the island: <b>WASD</b> or the arrow keys to walk (Shift to run), or click where you want to go. Drag to look, scroll to zoom, <b>R</b> to come back to the table. Walk up to a creature and press <b>1</b>, <b>2</b> or <b>3</b>.</>],
-  ["Stories", <>The stories you tell are saved here, with tips. If you freeze, {GUIDE_NAME} can remind you of one.</>],
-  ["Sound", <><b>Mute {GUIDE_NAME}</b> to read instead of listen. The speaker in the dock sets the volumes and the graphics (Lite for older laptops).</>],
-];
+/** The help, row by row (on touch screens, taps and the stick rather than keys). */
+function helpRows(touch: boolean): [string, ReactNode][] {
+  return [
+    ["Start", <>{touch ? <>Walk up to the table and tap <b>Sit down</b></> : <>Walk up to the table and press <b>E</b> (or just click it)</>}; from the welcome screen, <b>Start practising</b> takes you straight there. {GUIDE_NAME} checks in, says hello and asks the first question.</>],
+    ["Answer", <>Talk out loud, or type in the box. With <b>Auto-send: on</b>, a pause sends your answer; saying &ldquo;that&apos;s my answer&rdquo; sends it right away.</>],
+    ["Need time", <>Press <b>I need a moment</b> and {GUIDE_NAME} waits until you speak again. Asking for a moment is normal in real interviews too.</>],
+    ...(touch ? [] : [["Keys", <><b>Space</b>: talk, or send now while talking. <b>Enter</b>: send what you&apos;ve typed (<b>Shift+Enter</b> for a new line). <b>E</b>: sit at the table or on a bench. <b>1 2 3</b>: a creature&apos;s actions. <b>Esc</b>: close windows.</>] as [string, ReactNode]]),
+    ["Finish", <>Press <b>I&apos;m done</b> once you&apos;ve answered at least once, for feedback on what you&apos;ve said. Every finished session grows something on your island, and getting better at something makes wildflowers bloom. <b>Leave the table</b> ends a session without feedback.</>],
+    ["Get about", touch ? <>On the island: the stick to walk (push it all the way to run), or tap where you want to go. Drag to look, pinch to zoom. Walk up to a creature to see what you can do together.</> : <>On the island: <b>WASD</b> or the arrow keys to walk (Shift to run), or click where you want to go. Drag to look, scroll to zoom, <b>R</b> to come back to the table. Walk up to a creature and press <b>1</b>, <b>2</b> or <b>3</b>.</>],
+    ["Stories", <>The stories you tell are saved here, with tips. If you freeze, {GUIDE_NAME} can remind you of one.</>],
+    ["Sound", <><b>Mute {GUIDE_NAME}</b> to read instead of listen. The speaker in the dock sets the volumes and the graphics (Lite for older laptops).</>],
+  ];
+}
 
 const AI_LABEL: Record<string, string> = {
   live: "Claude (live)",
@@ -200,11 +236,11 @@ function SetupStatus() {
 }
 
 /** The controls, in one place. */
-export function HelpPanel({ onReplayTour }: { onReplayTour: () => void }) {
+export function HelpPanel({ touch, onReplayTour }: { touch: boolean; onReplayTour: () => void }) {
   return (
     <div className="retro-scroll min-h-0 flex-1 overflow-y-auto">
       <dl className="space-y-2.5 px-1 py-1 text-[13.5px] leading-snug">
-        {HELP.map(([label, text]) => (
+        {helpRows(touch).map(([label, text]) => (
           <div key={label} className="flex gap-3">
             <dt className="w-[86px] shrink-0 font-bold text-[#4a3424]">{label}</dt>
             <dd className="text-[#3d2a1c]">{text}</dd>
