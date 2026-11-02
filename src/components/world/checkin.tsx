@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NervousnessScale } from "../room/NervousnessScale";
 import { NavButton, Panel, Portrait } from "./retro";
 import { GUIDE_NAME } from "./script";
@@ -29,8 +29,12 @@ export function breathAt(seconds: number) {
 export function CheckIn({ onDone, onBreathe }: { onDone: (nervous: number | null) => void; onBreathe: (nervous: number | null) => void }) {
   const [level, setLevel] = useState<number>();
   const high = (level ?? 0) >= 4;
+  // keyboard focus comes into the check-in (rather than staying on the button that started the session), without
+  // landing on any one answer
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => box.current?.focus(), []);
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#3d2a1c]/15 px-4" role="dialog" aria-label="Before we start">
+    <div ref={box} tabIndex={-1} className="absolute inset-0 z-30 flex items-center justify-center bg-[#3d2a1c]/15 px-4 outline-none" role="dialog" aria-label="Before we start">
       <Panel title="Before we start" className="w-[min(460px,100%)]">
         <div className="flex gap-3 px-3 pt-2 pb-3">
           <Portrait size={52} />
@@ -103,7 +107,7 @@ export function BreatheWithPip({ onDone }: { onDone: () => void }) {
         <p className="text-[12.5px] leading-snug text-[#6b5640]">
           {finished ? "Your heart's had a moment to settle. Go when you're ready." : `In for four, hold, out for four, hold. ${GUIDE_NAME} will breathe with you.`}
         </p>
-        <NavButton tone="yellow" onClick={onDone} className="mt-3">
+        <NavButton tone="yellow" onClick={onDone} className="mt-3" autoFocus>
           I&apos;m ready
         </NavButton>
       </div>
