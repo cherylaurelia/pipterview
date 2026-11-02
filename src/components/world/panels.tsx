@@ -64,6 +64,14 @@ export function ChatPanel({
 }) {
   const [draft, setDraft] = useState("");
   const list = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
+  // the answer box grows with what you write (up to a few lines, then it scrolls)
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
   const listening = status === "listening";
   const waiting = status === "connecting" || status === "thinking" || status === "scoring";
   // Hands-free keeps the mic open during your turn, so typing (which replaces what it heard) stays available.
@@ -89,8 +97,8 @@ export function ChatPanel({
       </div>
       <div ref={list} className="retro-scroll min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fbf8f2] px-4 py-4" style={sunken}>
         {messages.map((m, i) => (
-          <div key={i} className={m.from === "you" ? "border-l-[3px] border-[#a9c8e6] pl-3" : ""}>
-            <p className={`mb-0.5 flex items-center gap-1.5 text-[12px] font-bold ${m.from === "guide" ? "text-[#1d2f5a]" : "text-[#2c5aa0]"}`}>
+          <div key={i} className={m.from === "you" ? "border-l-[3px] border-[#f0c987] pl-3" : ""}>
+            <p className={`mb-0.5 flex items-center gap-1.5 text-[12px] font-bold ${m.from === "guide" ? "text-[#3d2a1c]" : "text-[#8a4b00]"}`}>
               {m.from === "guide" && <Portrait size={18} />}
               {m.from === "guide" ? GUIDE_NAME : "You"}
             </p>
@@ -113,7 +121,7 @@ export function ChatPanel({
           </p>
         )}
         {status === "error" && (
-          <div className="border border-[#d9534f] bg-[#fdf0ef] px-3 py-2.5 text-[13px] text-[#7a1f12]">
+          <div className="rounded-xl border border-[#e8a39f] bg-[#fdf0ef] px-3 py-2.5 text-[13px] text-[#7a1f12]">
             <p className="mb-2">{error ?? "Something went wrong."} Your conversation so far is kept.</p>
             <NavButton onClick={onRetry}>Try again</NavButton>
           </div>
@@ -124,7 +132,7 @@ export function ChatPanel({
       {listening && handsFree && (
         <div className="mt-[4px] flex items-center gap-2 px-1">
           <div className="h-[10px] flex-1 bg-white" style={sunken} aria-hidden>
-            <div className="h-full bg-[#4a7bd0] transition-[width] duration-100" style={{ width: `${silenceProgress * 100}%` }} />
+            <div className="h-full bg-[#e0a43a] transition-[width] duration-100" style={{ width: `${silenceProgress * 100}%` }} />
           </div>
           {!holding && silenceProgress > 0 && (
             <NavButton type="button" onClick={onKeepThinking} className="shrink-0 px-2 py-0.5 text-[12px]">
@@ -136,22 +144,30 @@ export function ChatPanel({
 
       {/* the answer bar: type on top, voice controls underneath (one row overflowed the window) */}
       <form
-        className="mt-[4px] flex items-center gap-1.5 px-0.5 pt-0.5"
+        className="mt-[4px] flex items-end gap-1.5 px-0.5 pt-0.5"
         onSubmit={(e) => {
           e.preventDefault();
           send();
         }}
       >
-        <input
+        {/* Enter sends, Shift+Enter starts a new line */}
+        <textarea
+          ref={box}
+          rows={1}
           value={draft}
           onChange={(e) => {
             setDraft(e.target.value);
             onTyping();
           }}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+            e.preventDefault();
+            send();
+          }}
           disabled={listening && !handsFree}
           aria-label="Your answer"
           placeholder={listening && !handsFree ? "Listening…" : open ? "Type a response…" : `Type now, send when ${GUIDE_NAME}'s done`}
-          className="min-w-0 flex-1 bg-[#fbf8f2] px-2.5 py-1.5 text-[14px] text-[#1b1d22] outline-none placeholder:text-[#8f8d88] disabled:bg-[#efeee9]"
+          className="retro-scroll max-h-36 min-w-0 flex-1 resize-none bg-[#fbf8f2] px-2.5 py-1.5 text-[14px] leading-snug text-[#1b1d22] outline-none placeholder:text-[#8f8d88] disabled:bg-[#efeee9]"
           style={sunken}
         />
         {(!listening || handsFree) && (

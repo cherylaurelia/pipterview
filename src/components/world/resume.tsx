@@ -49,7 +49,7 @@ export function ResumeStep({
   return (
     <div className="space-y-3 px-3 pt-1 pb-3 text-[13.5px] text-[#3c3a36]">
       <p>
-        <b>All optional.</b> Add your resume and I&apos;ll ask about your own projects, including the bits that are just kind of
+        <b>All optional.</b> Add your resume and I&apos;ll ask about your own projects, including the bits that are just kind of{" "}
         <i>there</i>. Add a job posting and the questions will fit the role. Skip it and you can talk about any project you like.
       </p>
 
@@ -76,7 +76,12 @@ export function ResumeStep({
           </div>
         ) : (
           <>
-            <input type="file" accept="application/pdf" onChange={(e) => onFile(e.target.files?.[0])} className="block w-full text-[12.5px]" />
+            {/* the browser's own file button doesn't match anything here, so it hides inside a friendlier one */}
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-[13.5px] font-bold text-[#4a3424] ring-1 ring-[#ead7b8] transition-colors hover:bg-[#fff4df] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[#8a4b00]">
+              Upload a PDF
+              <span className="font-normal text-[#8a6a4a]">(up to 5 MB)</span>
+              <input type="file" accept="application/pdf" onChange={(e) => onFile(e.target.files?.[0])} className="sr-only" />
+            </label>
             <textarea
               value={draft.resumeText}
               onChange={(e) => onChange({ ...draft, resumeText: e.target.value })}

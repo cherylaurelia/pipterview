@@ -69,6 +69,7 @@ export function FeedbackReport({
   againHref,
   island,
   embedded = false,
+  onAgain,
 }: {
   feedback: Feedback;
   state: SessionState;
@@ -81,6 +82,8 @@ export function FeedbackReport({
   island?: IslandSummary;
   /** Shown inside the world, which supplies its own header and buttons. */
   embedded?: boolean;
+  /** Inside the world: start another round straight away, at a suggested pressure. */
+  onAgain?: (intensity: Intensity) => void;
 }) {
   const type = getInterviewType(state.typeId);
   const rubric = rubricFor(state.typeId, state.candidate?.role);
@@ -527,6 +530,15 @@ export function FeedbackReport({
             <a href={againHref ?? `/interview/${state.typeId}`} className="shrink-0 rounded-full bg-[#ffc95c] px-5 py-2 text-[14px] font-bold text-[#3d2a14]">
               Practise again
             </a>
+          )}
+          {/* the suggestion, one press away (another round at the same level is already in the bar at the top) */}
+          {embedded && onAgain && (nextIntensity || (needsSupport && state.settings.intensity !== "gentle")) && (
+            <button
+              onClick={() => onAgain(nextIntensity ?? "gentle")}
+              className="shrink-0 rounded-full bg-white px-5 py-2 text-[14px] font-bold text-[#3d2a14] ring-1 ring-[#ead7b8] hover:bg-[#fff4df]"
+            >
+              {nextIntensity ? `Try ${INTENSITY_OPTIONS.find((o) => o.value === nextIntensity)?.label.toLowerCase()}` : "Go gentle"}
+            </button>
           )}
         </section>
 
