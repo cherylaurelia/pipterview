@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GARDEN_ITEMS, gardenItem, growGarden, loadGarden, markGardenSeen, streakDays } from "./garden";
+import { bloomGarden, GARDEN_ITEMS, gardenItem, growGarden, loadGarden, markGardenSeen, MAX_BLOOMS, streakDays } from "./garden";
 
 describe("island garden", () => {
   beforeEach(() => {
@@ -15,6 +15,14 @@ describe("island garden", () => {
     expect(g.log.map((e) => e.item)).toEqual(["flowerbed", "sunflowers"]);
     expect(markGardenSeen().seen).toBe(2);
     expect(loadGarden().seen).toBe(2);
+  });
+
+  it("keeps your wildflowers when the next thing grows, up to what the island has room for", () => {
+    bloomGarden();
+    bloomGarden();
+    expect(growGarden("behavioral").blooms).toBe(2);
+    for (let i = 0; i < MAX_BLOOMS + 5; i++) bloomGarden();
+    expect(loadGarden().blooms).toBe(MAX_BLOOMS);
   });
 
   it("keeps growing after the full set", () => {

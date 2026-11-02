@@ -11,15 +11,16 @@ const SECTIONS: [string, React.ReactNode][] = [
     "What stays on your computer",
     <>
       Everything pipterview remembers lives only in your browser: your island and what you&apos;ve grown, your story bank, your
-      practice history (scores, nerves check-ins, delivery habits), your resume text if you add one, and your settings. There
-      are no accounts, no cookies and no analytics. You can download, restore or delete all of it from <b>Help → Your data</b>.
+      practice history (scores, nerves check-ins, delivery habits), your resume (text or PDF) and a job description if you add
+      them, and your settings. The one exception is question ratings, which are saved on the server (below). There are no
+      accounts, no cookies and no analytics. You can download, restore or delete all of it from <b>Help → Your data</b>.
     </>,
   ],
   [
     "What gets sent to run an interview",
     <>
       To ask questions and write your feedback, what you say (as text), the code or whiteboard you&apos;re working on, and your
-      resume text if you added one are sent to <b>Anthropic</b>&apos;s Claude API. pipterview&apos;s server doesn&apos;t keep any of
+      resume (its text, or the PDF itself) and job description if you added them are sent to <b>Anthropic</b>&apos;s Claude API. pipterview&apos;s server doesn&apos;t keep any of
       it afterwards, except question ratings you choose to give (below).
     </>,
   ],
@@ -27,8 +28,10 @@ const SECTIONS: [string, React.ReactNode][] = [
     "Rating a question",
     <>
       If you rate a question in your feedback (was it realistic, was it too easy or too hard), that rating, the question&apos;s
-      wording and any comment you write are saved on the server, to improve the question bank. For a question tailored to your
-      resume, the wording can mention things from it, so leave the rating out if you&apos;d rather not share that.
+      wording and any comment you write are saved on the server, to improve the question bank. Ratings and comments are shown,
+      without your name or anything else about you, on a public review page. The wording of a question tailored to your
+      resume isn&apos;t shown there, but your comment is, so don&apos;t put anything in it you wouldn&apos;t want seen. Deleting
+      your data in Help clears this browser only; it doesn&apos;t remove ratings you&apos;ve sent.
     </>,
   ],
   [

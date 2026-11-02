@@ -3,7 +3,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import * as THREE from "three";
-import { gardenItem, type GardenItemId } from "@/lib/garden";
+import { gardenItem, MAX_BLOOMS, type GardenItemId } from "@/lib/garden";
 import { BoxLantern, GARDEN_SLOTS, POND, groundY, isOpen, nearGardenSlot, rng } from "./island";
 import { duckPath } from "./pond";
 import { Bench } from "./village";
@@ -338,7 +338,7 @@ const MODELS: Record<GardenItemId, () => ReactNode> = {
  */
 const BLOOM_SPOTS = (() => {
   const r = rng(271), out: { x: number; z: number }[] = [];
-  for (let tries = 0; out.length < 40 && tries < 5000; tries++) {
+  for (let tries = 0; out.length < MAX_BLOOMS && tries < 5000; tries++) {
     const x = (r() - 0.5) * 22, z = (r() - 0.5) * 22;
     if (Math.hypot(x, z) < 2.6 || !isOpen(x, z, 0.3) || nearGardenSlot(x, z, 1.2)) continue;
     if (out.some((p) => Math.hypot(p.x - x, p.z - z) < 1.6)) continue;
@@ -368,6 +368,7 @@ function Blooms({ count }: { count: number }) {
     m.count = total;
     m.instanceMatrix.needsUpdate = true;
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    m.computeBoundingSphere(); // new patches can be far from the old ones: keep culling from hiding them
   }, [total]);
   if (!total) return null;
   return (

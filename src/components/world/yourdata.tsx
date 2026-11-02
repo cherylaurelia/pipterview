@@ -14,7 +14,9 @@ export function YourData() {
   const [message, setMessage] = useState<string | null>(null);
 
   const download = () => {
-    const url = URL.createObjectURL(new Blob([exportData()], { type: "application/json" }));
+    const result = exportData();
+    if (!result.ok) return setMessage(result.error);
+    const url = URL.createObjectURL(new Blob([result.json], { type: "application/json" }));
     const a = document.createElement("a");
     a.href = url;
     a.download = `pipterview-backup-${new Date().toISOString().slice(0, 10)}.json`;
@@ -40,7 +42,8 @@ export function YourData() {
         {confirming ? (
           <NavButton
             onClick={() => {
-              deleteAllData();
+              const result = deleteAllData();
+              if (!result.ok) return setMessage(result.error);
               window.location.reload();
             }}
             className="text-[#9b2b22]"
