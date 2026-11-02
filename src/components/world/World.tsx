@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { bloomGarden, GARDEN_ITEMS, gardenItem, growGarden, loadGarden, markGardenSeen, MAX_BLOOMS, streakDays, type Garden } from "@/lib/garden";
-import { loadHistory } from "@/lib/history";
+import { loadHistory, type SessionRecord } from "@/lib/history";
 import { improvementsSince } from "@/lib/improvement";
 import { deliveryStats } from "@/lib/interview/delivery";
 import type { Intensity, SessionLength, TranscriptEntry } from "@/lib/interview/types";
@@ -258,6 +258,9 @@ function Slider({ label, value, onChange, disabled }: { label: string; value: nu
   );
 }
 
+/** At most `n` characters, ending in an ellipsis if it was cut. */
+const clip = (text: string, n: number) => (text.length > n ? `${text.slice(0, n - 1).trimEnd()}…` : text);
+
 /** A media query, for useSyncExternalStore. */
 function media(query: string) {
   return {
@@ -338,11 +341,14 @@ export default function World() {
   // at the table, before the first question: how nervous you are (one tap), and an optional breather with Pip
   const [checkIn, setCheckIn] = useState<"ask" | "breathe" | null>(null);
   const [nervousBefore, setNervousBefore] = useState<number>();
+  // your last finished session, for the welcome back (read again whenever you come home)
+  const [lastSession, setLastSession] = useState<SessionRecord>();
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- restore saved progress once */
     setGarden(loadGarden());
     setStories(loadStories());
     setTourDone(loadTourDone());
+    setLastSession(loadHistory().at(-1));
     setGraphics(loadQuality());
     setScene(canUseWebGL() ? "ok" : "unsupported");
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -650,6 +656,7 @@ export default function World() {
   ];
   const goHome = () => {
     if (mode === "seated") standUp();
+    setLastSession(loadHistory().at(-1));
     setCritter(null);
     setPanel(null);
     setStep("pick");
@@ -737,8 +744,23 @@ export default function World() {
                 <h1 className="text-[30px] font-bold leading-none tracking-tight text-[#4a3424]">pipterview <span className="text-[22px] font-normal text-[#c49a5a]">⋆⭒˚.⋆</span></h1>
                 <p className="mt-1 font-script text-[22px] leading-tight text-[#8a6a4a]">An extra view for your interviews.</p>
                 <p className="mt-2 text-[14.5px] leading-relaxed text-[#5a4430]">
-                  I&apos;m {GUIDE_NAME}. Starting is the biggest mountain, so let&apos;s climb it together: one practice interview, out
-                  loud, at a little table on a floating island. Nothing here is life or death.
+                  {!lastSession ? (
+                    <>
+                      I&apos;m {GUIDE_NAME}. Starting is the biggest mountain, so let&apos;s climb it together: one practice interview, out
+                      loud, at a little table on a floating island. Nothing here is life or death.
+                    </>
+                  ) : lastSession.reflection?.trim() ? (
+                    // what you said you'd do differently, brought back when it can help
+                    <>
+                      Welcome back! Your note to self from last time: <b className="text-[#3d2a1c]">&ldquo;{clip(lastSession.reflection.trim(), 140)}&rdquo;</b>
+                      Shall we try it?
+                    </>
+                  ) : (
+                    <>
+                      Welcome back! {garden.grown > 0 ? `${garden.grown} thing${garden.grown === 1 ? "" : "s"} grown so far` : "Good to see you again"}
+                      {streak > 1 ? `, and a ${streak}-day streak` : ""}. One more round grows the {nextItem.label.toLowerCase()}.
+                    </>
+                  )}
                 </p>
               </div>
             </div>
