@@ -437,7 +437,7 @@ export default function World() {
   const viewingIsland = mode === "splash" || (mode === "world" && arrived === "world");
   useEffect(() => {
     if (!viewingIsland || garden.grown <= garden.seen) return;
-    const id = window.setTimeout(() => setGarden(markGardenSeen()), 2500 + (garden.grown - garden.seen) * 600);
+    const id = window.setTimeout(() => setGarden((g) => markGardenSeen(g)), 2500 + (garden.grown - garden.seen) * 600);
     return () => clearTimeout(id);
   }, [viewingIsland, garden.grown, garden.seen]);
   const streak = garden.log.length ? streakDays(garden.log) : 0; // (the log is empty when prerendering, so no clock read then)
@@ -673,7 +673,13 @@ export default function World() {
         {scene !== "ok" ? (
           <SceneFallback mode={mode} onArrive={onArrive} reason={scene} />
         ) : (
-          <SceneBoundary onCrash={() => setScene("crashed")}>
+          <SceneBoundary
+            onCrash={() => {
+              setScene("crashed");
+              setNear(null); // nothing on the island is in reach any more
+              setCritter(null);
+            }}
+          >
             <WorldScene
               mode={mode}
               mood={mood}
@@ -929,7 +935,7 @@ export default function World() {
                 {gentle ? (
                   "Take your time"
                 ) : (
-                  <button onClick={() => setShowClock((v) => !v)} className="underline-offset-2 hover:underline">
+                  <button onClick={() => setShowClock((v) => !v)} className="underline-offset-2 hover:underline" aria-label="Show timer" aria-pressed={showClock}>
                     {showClock ? clock : "Show timer"}
                   </button>
                 )}

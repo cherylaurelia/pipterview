@@ -19,8 +19,8 @@ const SECTIONS: [string, React.ReactNode][] = [
   [
     "What gets sent to run an interview",
     <>
-      To ask questions and write your feedback, what you say (as text), the code or whiteboard you&apos;re working on, and your
-      resume (its text, or the PDF itself) and job description if you added them are sent to <b>Anthropic</b>&apos;s Claude API. pipterview&apos;s server doesn&apos;t keep any of
+      To ask questions and write your feedback, what you say (as text), the code or whiteboard you&apos;re working on, and (for
+      behavioral and resume rounds) your resume, as text or the PDF itself, and job description if you added them are sent to <b>Anthropic</b>&apos;s Claude API. pipterview&apos;s server doesn&apos;t keep any of
       it afterwards, except question ratings you choose to give (below).
     </>,
   ],
@@ -28,8 +28,8 @@ const SECTIONS: [string, React.ReactNode][] = [
     "Rating a question",
     <>
       If you rate a question in your feedback (was it realistic, was it too easy or too hard), that rating, the question&apos;s
-      wording and any comment you write are saved on the server, to improve the question bank. Ratings and comments are shown,
-      without your name or anything else about you, on a public review page. The wording of a question tailored to your
+      wording and any comment you write are saved on the server, to improve the question bank. Ratings and comments are shown on a
+      public review page, with the time each was sent but not your name. The wording of a question tailored to your
       resume isn&apos;t shown there, but your comment is, so don&apos;t put anything in it you wouldn&apos;t want seen. Deleting
       your data in Help clears this browser only; it doesn&apos;t remove ratings you&apos;ve sent.
     </>,

@@ -14,7 +14,10 @@ export function useNativeRunner() {
   useEffect(() => {
     let live = true;
     nativeRunner ??= fetch("/api/status")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`status ${r.status}`); // a failure, not a "no": try again next time
+        return r.json();
+      })
       .then((d: { nativeRunner?: boolean }) => d.nativeRunner === true)
       .catch(() => {
         nativeRunner = null; // a failed check isn't the answer: the next editor to open asks again

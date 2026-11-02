@@ -136,9 +136,9 @@ const POND_FRAGMENT = /* glsl */ `${WATER_COMMON}
     vec3 col = mix(uShallow, uDeep, depth);
 
     // the mirror image of the trees, reeds, ducks and sky, softened and rippled, and stronger at a glancing angle
-    vec2 ruv = vReflect.xy / vReflect.w;
-    ruv += (vec2(pnNoise(vUv * 3.0 + uTime * 0.4), pnNoise(vUv * 3.0 - uTime * 0.35)) - 0.5) * 0.018;
-    if (uReflectOn > 0.0) { // lower quality levels skip the five reflection taps entirely
+    if (uReflectOn > 0.0) { // lower quality levels skip the reflection (its ripple and five taps) entirely
+      vec2 ruv = vReflect.xy / vReflect.w;
+      ruv += (vec2(pnNoise(vUv * 3.0 + uTime * 0.4), pnNoise(vUv * 3.0 - uTime * 0.35)) - 0.5) * 0.018;
       vec3 refl = vec3(0.0);
       for (int i = 0; i < 5; i++) {
         vec2 o = vec2(float(i - 2) * 0.0018, float((i * 3) % 5 - 2) * 0.0018);

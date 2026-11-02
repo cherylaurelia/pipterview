@@ -60,7 +60,7 @@ it("feedback eval", async () => {
   };
   await Promise.all(Array.from({ length: CONCURRENCY }, worker));
   stop();
-  const sum = (k: keyof Omit<Usage, "kind" | "model">) => usage.reduce((s, u) => s + u[k], 0);
+  const sum = (k: keyof Omit<Usage, "kind" | "model" | "partial">) => usage.reduce((s, u) => s + u[k], 0);
 
   const g = grade(results, (typeId) => rubricFor(typeId).map((d) => d.name));
   const date = new Date().toISOString().slice(0, 19).replace("T", " ");
@@ -72,7 +72,7 @@ it("feedback eval", async () => {
   const md = report(g, results, { model: MOCK_ENABLED ? "mock" : (process.env.CLAUDE_MODEL?.trim() || "default"), runs: RUNS, date }) + tokens + failed;
   const dir = path.join(HERE, "results");
   mkdirSync(dir, { recursive: true });
-  const stamp = date.replace(/[: ]/g, "-");
+  const stamp = `${date.replace(/[: ]/g, "-")}-${String(Date.now() % 1000).padStart(3, "0")}`; // ms: runs never share a name
   writeFileSync(path.join(dir, `${stamp}.md`), md);
   writeFileSync(path.join(dir, `${stamp}.json`), JSON.stringify({ grade: g, results, errors }, null, 2));
   console.log("\n" + md);
