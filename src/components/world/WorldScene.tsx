@@ -223,13 +223,15 @@ const clickToWalk: { current: ((e: MouseEvent) => void) | null } = { current: nu
 
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-function CameraRig({ mode, aside, onArrive }: { mode: WorldMode; aside: number; onArrive: (mode: WorldMode) => void }) {
+function CameraRig({ mode, aside, lift, onArrive }: { mode: WorldMode; aside: number; lift: number; onArrive: (mode: WorldMode) => void }) {
   const look = useRef(new THREE.Vector3(0, 0.9, 0));
   const view = useRef<UserView>({ spin: 0, az: ISLAND.az, el: ISLAND.el, dist: ISLAND.dist, yaw: 0, pitch: 0, zoom: 1, lastDrag: 0 });
   useViewControls(mode, view);
   const camera = useThree((s) => s.camera);
+  const size = useThree((s) => s.size);
   useEffect(() => void camera.layers.enable(GRASS_LAYER), [camera]);
   const goal = useRef({ pos: new THREE.Vector3(), look: new THREE.Vector3() });
+  const lifted = useRef(0); // how far the picture is raised right now (it eases towards `lift`)
   // a flight in progress; `from` is filled in on its first frame, from wherever the camera is then
   const tween = useRef<{ t0: number; dur: number; from: { pos: THREE.Vector3; look: THREE.Vector3; fov: number } | null } | null>(null);
   const arrive = useRef(onArrive);
@@ -254,7 +256,8 @@ function CameraRig({ mode, aside, onArrive }: { mode: WorldMode; aside: number; 
       v.pitch -= v.pitch * f;
       v.zoom += (1 - v.zoom) * f;
     }
-    const fov = goalFor(mode, clock.getElapsedTime(), v, aside, g.pos, g.look);
+    // (a raised picture also stands back a little, so the guide fits in the smaller space above the panel)
+    const fov = goalFor(mode, clock.getElapsedTime(), v, aside, g.pos, g.look) * (1 + lifted.current * 1.2);
     const tw = tween.current;
     if (tw) {
       if (reducedMotion()) tw.dur = 1; // asked for less motion mid-flight: finish it now
@@ -277,6 +280,12 @@ function CameraRig({ mode, aside, onArrive }: { mode: WorldMode; aside: number; 
       cam.fov += (fov - cam.fov) * f;
     }
     cam.lookAt(look.current);
+    // raise the picture without tilting the camera: the frame shifts, so the guide stays face-on above the panel
+    lifted.current += (lift - lifted.current) * Math.min(1, dt * 3);
+    if (Math.abs(lifted.current) > 0.001) {
+      const { width, height } = size;
+      cam.setViewOffset(width, height, 0, lifted.current * height, width, height);
+    } else if (cam.view) cam.clearViewOffset();
     cam.updateProjectionMatrix();
   });
   return null;
@@ -350,6 +359,7 @@ export default function WorldScene({
   yourTurn,
   evening,
   aside = 0,
+  lift = 0,
   garden,
   critter,
   onPickCritter,
@@ -368,6 +378,9 @@ export default function WorldScene({
   evening: boolean;
   /** Seated: how far (radians) to turn right, so the guide shows beside the side panel rather than behind it. */
   aside?: number;
+  /** Seated on a narrow screen: how far (a fraction of the screen's height) to raise the picture, so the guide shows above
+   * the panel along the bottom. */
+  lift?: number;
   /** What you've grown on the island by practising; items from `freshFrom` on pop in. */
   garden: { count: number; freshFrom: number; blooms: number };
   /** The pond creature you've clicked on (on the island only), if any. */
@@ -407,7 +420,7 @@ export default function WorldScene({
       <Player active={mode === "world"} visible={mode !== "seated"} onNear={onNear} onStep={onStep} />
       <TableMarker visible={mode === "world"} />
 
-      <CameraRig mode={mode} aside={aside} onArrive={onArrive} />
+      <CameraRig mode={mode} aside={aside} lift={lift} onArrive={onArrive} />
       <Effects />
     </Canvas>
   );
