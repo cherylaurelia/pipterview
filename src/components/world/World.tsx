@@ -254,7 +254,10 @@ function Slider({ label, value, onChange, disabled }: { label: string; value: nu
 }
 
 /** At most `n` characters, ending in an ellipsis if it was cut. */
-const clip = (text: string, n: number) => (text.length > n ? `${text.slice(0, n - 1).trimEnd()}…` : text);
+const clip = (text: string, n: number) => {
+  const chars = Array.from(text); // by code point, so an emoji isn't cut in half
+  return chars.length > n ? `${chars.slice(0, n - 1).join("").trimEnd()}…` : text;
+};
 
 /** A media query, for useSyncExternalStore. */
 function media(query: string) {
@@ -661,7 +664,7 @@ export default function World() {
   const focusOnMount = useCallback((el: HTMLElement | null) => el?.focus({ preventScroll: true }), []);
   // leaving the table mid-session ends it, so once you've answered something it asks first (and offers feedback)
   const [leaving, setLeaving] = useState<"island" | "home" | null>(null);
-  const answeredSomething = seated && convo.status !== "report" && convo.messages.some((m) => m.from === "you");
+  const answeredSomething = seated && convo.status !== "report" && convo.messages.some((m) => m.from === "you" && !m.hint); // (asking for a hint isn't an answer)
   // a window that needs an answer first: everything behind it is out of reach (Tab stays inside it)
   const modalOpen = (seated && checkIn === "ask") || micAsk || leaving !== null;
   const leave = (to: "island" | "home") => {
@@ -751,7 +754,7 @@ export default function World() {
                   ) : lastSession.reflection?.trim() ? (
                     // what you said you'd do differently, brought back when it can help
                     <>
-                      Welcome back! Your note to self from last time: <b className="text-[#3d2a1c]">&ldquo;{clip(lastSession.reflection.trim(), 140)}&rdquo;</b>
+                      Welcome back! Your note to self from last time: <b className="text-[#3d2a1c]">&ldquo;{clip(lastSession.reflection.trim(), 140)}&rdquo;</b>{" "}
                       Shall we try it?
                     </>
                   ) : (
@@ -978,7 +981,7 @@ export default function World() {
             </p>
           )}
           {seated && (
-            <footer className="mt-2 flex items-center gap-2">
+            <footer className="mt-2 flex flex-wrap items-center justify-end gap-2">
               <span className={`${gentle ? "hidden sm:flex" : "flex"} min-w-0 items-center gap-1.5 text-[12.5px] whitespace-nowrap text-[#8a6a4a]`} title="Your plant grows while you practise">
                 <Sprout minutes={elapsed / 60} />
                 {/* gentle practice promises no clock; otherwise it's hidden until you ask for it */}

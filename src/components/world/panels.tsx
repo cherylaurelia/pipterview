@@ -161,7 +161,8 @@ export function ChatPanel({
             onTyping();
           }}
           onKeyDown={(e) => {
-            if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+            // (not while an input method is composing: Safari's confirming Enter has isComposing false but keyCode 229)
+            if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) return;
             e.preventDefault();
             send();
           }}

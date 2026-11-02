@@ -47,7 +47,7 @@ body {
 /* a soft caramel scrollbar for the panels in the 3D world */
 .retro-scroll {
   scrollbar-width: thin;
-  scrollbar-color: #e2c79c transparent;
+  scrollbar-color: #b8935f transparent;
 }
 .retro-scroll::-webkit-scrollbar {
   width: 10px;
@@ -56,7 +56,7 @@ body {
   background: transparent;
 }
 .retro-scroll::-webkit-scrollbar-thumb {
-  background: #e2c79c;
+  background: #b8935f;
   border: 3px solid transparent;
   background-clip: padding-box;
   border-radius: 6px;

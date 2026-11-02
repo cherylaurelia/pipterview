@@ -103,13 +103,23 @@ export function TourBubble({ step, touch, onNext, onSkip, className = "" }: { st
 
 /** Leaving the table mid-session ends it: said plainly, with the way to keep what you've said (get feedback) first. */
 export function LeaveCheck({ canFinish, onStay, onFinish, onLeave }: { canFinish: boolean; onStay: () => void; onFinish: () => void; onLeave: () => void }) {
+  // Esc stays (and only that: caught before the world's own Esc, which would switch tabs behind the window)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onStay();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      onStay();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onStay]);
+  // and when the window closes, focus goes back to whatever opened it
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    return () => opener?.focus?.();
+  }, []);
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#3d2a1c]/20 px-4" role="alertdialog" aria-label="Leave this session?">
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#3d2a1c]/20 px-4" role="alertdialog" aria-modal="true" aria-label="Leave this session?">
       <Panel title="Leave this session?" tone="active" className="w-[min(420px,100%)]">
         <div className="flex gap-3 px-3 pt-2 pb-3">
           <Portrait size={52} />
@@ -137,7 +147,7 @@ export function LeaveCheck({ canFinish, onStay, onFinish, onLeave }: { canFinish
 /** Asked once, before the browser's own microphone prompt, so it isn't a surprise. */
 export function MicPrimer({ onMic, onType }: { onMic: () => void; onType: () => void }) {
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#3d2a1c]/20 px-4">
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#3d2a1c]/20 px-4" role="dialog" aria-modal="true" aria-label="Can I hear you?">
       <Panel title="Can I hear you?" tone="active" className="w-[min(420px,100%)]">
         <div className="flex gap-3 px-3 pt-3 pb-2">
           <Portrait size={56} />
