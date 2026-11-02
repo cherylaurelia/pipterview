@@ -33,7 +33,8 @@ describe("sliding round trees and bushes", () => {
   it("nudges you out of a tree trunk to just touching it", () => {
     const tree = CROWNS[0];
     const out = slideRoundPlants(tree.x + 0.01, tree.z, 0.22);
-    expect(Math.hypot(out.x - tree.x, out.z - tree.z)).toBeGreaterThan(0.22);
+    const trunk = 0.16 * ((tree.r - 0.9) / 1.2); // CROWNS pads each tree's size; this undoes it to get the trunk
+    expect(Math.hypot(out.x - tree.x, out.z - tree.z)).toBeCloseTo(trunk + 0.22, 3);
   });
 
   it("leaves you alone in the open", () => {

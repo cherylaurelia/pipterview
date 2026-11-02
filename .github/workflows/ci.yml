@@ -7,6 +7,10 @@ on:
   push:
     branches: [main]
 
+# read-only: the job runs the repo's own scripts, so its token shouldn't be able to write anything
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

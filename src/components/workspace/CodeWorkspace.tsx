@@ -204,6 +204,8 @@ export default function CodeWorkspace({
           value={code}
           onChange={(value) => {
             onActivity?.();
+            // typing in the Python fallback keeps you in Python, even if the saved native language becomes available
+            if (language !== chosen) setLanguageState(language);
             attempted.current[question.id] = { question, language };
             setBuffers((prev) => ({ ...prev, [key]: value ?? "" }));
           }}

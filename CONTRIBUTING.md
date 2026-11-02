@@ -24,4 +24,4 @@ Prompts, the rubric and the model all change what feedback people get. Before an
 
 ## The 3D world
 
-The scene is React Three Fiber on three.js (WebGL 2), with custom shaders for the painted look. Keep it light: instanced meshes for anything there are many of, merged geometry for static clusters, and check the effect on the automatic quality levels (`quality.ts`). If you add something people can walk into, teach `walkable()` (in `island.tsx`) about it, and add a test to `explore.test.ts`.
+The scene is React Three Fiber on three.js (WebGL 2), with custom shaders for the painted look. Keep it light: instanced meshes for anything there are many of, merged geometry for static clusters, and check the effect on the automatic quality levels (`quality.ts`). If you add something people can walk into, teach the matching collision helper about it, and add a test to `explore.test.ts`: `walkable()` (in `island.tsx`) for water, buildings and the island's edge, `slideRoundPlants()` (in `landscape.tsx`) for trees and bushes, and `canStand()` / `setSeat()` (in `explore.ts`) for benches.
