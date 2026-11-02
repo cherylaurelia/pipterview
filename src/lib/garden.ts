@@ -78,8 +78,7 @@ export function bloomGarden(garden = loadGarden()): Garden {
 }
 
 /** You've watched the new things appear. */
-export function markGardenSeen(): Garden {
-  const garden = loadGarden();
+export function markGardenSeen(garden = loadGarden()): Garden {
   return save({ ...garden, seen: garden.grown });
 }
 

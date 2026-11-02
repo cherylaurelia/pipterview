@@ -14,6 +14,7 @@ export function YourData() {
   const [message, setMessage] = useState<string | null>(null);
 
   const download = () => {
+    setMessage(null);
     const result = exportData();
     if (!result.ok) return setMessage(result.error);
     const url = URL.createObjectURL(new Blob([result.json], { type: "application/json" }));

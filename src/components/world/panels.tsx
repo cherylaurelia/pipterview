@@ -83,9 +83,10 @@ export function ChatPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* a notice or a problem, when there is one (whose turn it is shows in the banner over the scene) */}
-      {(notice || status === "error") && (
-        <p role="status" className="mb-2 rounded-xl bg-[#fff1d6] px-3 py-1.5 text-[13px] text-[#6b4a1c]">{notice ?? "Something went wrong."}</p>
-      )}
+      {/* always there, so screen readers are listening when a notice arrives */}
+      <div role="status">
+        {(notice || status === "error") && <p className="mb-2 rounded-xl bg-[#fff1d6] px-3 py-1.5 text-[13px] text-[#6b4a1c]">{notice ?? "Something went wrong."}</p>}
+      </div>
       <div ref={list} className="retro-scroll min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fbf8f2] px-4 py-4" style={sunken}>
         {messages.map((m, i) => (
           <div key={i} className={m.from === "you" ? "border-l-[3px] border-[#a9c8e6] pl-3" : ""}>
@@ -149,7 +150,7 @@ export function ChatPanel({
           }}
           disabled={listening && !handsFree}
           aria-label="Your answer"
-          placeholder={listening && !handsFree ? "Listening…" : "Type a response…"}
+          placeholder={listening && !handsFree ? "Listening…" : open ? "Type a response…" : `Type now, send when ${GUIDE_NAME}'s done`}
           className="min-w-0 flex-1 bg-[#fbf8f2] px-2.5 py-1.5 text-[14px] text-[#1b1d22] outline-none placeholder:text-[#8f8d88] disabled:bg-[#efeee9]"
           style={sunken}
         />

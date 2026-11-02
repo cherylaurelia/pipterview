@@ -112,9 +112,9 @@ export function Portrait({ size = 52 }: { size?: number }) {
   );
 }
 
-/** The full Pip logo (the chick and its lettering), for the welcome card. Decorative: the heading beside it says the name. */
-export function PipLogo({ size = 76 }: { size?: number }) {
-  return <Image src="/design/logo/pip-logo.png" alt="" width={size} height={size} priority className="shrink-0" style={{ width: size, height: size }} />;
+/** The full Pip logo (the chick and its lettering). Decorative unless given `alt`: on the welcome card, the heading beside it says the name. */
+export function PipLogo({ size = 76, alt = "" }: { size?: number; alt?: string }) {
+  return <Image src="/design/logo/pip-logo.png" alt={alt} width={size} height={size} priority className="shrink-0" style={{ width: size, height: size }} />;
 }
 
 /** The wordmark, with the chick as its icon. */

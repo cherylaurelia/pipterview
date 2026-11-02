@@ -22,8 +22,9 @@ type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 const BLOCKED = "This browser isn't letting pipterview use its storage (a private window, or site data blocked?).";
 
 /** Everything this app has stored, as a JSON file's contents. */
-export function exportData(storage: Storage = window.localStorage): Result<{ json: string }> {
+export function exportData(given?: Storage): Result<{ json: string }> {
   try {
+    const storage = given ?? window.localStorage; // inside the try: just reading it throws where storage is blocked
     const data = Object.fromEntries(keys(storage).map((k) => [k, storage.getItem(k) ?? ""]));
     const backup: Backup = { app: APP, version: 1, exported: new Date().toISOString(), data };
     return { ok: true, json: JSON.stringify(backup, null, 2) };
@@ -36,7 +37,7 @@ export function exportData(storage: Storage = window.localStorage): Result<{ jso
  * Restores a file made by exportData, replacing what's here. Ignores anything that isn't this app's. Checks the whole
  * file before touching anything, and if a write fails part way (storage full), puts back exactly what was here before.
  */
-export function importData(json: string, storage: Storage = window.localStorage): Result<{ count: number }> {
+export function importData(json: string, given?: Storage): Result<{ count: number }> {
   let backup: Backup;
   try {
     backup = JSON.parse(json);
@@ -50,8 +51,9 @@ export function importData(json: string, storage: Storage = window.localStorage)
   const entries = Object.entries(data).filter(([k]) => ours(k));
   if (entries.some(([, v]) => typeof v !== "string")) return { ok: false, error: "That backup file is damaged, so nothing was changed." };
 
-  let before: [string, string][];
+  let storage: Storage, before: [string, string][];
   try {
+    storage = given ?? window.localStorage;
     before = keys(storage).map((k) => [k, storage.getItem(k) ?? ""]);
   } catch {
     return { ok: false, error: BLOCKED };
@@ -64,7 +66,7 @@ export function importData(json: string, storage: Storage = window.localStorage)
       for (const k of keys(storage)) storage.removeItem(k);
       for (const [k, v] of before) storage.setItem(k, v);
     } catch {
-      // Couldn't even put it back; nothing more we can do from here.
+      return { ok: false, error: "That backup couldn't be restored, and some of what was here couldn't be put back. Try restoring a backup file again." };
     }
     return { ok: false, error: "There wasn't room to restore that backup, so your data was left as it was." };
   }
@@ -72,8 +74,9 @@ export function importData(json: string, storage: Storage = window.localStorage)
 }
 
 /** Deletes everything this app has stored in this browser. */
-export function deleteAllData(storage: Storage = window.localStorage): Result {
+export function deleteAllData(given?: Storage): Result {
   try {
+    const storage = given ?? window.localStorage;
     for (const k of keys(storage)) storage.removeItem(k);
     return { ok: true };
   } catch {

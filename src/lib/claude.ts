@@ -45,6 +45,8 @@ export interface Usage {
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  /** Stopped part way: the output count is only what had been reported so far (a lower bound). */
+  partial?: true;
 }
 
 const usageListeners = new Set<(u: Usage) => void>();
@@ -59,7 +61,7 @@ export function onUsage(listener: (u: Usage) => void) {
  * Logs one line of token usage per call (so the server logs show what each kind of call costs) and tells any
  * listeners. Never logs content.
  */
-function recordUsage(kind: Usage["kind"], response: { model?: string; usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } }) {
+function recordUsage(kind: Usage["kind"], response: { model?: string; usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } }, partial = false) {
   const u = response.usage ?? {};
   const usage: Usage = {
     kind,
@@ -68,6 +70,7 @@ function recordUsage(kind: Usage["kind"], response: { model?: string; usage?: { 
     output: u.output_tokens ?? 0,
     cacheRead: u.cache_read_input_tokens ?? 0,
     cacheWrite: u.cache_creation_input_tokens ?? 0,
+    ...(partial ? { partial: true as const } : {}),
   };
   console.info(`claude usage ${JSON.stringify(usage)}`);
   for (const listener of usageListeners) {
@@ -205,7 +208,7 @@ export async function interviewerTurn(
     }
     response = await stream.finalMessage();
   } finally {
-    recordUsage("turn", response ?? seen);
+    recordUsage("turn", response ?? seen, !response);
   }
 
   if (response.stop_reason === "refusal" || !response.parsed_output) {

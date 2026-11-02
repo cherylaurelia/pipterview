@@ -151,7 +151,6 @@ export function Effects() {
   const size = useThree((s) => s.size);
   const dpr = useThree((s) => s.viewport.dpr);
   const chain = useRef<Chain | null>(null);
-  const fullDpr = useRef(0); // the Canvas's own pixel ratio, to go back to after lite
 
   useEffect(() => {
     const built = buildChain(gl, scene, camera);
@@ -176,9 +175,12 @@ export function Effects() {
   useFrame((_, dt) => {
     measureFrame(dt); // auto quality: steps down if the first seconds run slowly (see quality.ts)
     const c = chain.current, level = quality.level;
-    fullDpr.current ||= gl.getPixelRatio();
     if (level === 0 && gl.getPixelRatio() > 1) setDpr(1);
-    else if (level > 0 && gl.getPixelRatio() < fullDpr.current) setDpr(fullDpr.current); // left lite: sharp again
+    else if (level > 0) {
+      // left lite: back to the Canvas's range (1 to 1.5), for the screen as it is now (zoom or a new display may differ)
+      const full = Math.min(1.5, Math.max(1, window.devicePixelRatio));
+      if (gl.getPixelRatio() < full) setDpr(full);
+    }
     // lite: no post-processing at all (the renderer still tone-maps and converts colour on its own)
     if (!c || level === 0) return gl.render(scene, camera);
     c.outline.enabled = level >= 2;

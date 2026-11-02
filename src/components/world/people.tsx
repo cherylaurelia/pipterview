@@ -455,6 +455,12 @@ function Lantern({ position, lit }: { position: V3; lit: boolean }) {
 /** The round wooden table, set for tea. Clickable while `interactive`; the lantern lights up on your turn. */
 export function RoundTable({ interactive, yourTurn = false, onSelect }: { interactive: boolean; yourTurn?: boolean; onSelect: () => void }) {
   const [hover, setHover] = useState(false);
+  // stops being clickable (you sat down): forget the hover, so it can't relight when the table is clickable again
+  const [wasInteractive, setWasInteractive] = useState(interactive);
+  if (interactive !== wasInteractive) {
+    setWasInteractive(interactive);
+    if (!interactive) setHover(false);
+  }
   const lit = hover && interactive;
   const ring = useRef<THREE.Mesh>(null);
 

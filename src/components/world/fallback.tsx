@@ -32,7 +32,7 @@ export function SceneFallback({ mode, onArrive, reason }: { mode: WorldMode; onA
     <div className="absolute inset-0 bg-gradient-to-b from-[#f6efe2] via-[#efe6d3] to-[#e3edcf]">
       {/* Pip, waiting in the space the scene would fill (left of the side panel when you're at the table) */}
       <div className="absolute inset-y-0 left-0 flex items-center justify-center" style={{ right: "var(--panel-w, 0px)" }}>
-        <PipLogo size={150} />
+        <PipLogo size={150} alt="Pip" />
       </div>
       <p className="absolute bottom-20 left-4 max-w-[min(360px,80vw)] rounded-2xl bg-[#fff8ec]/90 px-4 py-2 text-[12.5px] text-[#6b5640] ring-1 ring-[#f0dfc2]">
         {reason === "unsupported" ? "This device can't show the 3D island, but practice works just the same." : "The 3D island hit a problem, but practice works just the same."}

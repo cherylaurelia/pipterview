@@ -66,7 +66,7 @@ body {
   outline-offset: 3px;
 }
 .retro-ui input:focus-visible {
-  outline: 2px solid #e0a040; /* solid and snug, not the dashed ring, but always visible */
+  outline: 2px solid #8a4b00; /* solid and snug, not the dashed ring; dark enough for 3:1 on the cream */
   outline-offset: 0;
 }
 
