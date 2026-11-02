@@ -151,7 +151,7 @@ export function MicPrimer({ onMic, onType }: { onMic: () => void; onType: () => 
         </div>
         <div className="flex justify-end gap-2 px-2 pb-2">
           <NavButton onClick={onType}>I&apos;ll type instead</NavButton>
-          <NavButton tone="yellow" onClick={onMic}>
+          <NavButton tone="yellow" onClick={onMic} autoFocus>
             Use my microphone
           </NavButton>
         </div>

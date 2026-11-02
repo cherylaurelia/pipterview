@@ -657,9 +657,13 @@ export default function World() {
     setStep("pick");
     setMode("splash");
   };
+  // (stable, so it runs once when the element appears rather than on every render)
+  const focusOnMount = useCallback((el: HTMLElement | null) => el?.focus({ preventScroll: true }), []);
   // leaving the table mid-session ends it, so once you've answered something it asks first (and offers feedback)
   const [leaving, setLeaving] = useState<"island" | "home" | null>(null);
   const answeredSomething = seated && convo.status !== "report" && convo.messages.some((m) => m.from === "you");
+  // a window that needs an answer first: everything behind it is out of reach (Tab stays inside it)
+  const modalOpen = (seated && checkIn === "ask") || micAsk || leaving !== null;
   const leave = (to: "island" | "home") => {
     if (answeredSomething) return setLeaving(to);
     if (to === "home") goHome();
@@ -894,6 +898,7 @@ export default function World() {
       {/* 3. the side panel: chat and code at the table (kept mounted, so switching tabs loses nothing); stories and help any time */}
       {showPanel && (
         <section
+          inert={modalOpen}
           className={`absolute inset-x-3 ${seated ? "bottom-3 h-[62vh]" : "bottom-20 h-[58vh]"} z-20 flex flex-col rounded-[22px] ${watchingSunset ? "hidden" : ""} bg-[#fff8ec]/95 p-3 shadow-[0_12px_32px_rgba(70,45,20,0.22)] ring-1 ring-[#f0dfc2] backdrop-blur sm:inset-x-auto sm:top-5 sm:right-5 ${seated ? "sm:bottom-5" : "sm:bottom-24"} sm:h-auto ${
             wide ? "sm:w-[min(660px,54vw)]" : "sm:w-[400px]"
           }`}
@@ -1001,10 +1006,17 @@ export default function World() {
       {/* (hidden, not unmounted, while you watch the sunset: the report records the session once, when it mounts) */}
       {convo.status === "report" && convo.feedback && convo.scored && lingered && (
         // a solid warm page (the blurred sunset behind made it hard to read), with the buttons in a bar that stays put
-        <div className={`fixed inset-0 z-30 overflow-y-auto bg-[#f3ead9] ${watchingSunset ? "hidden" : ""}`}>
+        <div
+          ref={focusOnMount} // keyboard focus moves to the report as it opens
+          tabIndex={-1}
+          role="region"
+          aria-label="Your feedback"
+          className={`fixed inset-0 z-30 overflow-y-auto bg-[#f3ead9] outline-none ${watchingSunset ? "hidden" : ""}`}
+        >
           <div className="sticky top-0 z-10 flex flex-wrap items-center justify-end gap-2 border-b border-[#ead8b8] bg-[#f3ead9]/95 px-4 py-3 backdrop-blur">
+            {/* (on a phone, one row of buttons: the report's island card already says what grew, and the sunset can wait) */}
             {grewNow && (
-              <span className="mr-auto flex items-center gap-2 rounded-full bg-[#fffdf8] px-3.5 py-1.5 text-[13.5px] font-bold text-[#3d2a1c] ring-1 ring-[#ead8b8]">
+              <span className="mr-auto hidden items-center gap-2 rounded-full bg-[#fffdf8] px-3.5 py-1.5 text-[13.5px] font-bold text-[#3d2a1c] ring-1 ring-[#ead8b8] sm:flex">
                 <GardenIcon id={grewNow.id} size={20} />
                 New on your island: {grewNow.label}
               </span>
@@ -1014,7 +1026,9 @@ export default function World() {
                 <b>Wildflowers bloomed:</b> {improved.join(", ")}
               </span>
             )}
-            <NavButton onClick={() => setWatchingSunset(true)}>Watch the sunset</NavButton>
+            <NavButton onClick={() => setWatchingSunset(true)} className="max-sm:hidden">
+              Watch the sunset
+            </NavButton>
             <NavButton onClick={standUp}>Back to my island</NavButton>
             <NavButton tone="yellow" onClick={anotherRound}>
               Another round
@@ -1164,6 +1178,7 @@ export default function World() {
       {/* the dock: home, your stories, help and sound. Out exploring it shrinks to a row of icons in the corner, out of the
           way of the view */}
       <nav
+        inert={modalOpen}
         className={`pointer-events-none absolute z-20 flex px-3 ${compactDock ? "top-3 left-0 justify-start" : "inset-x-0 bottom-3 justify-center"}`}
       >
         <div className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-[#fff8ec]/95 p-1.5 shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur">
