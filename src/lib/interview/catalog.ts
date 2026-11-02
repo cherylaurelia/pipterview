@@ -385,7 +385,7 @@ export const INTERVIEW_TYPES: Record<InterviewTypeId, InterviewType> = {
       },
       {
         id: "valid-anagram",
-        prompt: "Given two strings, decide whether one is an anagram of the other: the same letters, the same number of times, in any order.",
+        prompt: "Given two strings of lowercase letters, decide whether one is an anagram of the other: the same letters, the same number of times, in any order.",
         difficulty: "easy",
         topics: ["hash maps", "strings"],
         strongAnswer:
@@ -404,7 +404,7 @@ export const INTERVIEW_TYPES: Record<InterviewTypeId, InterviewType> = {
       },
       {
         id: "maximum-subarray",
-        prompt: "Given a list of integers, which can be negative, find the largest sum of any contiguous run of numbers.",
+        prompt: "Given a non-empty list of integers, which can be negative, find the largest sum of any contiguous run of at least one number.",
         difficulty: "medium",
         topics: ["dynamic programming", "arrays"],
         strongAnswer:
@@ -869,25 +869,25 @@ export const INTERVIEW_TYPES: Record<InterviewTypeId, InterviewType> = {
         ],
       },
       {
-        id: "juggling-commitments",
-        prompt: "Tell me about a time you had to balance several big commitments at once, like classes, a job and a project.",
-        difficulty: "easy",
-        topics: ["prioritization", "time management"],
+        id: "giving-feedback",
+        prompt: "Tell me about a time you had to give a teammate feedback they might not have wanted to hear.",
+        difficulty: "medium",
+        topics: ["communication", "collaboration"],
         strongAnswer:
-          "Lays out the commitments and why they collided, the system they used to decide what mattered most (deadlines, stakes, who depended on them), a trade-off they made deliberately and communicated, and the outcome, including anything that slipped and how they handled it.",
+          "Names a specific situation and why it mattered enough to say something, how they prepared (checked their facts, picked a private moment, focused on the work rather than the person), what they actually said, how the teammate reacted, and what changed afterwards, including for their working relationship.",
         followUps: [
-          "How did you decide what came first?",
-          "What did you let slip, and how did you tell the people affected?",
-          "What would you set up differently if it happened again?",
+          "Why did you decide to say something instead of letting it go?",
+          "How did they take it, and how did you respond?",
+          "What would you say differently next time?",
         ],
         hints: [
-          "Think of a week or a term when everything was due at once.",
-          "Focus on one decision you made about what to drop or delay.",
+          "Think of a group project or team where someone's work was affecting everyone.",
+          "Focus on the moment you raised it: where, when, and the words you used.",
         ],
         commonMistakes: [
-          "Claiming they did everything perfectly with no trade-offs",
-          "A list of tasks with no method for choosing between them",
-          "Not mentioning how they kept others informed",
+          "Feedback that was really a complaint to someone else, never said to the person",
+          "Criticising the person rather than the work or its effect",
+          "No sense of what happened afterwards",
         ],
       },
       {

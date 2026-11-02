@@ -16,7 +16,10 @@ export function useNativeRunner() {
     nativeRunner ??= fetch("/api/status")
       .then((r) => r.json())
       .then((d: { nativeRunner?: boolean }) => d.nativeRunner === true)
-      .catch(() => false);
+      .catch(() => {
+        nativeRunner = null; // a failed check isn't the answer: the next editor to open asks again
+        return false;
+      });
     void nativeRunner.then((v) => live && setOk(v));
     return () => {
       live = false;

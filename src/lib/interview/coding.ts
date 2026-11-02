@@ -460,7 +460,7 @@ const HAND_WRITTEN: Record<string, HandWrittenSpec> = {
     mode: "function",
     entry: { python: "rob", javascript: "rob", java: "rob", cpp: "rob" },
     types: { params: ["int[]"], returns: "int" },
-    signature: "Input: nums, the money in each house along a street (0 or more each). Output: the most you can take without ever taking from two houses next to each other.",
+    signature: "Input: nums, the money in each house along a street (0 or more each; the street can have no houses). Output: the most you can take without ever taking from two houses next to each other.",
     starter: {
       python: `def rob(nums: list[int]) -> int:\n    pass\n`,
       javascript: `/**\n * @param {number[]} nums\n * @return {number}\n */\nfunction rob(nums) {\n}\n`,
@@ -471,6 +471,7 @@ const HAND_WRITTEN: Record<string, HandWrittenSpec> = {
     tests: [
       {args: [[1, 2, 3, 1]], expected: 4},
       {args: [[2, 7, 9, 3, 1]], expected: 12},
+      {args: [[]], expected: 0, hidden: true},
       {args: [[5]], expected: 5, hidden: true},
       {args: [[2, 1, 1, 2]], expected: 4, hidden: true},
       {args: [[0, 0, 0]], expected: 0, hidden: true},
