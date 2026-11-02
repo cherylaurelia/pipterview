@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { stick } from "./explore";
 
-const RADIUS = 46;
+const RADIUS = 36; // the base's radius (60) less the knob's (24): the knob stays inside
 
 /**
  * An on-screen joystick for walking on touch screens: drag the knob, and how far you push it sets the pace (all the
@@ -39,7 +39,8 @@ export function TouchStick({ show }: { show: boolean }) {
     stick.x = dx / RADIUS;
     stick.y = -dy / RADIUS; // up the screen is forwards
   };
-  const release = () => {
+  const release = (e: React.PointerEvent) => {
+    if (e.pointerId !== active.current) return; // another finger lifting doesn't let go of the stick
     active.current = null;
     setKnob({ x: 0, y: 0 });
     stick.x = stick.y = 0;
@@ -48,7 +49,7 @@ export function TouchStick({ show }: { show: boolean }) {
     <div
       ref={base}
       className="absolute bottom-20 left-5 z-20 h-[120px] w-[120px] touch-none rounded-full bg-[#fff8ec]/55 ring-1 ring-[#f0dfc2] backdrop-blur-sm"
-      aria-label="Walk"
+      aria-hidden // a touch control; the keyboard walks with WASD or the arrow keys
       onPointerDown={(e) => {
         active.current = e.pointerId;
         e.currentTarget.setPointerCapture(e.pointerId);

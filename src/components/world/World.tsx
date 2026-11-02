@@ -699,7 +699,7 @@ export default function World() {
           it's capped to that space and scrolls inside, so neither end is cut off or hidden behind the dock. */}
       <div
         className={`absolute inset-0 z-10 flex items-center justify-center bg-[#3d2a1c]/10 px-4 pt-3 pb-[4.5rem] transition-opacity duration-500 ${
-          mode === "splash" ? "opacity-100" : "pointer-events-none opacity-0"
+          mode === "splash" ? "opacity-100" : "pointer-events-none invisible opacity-0" // invisible: out of the tab order too
         }`}
       >
         <Panel title="" className="max-h-full w-[min(500px,100%)] [&>header]:hidden">
@@ -839,7 +839,7 @@ export default function World() {
             <Key>E</Key>
             Sit down with {GUIDE_NAME}
             <span className="flex items-center gap-1 text-[12.5px] font-normal text-[#8a6a4a]">
-              · grows <GardenIcon id={nextItem.id} size={18} /> {nextItem.label.toLowerCase()}
+              · grows <GardenIcon id={nextItem.id} size={18} grown={false} /> {nextItem.label.toLowerCase()}
             </span>
           </button>
         </div>
@@ -919,7 +919,7 @@ export default function World() {
           {/* at the table: what finishing grows, and the session's own actions, with Finish as the main one */}
           {seated && (
             <p className="mt-2.5 flex items-center gap-1.5 border-t border-[#f0dfc2] pt-2 text-[12.5px] text-[#6b5640]">
-              <GardenIcon id={nextItem.id} size={20} />
+              <GardenIcon id={nextItem.id} size={20} grown={false} />
               Finish to grow: <b className="text-[#3d2a1c]">{nextItem.label}</b>
             </p>
           )}
@@ -1036,7 +1036,7 @@ export default function World() {
               {/* how much the scene draws: auto steps down on slower machines; lite is the lightest */}
               <div className="flex items-center gap-3 text-[13px]">
                 <span className="w-[86px] shrink-0 font-bold text-[#1b1d22]">Graphics</span>
-                <div className="flex flex-1 gap-1 rounded-full bg-[#f3e6cf] p-1" role="radiogroup" aria-label="Graphics">
+                <div className="flex flex-1 gap-1 rounded-full bg-[#f3e6cf] p-1" role="group" aria-label="Graphics">
                   {(
                     [
                       ["auto", "Auto"],
@@ -1046,8 +1046,7 @@ export default function World() {
                   ).map(([value, label]) => (
                     <button
                       key={value}
-                      role="radio"
-                      aria-checked={graphics === value}
+                      aria-pressed={graphics === value}
                       onClick={() => {
                         saveQuality(value);
                         setGraphics(value);

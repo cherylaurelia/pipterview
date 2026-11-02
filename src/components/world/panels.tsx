@@ -84,7 +84,7 @@ export function ChatPanel({
     <div className="flex min-h-0 flex-1 flex-col">
       {/* a notice or a problem, when there is one (whose turn it is shows in the banner over the scene) */}
       {(notice || status === "error") && (
-        <p className="mb-2 rounded-xl bg-[#fff1d6] px-3 py-1.5 text-[13px] text-[#6b4a1c]">{notice ?? "Something went wrong."}</p>
+        <p role="status" className="mb-2 rounded-xl bg-[#fff1d6] px-3 py-1.5 text-[13px] text-[#6b4a1c]">{notice ?? "Something went wrong."}</p>
       )}
       <div ref={list} className="retro-scroll min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fbf8f2] px-4 py-4" style={sunken}>
         {messages.map((m, i) => (
@@ -148,6 +148,7 @@ export function ChatPanel({
             onTyping();
           }}
           disabled={listening && !handsFree}
+          aria-label="Your answer"
           placeholder={listening && !handsFree ? "Listening…" : "Type a response…"}
           className="min-w-0 flex-1 bg-[#fbf8f2] px-2.5 py-1.5 text-[14px] text-[#1b1d22] outline-none placeholder:text-[#8f8d88] disabled:bg-[#efeee9]"
           style={sunken}
@@ -160,13 +161,13 @@ export function ChatPanel({
       </form>
       <div className="mt-[4px] flex items-center gap-1.5 px-0.5">
         {canTalk && (
-          <NavButton type="button" tone={listening ? "yellow" : "plain"} onClick={onTalk} disabled={!open && !listening} className="shrink-0" aria-pressed={listening}>
+          <NavButton type="button" tone={listening ? "yellow" : "plain"} onClick={onTalk} disabled={!open && !listening} className="shrink-0">
             <span className={`h-2 w-2 rounded-full ${listening ? "animate-pulse bg-[#d9534f]" : "bg-[#d9534f]/80"}`} />
             {handsFree ? (listening ? "Send now" : status === "speaking" ? "Interrupt" : "Talk") : listening ? "Done" : "Talk"}
           </NavButton>
         )}
         <span className="flex-1" />
-        <NavButton type="button" onClick={onMute} className="shrink-0 px-2" aria-pressed={muted} title={muted ? `Hear ${GUIDE_NAME} out loud again` : `Read ${GUIDE_NAME}'s replies instead of hearing them`}>
+        <NavButton type="button" onClick={onMute} className="shrink-0 px-2" title={muted ? `Hear ${GUIDE_NAME} out loud again` : `Read ${GUIDE_NAME}'s replies instead of hearing them`}>
           {muted ? `Unmute ${GUIDE_NAME}` : `Mute ${GUIDE_NAME}`}
         </NavButton>
         {canTalk && (
@@ -174,7 +175,6 @@ export function ChatPanel({
             type="button"
             onClick={() => onHandsFree(!handsFree)}
             className="shrink-0 px-2"
-            aria-pressed={handsFree}
             title={handsFree ? "On: a pause sends your answer. Turn off to press Done yourself." : "Off: press Done when you've finished. Turn on to send when you pause."}
           >
             {handsFree ? "Auto-send: on" : "Auto-send: off"}
@@ -368,7 +368,8 @@ export function CodePanel({
           {result.stdout && <pre className="whitespace-pre-wrap text-[#55534e]">{result.stdout.slice(-600)}</pre>}
         </div>
       )}
-      <footer className="mt-2 flex items-center gap-2 px-0.5">
+      {/* on a narrow panel the note takes its own line, so the buttons still fit */}
+      <footer className="mt-2 flex flex-wrap items-center gap-2 px-0.5">
         <label className="flex shrink-0 items-center gap-1.5 rounded-full bg-white py-1 pr-2 pl-1.5 ring-1 ring-[#ead7b8]" title={FILE_NAME[language]}>
           <span className="rounded-md bg-[#f3e6cf] px-1.5 font-mono text-[11px] text-[#8a6a4a]">{FILE_TAG[language]}</span>
           <select
@@ -384,7 +385,7 @@ export function CodePanel({
             ))}
           </select>
         </label>
-        <span className="min-w-0 flex-1 truncate text-[12px] text-[#86705a]">{GUIDE_NAME} sees your code each time you answer</span>
+        <span className="order-last min-w-0 basis-full truncate text-[12px] text-[#80694f] sm:order-none sm:basis-0 sm:flex-1">{GUIDE_NAME} sees your code each time you answer</span>
         <NavButton onClick={onAskHint} disabled={!canAsk} className="shrink-0" title={`Ask ${GUIDE_NAME} for a small hint`}>
           Ask {GUIDE_NAME}
         </NavButton>

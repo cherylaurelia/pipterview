@@ -66,7 +66,8 @@ body {
   outline-offset: 3px;
 }
 .retro-ui input:focus-visible {
-  outline: none;
+  outline: 2px solid #e0a040; /* solid and snug, not the dashed ring, but always visible */
+  outline-offset: 0;
 }
 
 /* Hover feedback on everything clickable: a soft lift and brighten, and a small press on click. */

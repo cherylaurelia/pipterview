@@ -1,7 +1,7 @@
 "use client";
 
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { fluffyToon, gradientMap, toon } from "./toon";
 import { breathAt, breathing } from "./checkin";
@@ -451,15 +451,16 @@ function Lantern({ position, lit }: { position: V3; lit: boolean }) {
 /** The round wooden table, set for tea. Clickable while `interactive`; the lantern lights up on your turn. */
 export function RoundTable({ interactive, yourTurn = false, onSelect }: { interactive: boolean; yourTurn?: boolean; onSelect: () => void }) {
   const [hover, setHover] = useState(false);
+  const lit = hover && interactive;
   const ring = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
     if (!ring.current) return;
     const t = clock.getElapsedTime();
     ring.current.visible = interactive;
-    const s = 1 + (Math.sin(t * 2.2) * 0.5 + 0.5) * 0.08 + (hover ? 0.06 : 0);
+    const s = 1 + (Math.sin(t * 2.2) * 0.5 + 0.5) * 0.08 + (lit ? 0.06 : 0);
     ring.current.scale.set(s, s, 1);
-    (ring.current.material as THREE.MeshBasicMaterial).opacity = hover ? 0.95 : 0.6 + Math.sin(t * 2.2) * 0.2;
+    (ring.current.material as THREE.MeshBasicMaterial).opacity = lit ? 0.95 : 0.6 + Math.sin(t * 2.2) * 0.2;
   });
 
   const over = (e: ThreeEvent<PointerEvent>) => {
@@ -472,6 +473,10 @@ export function RoundTable({ interactive, yourTurn = false, onSelect }: { intera
     setHover(false);
     document.body.style.cursor = interactive ? "grab" : ""; // back to the island's drag-to-look cursor
   };
+  // stops being clickable under the pointer (you sat down): no pointer cursor left behind
+  useEffect(() => {
+    if (!interactive) document.body.style.cursor = "";
+  }, [interactive]);
 
   return (
     <group
@@ -486,7 +491,7 @@ export function RoundTable({ interactive, yourTurn = false, onSelect }: { intera
     >
       <mesh position={[0, TABLE_TOP - 0.01, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[0.78, 0.76, 0.05, 64]} />
-        <meshToonMaterial color="#e8cba4" gradientMap={gradientMap()} emissive="#f5c84c" emissiveIntensity={hover ? 0.12 : 0} />
+        <meshToonMaterial color="#e8cba4" gradientMap={gradientMap()} emissive="#f5c84c" emissiveIntensity={lit ? 0.12 : 0} />
       </mesh>
       <mesh position={[0, TABLE_TOP - 0.05, 0]}>
         <cylinderGeometry args={[0.72, 0.72, 0.04, 48]} />

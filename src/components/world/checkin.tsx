@@ -29,7 +29,7 @@ export function CheckIn({ onDone, onBreathe }: { onDone: (nervous: number | null
   const [level, setLevel] = useState<number>();
   const high = (level ?? 0) >= 4;
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#3d2a1c]/15 px-4">
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#3d2a1c]/15 px-4" role="dialog" aria-modal="true" aria-label="Before we start">
       <Panel title="Before we start" className="w-[min(460px,100%)]">
         <div className="flex gap-3 px-3 pt-2 pb-3">
           <Portrait size={52} />
