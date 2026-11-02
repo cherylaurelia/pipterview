@@ -26,11 +26,11 @@ body {
 }
 
 ::selection {
-  background: #ccfbf1;
+  background: #ffe1a1;
 }
 
 :focus-visible {
-  outline: 2px solid #14b8a6;
+  outline: 2px solid #8a4b00;
   outline-offset: 2px;
 }
 
@@ -44,28 +44,30 @@ body {
   }
 }
 
-/* chunky blue scrollbar for the panels in the 3D world */
+/* a soft caramel scrollbar for the panels in the 3D world */
 .retro-scroll {
-  scrollbar-width: auto;
-  scrollbar-color: #3d7fe6 #fff3c4;
+  scrollbar-width: thin;
+  scrollbar-color: #e2c79c transparent;
 }
 .retro-scroll::-webkit-scrollbar {
-  width: 12px;
+  width: 10px;
 }
 .retro-scroll::-webkit-scrollbar-track {
-  background: #fff3c4;
+  background: transparent;
 }
 .retro-scroll::-webkit-scrollbar-thumb {
-  background: #3d7fe6;
-  border: 2px solid #1f4fa8;
+  background: #e2c79c;
+  border: 3px solid transparent;
+  background-clip: padding-box;
   border-radius: 6px;
 }
 
 .retro-ui :focus-visible {
-  outline: 2px dashed #1f4fa8;
+  outline: 2px solid #8a4b00;
   outline-offset: 3px;
 }
-.retro-ui input:focus-visible {
+.retro-ui input:focus-visible,
+.retro-ui textarea:focus-visible {
   outline: 2px solid #8a4b00; /* solid and snug, not the dashed ring; dark enough for 3:1 on the cream */
   outline-offset: 0;
 }

@@ -998,6 +998,10 @@ export default function World() {
               work={convo.scored.work}
               nervousBefore={nervousBefore}
               embedded
+              onAgain={(intensity) => {
+                setSettings({ ...settings, intensity });
+                anotherRound();
+              }}
               island={grewNow ? { grew: grewNow, next: nextItem, grown: garden.grown, total: GARDEN_ITEMS.length } : undefined}
             />
           </div>
