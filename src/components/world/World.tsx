@@ -14,7 +14,7 @@ import { isTailored, toProfile, useSavedProfile } from "../ProfileForm";
 import { useSessionSettings } from "../room/SessionSetup";
 import { ChatPanel, CodePanel } from "./panels";
 import { ResumeStep } from "./resume";
-import { HelpPanel, MicPrimer, StatusBanner, TOUR_STEPS, TourBubble, loadTourDone, micChoice, saveMicChoice, saveTourDone, type TourStep } from "./onboarding";
+import { HelpPanel, LeaveCheck, MicPrimer, StatusBanner, TOUR_STEPS, TourBubble, loadTourDone, micChoice, saveMicChoice, saveTourDone, type TourStep } from "./onboarding";
 import { createAmbience, type Ambience } from "./sound";
 import { setVoiceVolume } from "@/lib/voice/speak";
 import { BookIcon, ChatIcon, CloseIcon, CodeIcon, HelpIcon, HomeIcon, IslandIcon, SpeakerIcon } from "./icons";
@@ -639,6 +639,8 @@ export default function World() {
   const nextItem = gardenItem(garden.grown); // what finishing the next session grows
   const wide = seated && panel === "code";
   const showPanel = seated ? true : panel !== null;
+  // the dock: along the bottom on the welcome screen; a few icons in the corner on the island and at the table
+  const compactDock = exploring || seated;
   const tabs: { id: PanelTab; label: string; icon: ReactNode }[] = [
     ...(seated ? [{ id: "chat" as const, label: "Chat", icon: <ChatIcon /> }] : []),
     ...(seated && type === "technical" ? [{ id: "code" as const, label: "Code", icon: <CodeIcon /> }] : []),
@@ -652,6 +654,14 @@ export default function World() {
     setPanel(null);
     setStep("pick");
     setMode("splash");
+  };
+  // leaving the table mid-session ends it, so once you've answered something it asks first (and offers feedback)
+  const [leaving, setLeaving] = useState<"island" | "home" | null>(null);
+  const answeredSomething = seated && convo.status !== "report" && convo.messages.some((m) => m.from === "you");
+  const leave = (to: "island" | "home") => {
+    if (answeredSomething) return setLeaving(to);
+    if (to === "home") goHome();
+    else standUp();
   };
   const chatProps = {
     messages: convo.messages,
@@ -698,7 +708,7 @@ export default function World() {
               evening={evening}
               // watching the sunset: the panel's away, so face Pip square on
               aside={seated && !watchingSunset && !stacked ? (wide ? 0.32 : 0.16) : 0}
-              lift={seated && !watchingSunset && stacked ? 0.3 : 0}
+              lift={seated && !watchingSunset && stacked ? 0.25 : 0}
               garden={{ count: viewingIsland ? garden.grown : garden.seen, freshFrom: garden.seen, blooms: garden.blooms ?? 0 }}
               critter={picked}
               onPickCritter={setCritter}
@@ -865,7 +875,7 @@ export default function World() {
       {/* 3. the side panel: chat and code at the table (kept mounted, so switching tabs loses nothing); stories and help any time */}
       {showPanel && (
         <section
-          className={`absolute inset-x-3 bottom-20 z-20 flex h-[58vh] flex-col rounded-[22px] ${watchingSunset ? "hidden" : ""} bg-[#fff8ec]/95 p-3 shadow-[0_12px_32px_rgba(70,45,20,0.22)] ring-1 ring-[#f0dfc2] backdrop-blur sm:inset-x-auto sm:top-5 sm:right-5 sm:bottom-24 sm:h-auto ${
+          className={`absolute inset-x-3 ${seated ? "bottom-3 h-[62vh]" : "bottom-20 h-[58vh]"} z-20 flex flex-col rounded-[22px] ${watchingSunset ? "hidden" : ""} bg-[#fff8ec]/95 p-3 shadow-[0_12px_32px_rgba(70,45,20,0.22)] ring-1 ring-[#f0dfc2] backdrop-blur sm:inset-x-auto sm:top-5 sm:right-5 ${seated ? "sm:bottom-5" : "sm:bottom-24"} sm:h-auto ${
             wide ? "sm:w-[min(660px,54vw)]" : "sm:w-[400px]"
           }`}
         >
@@ -926,6 +936,7 @@ export default function World() {
             )}
             {panel === "help" && (
               <HelpPanel
+                touch={touch}
                 onReplayTour={() => {
                   setPanel(seated ? tableTab : null);
                   setTourDone([]);
@@ -956,8 +967,8 @@ export default function World() {
                 )}
               </span>
               <span className="flex-1" />
-              <NavButton onClick={standUp} className="whitespace-nowrap">
-                Take a break
+              <NavButton onClick={() => leave("island")} className="whitespace-nowrap">
+                Leave the table
               </NavButton>
               <NavButton tone="yellow" className="whitespace-nowrap" onClick={() => void convo.finish()} disabled={!convo.canFinish} title={convo.canFinish ? "End here and get feedback" : "Answer at least once to get feedback"}>
                 I&apos;m done
@@ -1040,15 +1051,31 @@ export default function World() {
 
       {micAsk && <MicPrimer onMic={() => void chooseMic()} onType={typeInstead} />}
 
+      {leaving && (
+        <LeaveCheck
+          canFinish={convo.canFinish}
+          onStay={() => setLeaving(null)}
+          onFinish={() => {
+            setLeaving(null);
+            void convo.finish();
+          }}
+          onLeave={() => {
+            setLeaving(null);
+            if (leaving === "home") goHome();
+            else standUp();
+          }}
+        />
+      )}
+
       {tourStep && (
-        <div className={`absolute z-30 ${tourStep === "table" ? "top-20 left-4 sm:left-6" : "bottom-24 left-4 sm:left-6"}`}>
+        <div className={`absolute z-30 ${tourStep === "table" ? "top-32 left-4 sm:left-6" : "bottom-24 left-4 sm:left-6"}`}>
           <TourBubble step={tourStep} touch={touch} onNext={() => finishTourStep(tourStep)} onSkip={skipTour} />
         </div>
       )}
 
       {/* volume, from the dock */}
       {soundOpen && (
-        <div className="absolute inset-x-0 bottom-20 z-30 flex justify-center px-4">
+        <div className={`absolute z-30 flex px-4 ${compactDock ? "top-16 left-0" : "inset-x-0 bottom-20 justify-center"}`}>
           <Panel title="Sound & graphics" icon={<SpeakerIcon />} className="w-[min(360px,100%)]">
             <div className="space-y-2.5 px-1.5 pb-1">
               <label className="flex items-center gap-2 text-[13.5px] font-bold text-[#4a3424]">
@@ -1118,20 +1145,25 @@ export default function World() {
       {/* the dock: home, your stories, help and sound. Out exploring it shrinks to a row of icons in the corner, out of the
           way of the view */}
       <nav
-        className={`pointer-events-none absolute z-20 flex px-3 ${exploring ? "top-3 left-0 justify-start" : "inset-x-0 bottom-3 justify-center"}`}
+        className={`pointer-events-none absolute z-20 flex px-3 ${compactDock ? "top-3 left-0 justify-start" : "inset-x-0 bottom-3 justify-center"}`}
       >
         <div className="pointer-events-auto flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-[#fff8ec]/95 p-1.5 shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur">
-          <DockButton icon={<HomeIcon />} label="Home" compact={exploring} active={mode === "splash"} onClick={goHome} title="Back to the start" />
-          <DockButton icon={<IslandIcon />} label="Island" compact={exploring} active={panel === "island"} onClick={() => toggleTab("island")} title="What you've grown, and what's next" />
-          <DockButton icon={<BookIcon />} label={`Stories${stories.length ? ` (${stories.length})` : ""}`} compact={exploring} active={panel === "stories"} onClick={() => toggleTab("stories")} title="Your stories" />
-          <DockButton icon={<HelpIcon />} label="Help" compact={exploring} active={panel === "help"} onClick={() => toggleTab("help")} title="Help" />
+          <DockButton icon={<HomeIcon />} label="Home" compact={compactDock} active={mode === "splash"} onClick={() => leave("home")} title="Back to the start" />
+          {/* at the table, the side panel has its own tabs for these */}
+          {!seated && (
+            <>
+              <DockButton icon={<IslandIcon />} label="Island" compact={compactDock} active={panel === "island"} onClick={() => toggleTab("island")} title="What you've grown, and what's next" />
+              <DockButton icon={<BookIcon />} label={`Stories${stories.length ? ` (${stories.length})` : ""}`} compact={compactDock} active={panel === "stories"} onClick={() => toggleTab("stories")} title="Your stories" />
+              <DockButton icon={<HelpIcon />} label="Help" compact={compactDock} active={panel === "help"} onClick={() => toggleTab("help")} title="Help" />
+            </>
+          )}
           <DockButton
             icon={<SpeakerIcon off={!sound.enabled} />}
-            label={sound.enabled ? `Sound ${Math.round(sound.levels.music * 100)}%` : "Sound off"}
-            compact={exploring}
+            label={sound.enabled ? "Sound" : "Sound off"}
+            compact={compactDock}
             active={soundOpen}
             onClick={() => setSoundOpen((v) => !v)}
-            title="Volume"
+            title="Sound and graphics"
           />
         </div>
       </nav>
