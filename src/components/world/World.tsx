@@ -205,7 +205,7 @@ function Key({ children }: { children: ReactNode }) {
 }
 
 /** How to get about the island, in one line, for a few seconds after you arrive (and whenever you're idle at the start). */
-function IslandHint({ show, until }: { show: boolean; until: number }) {
+function IslandHint({ show, until, touch }: { show: boolean; until: number; touch: boolean }) {
   const [now, setNow] = useState(0);
   useEffect(() => {
     if (!until) return;
@@ -219,12 +219,16 @@ function IslandHint({ show, until }: { show: boolean; until: number }) {
       aria-hidden={!visible}
     >
       <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-full bg-[#fff8ec]/90 px-4 py-2 text-[13px] text-[#6b5640] shadow-[0_6px_18px_rgba(70,45,20,0.15)] ring-1 ring-[#f0dfc2] backdrop-blur">
-        <span className="flex items-center gap-1">
-          <Key>W</Key>
-          <Key>A</Key>
-          <Key>S</Key>
-          <Key>D</Key> or click to walk
-        </span>
+        {touch ? (
+          <span>use the stick or tap to walk</span>
+        ) : (
+          <span className="flex items-center gap-1">
+            <Key>W</Key>
+            <Key>A</Key>
+            <Key>S</Key>
+            <Key>D</Key> or click to walk
+          </span>
+        )}
         <span>drag to look</span>
         <span>
           {GUIDE_NAME} is at the table <span className="text-[#c49a5a]">◆</span>
@@ -254,14 +258,21 @@ function Slider({ label, value, onChange, disabled }: { label: string; value: nu
   );
 }
 
-// a phone: narrow, or a touch screen (a phone on its side is wide but short)
-const PHONE = "(max-width: 639px), (pointer: coarse)";
-const isPhone = () => window.matchMedia(PHONE).matches;
-function onPhoneChange(change: () => void) {
-  const q = window.matchMedia(PHONE);
-  q.addEventListener("change", change);
-  return () => q.removeEventListener("change", change);
+/** A media query, for useSyncExternalStore. */
+function media(query: string) {
+  return {
+    subscribe(change: () => void) {
+      const q = window.matchMedia(query);
+      q.addEventListener("change", change);
+      return () => q.removeEventListener("change", change);
+    },
+    matches: () => window.matchMedia(query).matches,
+  };
 }
+// a touch screen, where the hints talk about the stick and taps rather than keys
+const TOUCH = media("(pointer: coarse)");
+// narrow enough that the side panel sits along the bottom instead (Tailwind's sm breakpoint)
+const STACKED = media("(max-width: 639px)");
 
 /**
  * The 3D practice world: a welcome window over the scene where you pick a kind of prep, then the open field with you
@@ -375,6 +386,9 @@ export default function World() {
   const { start, reset, status } = convo;
   const seated = mode === "seated" && arrived === "seated";
   const exploring = mode === "world";
+  // touch screens get taps and the stick rather than keys; narrow screens get the panel along the bottom
+  const touch = useSyncExternalStore(TOUCH.subscribe, TOUCH.matches, () => false);
+  const stacked = useSyncExternalStore(STACKED.subscribe, STACKED.matches, () => false);
   // Pip dozes off at the table if you've wandered off for a while (and wakes to say hello when you come back)
   const [dozing, setDozing] = useState(false);
   useEffect(() => {
@@ -443,12 +457,9 @@ export default function World() {
   const streak = garden.log.length ? streakDays(garden.log) : 0; // (the log is empty when prerendering, so no clock read then)
 
   // the tour bubble for where you are, if you haven't seen it
-  const narrow = useSyncExternalStore(onPhoneChange, isPhone, () => false);
   const tourStep: TourStep | null = (() => {
     if (!tourDone || micAsk || checkIn || panel === "help") return null;
     const open = (step: TourStep) => !tourDone.includes(step);
-    // on a phone the welcome bubble would cover the welcome card, which already says the same thing
-    if (mode === "splash" && step === "pick" && open("welcome") && !narrow) return "welcome";
     if (mode === "world" && arrived === "world" && open("island")) return "island";
     if (seated && open("table")) return "table";
     if (mode === "world" && arrived === "world" && garden.grown > 0 && open("grow")) return "grow";
@@ -685,7 +696,9 @@ export default function World() {
               mood={mood}
               yourTurn={yourTurn}
               evening={evening}
-              aside={seated && !watchingSunset ? (wide ? 0.32 : 0.16) : 0} // watching the sunset: the panel's away, so face Pip square on
+              // watching the sunset: the panel's away, so face Pip square on
+              aside={seated && !watchingSunset && !stacked ? (wide ? 0.32 : 0.16) : 0}
+              lift={seated && !watchingSunset && stacked ? 0.3 : 0}
               garden={{ count: viewingIsland ? garden.grown : garden.seen, freshFrom: garden.seen, blooms: garden.blooms ?? 0 }}
               critter={picked}
               onPickCritter={setCritter}
@@ -810,14 +823,14 @@ export default function World() {
       {/* 2. on the island the world is the interface: just a word about how to get about, when you first arrive, and a
           prompt when you walk up to the table (the creatures' actions show below, when you're by one) */}
       <TouchStick show={scene === "ok" && mode === "world" && arrived === "world"} />
-      <IslandHint show={scene === "ok" && mode === "world" && arrived === "world" && !picked && !atTable && !bySeat && !byDoor} until={hintUntil} />
+      <IslandHint show={scene === "ok" && mode === "world" && arrived === "world" && !picked && !atTable && !bySeat && !byDoor} until={hintUntil} touch={touch} />
       {byDoor && !picked && (
         <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-3">
           <button
             onClick={() => openTab(DOOR_ACTION[byDoor.id].tab)}
-            className="pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#fff8ec]/95 py-2 pr-5 pl-2 text-[15px] font-bold text-[#4a3424] shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur transition-colors hover:bg-[#fff0d4]"
+            className={`pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#fff8ec]/95 py-2 pr-5 ${touch ? "pl-5" : "pl-2"} text-[15px] font-bold text-[#4a3424] shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur transition-colors hover:bg-[#fff0d4]`}
           >
-            <Key>E</Key>
+            {!touch && <Key>E</Key>}
             {DOOR_ACTION[byDoor.id].label}
           </button>
         </div>
@@ -826,9 +839,9 @@ export default function World() {
         <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-3">
           <button
             onClick={() => (bySeat.sitting ? getUp() : sitOn(bySeat.id))}
-            className="pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#fff8ec]/95 py-2 pr-5 pl-2 text-[15px] font-bold text-[#4a3424] shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur transition-colors hover:bg-[#fff0d4]"
+            className={`pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#fff8ec]/95 py-2 pr-5 ${touch ? "pl-5" : "pl-2"} text-[15px] font-bold text-[#4a3424] shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur transition-colors hover:bg-[#fff0d4]`}
           >
-            <Key>E</Key>
+            {!touch && <Key>E</Key>}
             {bySeat.sitting ? "Get up" : "Sit on the bench"}
             {bySeat.sitting && <span className="text-[12.5px] font-normal text-[#8a6a4a]">· or just walk off</span>}
           </button>
@@ -838,9 +851,9 @@ export default function World() {
         <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-3">
           <button
             onClick={sitDown}
-            className="pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#fff8ec]/95 py-2 pr-5 pl-2 text-[15px] font-bold text-[#4a3424] shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur transition-colors hover:bg-[#fff0d4]"
+            className={`pointer-events-auto flex items-center gap-2.5 rounded-full bg-[#fff8ec]/95 py-2 pr-5 ${touch ? "pl-5" : "pl-2"} text-[15px] font-bold text-[#4a3424] shadow-[0_8px_24px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur transition-colors hover:bg-[#fff0d4]`}
           >
-            <Key>E</Key>
+            {!touch && <Key>E</Key>}
             Sit down with {GUIDE_NAME}
             <span className="flex items-center gap-1 text-[12.5px] font-normal text-[#8a6a4a]">
               · grows <GardenIcon id={nextItem.id} size={18} grown={false} /> {nextItem.label.toLowerCase()}
@@ -908,7 +921,9 @@ export default function World() {
               </div>
             )}
             {panel === "island" && <IslandPanel garden={garden} streak={streak} />}
-            {panel === "stories" && <StoryBook stories={stories} onChange={() => setStories(loadStories())} />}
+            {panel === "stories" && (
+              <StoryBook stories={stories} onChange={() => setStories(loadStories())} onPractise={seated ? undefined : () => choose("behavioral")} />
+            )}
             {panel === "help" && (
               <HelpPanel
                 onReplayTour={() => {
@@ -929,20 +944,22 @@ export default function World() {
           )}
           {seated && (
             <footer className="mt-2 flex items-center gap-2">
-              <span className="flex items-center gap-1.5 font-mono text-[12px] text-[#8a6a4a]" title="Your plant grows while you practise">
+              <span className={`${gentle ? "hidden sm:flex" : "flex"} min-w-0 items-center gap-1.5 text-[12.5px] whitespace-nowrap text-[#8a6a4a]`} title="Your plant grows while you practise">
                 <Sprout minutes={elapsed / 60} />
                 {/* gentle practice promises no clock; otherwise it's hidden until you ask for it */}
                 {gentle ? (
                   "Take your time"
                 ) : (
-                  <button onClick={() => setShowClock((v) => !v)} className="underline-offset-2 hover:underline" aria-label="Show timer" aria-pressed={showClock}>
+                  <button onClick={() => setShowClock((v) => !v)} className={`underline-offset-2 hover:underline ${showClock ? "font-mono" : ""}`} aria-label="Show timer" aria-pressed={showClock}>
                     {showClock ? clock : "Show timer"}
                   </button>
                 )}
               </span>
               <span className="flex-1" />
-              <NavButton onClick={standUp}>Take a break</NavButton>
-              <NavButton tone="yellow" onClick={() => void convo.finish()} disabled={!convo.canFinish} title={convo.canFinish ? "End here and get feedback" : "Answer at least once to get feedback"}>
+              <NavButton onClick={standUp} className="whitespace-nowrap">
+                Take a break
+              </NavButton>
+              <NavButton tone="yellow" className="whitespace-nowrap" onClick={() => void convo.finish()} disabled={!convo.canFinish} title={convo.canFinish ? "End here and get feedback" : "Answer at least once to get feedback"}>
                 I&apos;m done
               </NavButton>
             </footer>
@@ -1015,13 +1032,13 @@ export default function World() {
       )}
       {seated && checkIn === "breathe" && <BreatheWithPip onDone={beginSession} />}
 
-      {seated && !micAsk && !checkIn && convo.status !== "report" && <StatusBanner status={convo.status} handsFree={convo.handsFree} holding={convo.holding} />}
+      {seated && !micAsk && !checkIn && convo.status !== "report" && <StatusBanner status={convo.status} handsFree={convo.handsFree} holding={convo.holding} touch={touch} />}
 
       {micAsk && <MicPrimer onMic={() => void chooseMic()} onType={typeInstead} />}
 
       {tourStep && (
         <div className={`absolute z-30 ${tourStep === "table" ? "top-20 left-4 sm:left-6" : "bottom-24 left-4 sm:left-6"}`}>
-          <TourBubble step={tourStep} onNext={() => finishTourStep(tourStep)} onSkip={skipTour} />
+          <TourBubble step={tourStep} touch={touch} onNext={() => finishTourStep(tourStep)} onSkip={skipTour} />
         </div>
       )}
 
@@ -1081,7 +1098,7 @@ export default function World() {
                 onClick={() => doCritter(picked, action)}
                 className="flex items-center gap-1.5 rounded-full py-1.5 pr-3.5 pl-1.5 text-[13.5px] font-bold text-[#4a3424] transition-colors hover:bg-[#fff0d4] active:bg-[#ffe1a1]"
               >
-                <Key>{i + 1}</Key>
+                {!touch && <Key>{i + 1}</Key>}
                 {action.label}
               </button>
             ))}

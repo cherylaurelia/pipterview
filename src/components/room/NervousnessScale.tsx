@@ -17,16 +17,22 @@ export function NervousnessScale({ value, onChange, label }: { value?: number; o
               type="button"
               onClick={() => onChange(level)}
               aria-pressed={active}
-              className={`rounded-2xl px-1 py-2 text-[12px] leading-tight transition ${
+              aria-label={`${level}: ${text}`}
+              className={`min-w-0 rounded-2xl px-1 py-2 text-[12px] leading-tight transition ${
                 active ? "bg-[#ffc95c] font-bold text-[#3d2a14]" : "bg-white text-[#6b5640] ring-1 ring-[#ead7b8] hover:bg-[#fff4df]"
               }`}
             >
               <span className="block text-[15px] font-bold">{level}</span>
-              {text}
+              <span className="hidden sm:inline">{text}</span>
             </button>
           );
         })}
       </div>
+      {/* too narrow for every label to fit: just the two ends, under the numbers */}
+      <p className="flex justify-between px-1 text-[12px] text-[#6b5640] sm:hidden" aria-hidden>
+        <span>{NERVOUSNESS_LABELS[0]}</span>
+        <span>{NERVOUSNESS_LABELS.at(-1)}</span>
+      </p>
     </fieldset>
   );
 }

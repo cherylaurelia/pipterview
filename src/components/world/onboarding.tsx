@@ -6,11 +6,11 @@ import { YourData } from "./yourdata";
 import { GUIDE_NAME } from "./script";
 import type { ConvoStatus } from "./useConversation";
 
-// Help for first-time visitors: a short tour in Pip's voice (one bubble per place: the welcome window, the island, the
-// table, and after your first session), a friendly ask before the browser's microphone prompt, a big plain-words banner
-// saying whose turn it is, and a help window with the controls.
+// Help for first-time visitors: a short tour in Pip's voice (one bubble per place: the island, the table, and after your
+// first session; the welcome window already introduces Pip), a friendly ask before the browser's microphone prompt, a
+// big plain-words banner saying whose turn it is, and a help window with the controls.
 
-export const TOUR_STEPS = ["welcome", "island", "table", "grow"] as const;
+export const TOUR_STEPS = ["island", "table", "grow"] as const;
 export type TourStep = (typeof TOUR_STEPS)[number];
 
 const TOUR_KEY = "pip:tour";
@@ -47,41 +47,45 @@ export function saveMicChoice(choice: "mic" | "typing") {
   }
 }
 
-const TOUR_TEXT: Record<TourStep, ReactNode> = {
-  welcome: (
-    <>
-      Hi, I&apos;m {GUIDE_NAME}! Getting yourself to prep is the hard part, so we&apos;ll start small. Press <b>Start practising</b> for a
-      gentle warm-up, or choose a round.
-    </>
-  ),
-  island: (
-    <>
-      This is our island, and that&apos;s you! Walk with <b>WASD</b> (or click where you want to go) and drag to look around. Say
-      hi to the frog if you like. When you&apos;re ready, come and find me at the table.
-    </>
-  ),
-  table: (
-    <>
-      Just talk to me, or type below. When you pause, I&apos;ll take that as your answer. Need time? Press <b>I need a moment</b>.
-      Press <b>Space</b> to talk, and <b>?</b> for help.
-    </>
-  ),
-  grow: (
+/** What Pip says at each step (on touch screens, without the keyboard bits). */
+function tourText(step: TourStep, touch: boolean): ReactNode {
+  if (step === "island") {
+    return (
+      <>
+        This is our island, and that&apos;s you! {touch ? "Walk with the stick (or tap where you want to go)" : <>Walk with <b>WASD</b> (or click where you want to go)</>} and drag to
+        look around. Say hi to the frog in the pond if you like. When you&apos;re ready, come and find me at the table.
+      </>
+    );
+  }
+  if (step === "table") {
+    return (
+      <>
+        Just talk to me, or type below. When you pause, I&apos;ll take that as your answer. Need time? Press <b>I need a moment</b>.
+        {!touch && (
+          <>
+            {" "}
+            Press <b>Space</b> to talk, and <b>?</b> for help.
+          </>
+        )}
+      </>
+    );
+  }
+  return (
     <>
       You did it, and starting was the hardest part. Every session grows something on our island, and your stories are saved
       under <b>Stories</b>. An extra view a day keeps the spirals away. See you tomorrow?
     </>
-  ),
-};
+  );
+}
 
 /** One tour bubble: Pip, a line of help, and a way to move on or skip the rest. */
-export function TourBubble({ step, onNext, onSkip, className = "" }: { step: TourStep; onNext: () => void; onSkip: () => void; className?: string }) {
+export function TourBubble({ step, touch, onNext, onSkip, className = "" }: { step: TourStep; touch: boolean; onNext: () => void; onSkip: () => void; className?: string }) {
   const last = step === "grow";
   return (
     <Panel title={`${GUIDE_NAME} says`} tone="active" className={`w-[min(340px,calc(100vw-2rem))] lowercase ${className}`}>
       <div className="flex gap-2.5 px-2 pt-2 pb-2.5">
         <Portrait size={44} />
-        <p className="text-[13.5px] leading-snug text-[#1b1d22]">{TOUR_TEXT[step]}</p>
+        <p className="text-[13.5px] leading-snug text-[#1b1d22]">{tourText(step, touch)}</p>
       </div>
       <div className="flex items-center justify-end gap-2 px-1.5 pb-1">
         {!last && (
@@ -124,14 +128,14 @@ export function MicPrimer({ onMic, onType }: { onMic: () => void; onType: () => 
 }
 
 /** A big, plain-words line saying whose turn it is, over the middle of the scene. */
-export function StatusBanner({ status, handsFree, holding }: { status: ConvoStatus; handsFree: boolean; holding: boolean }) {
+export function StatusBanner({ status, handsFree, holding, touch }: { status: ConvoStatus; handsFree: boolean; holding: boolean; touch: boolean }) {
   const lines: Partial<Record<ConvoStatus, { text: string; dot: string; pulse?: boolean }>> = {
     connecting: { text: `${GUIDE_NAME} is getting settled…`, dot: "#f2c94c", pulse: true },
     thinking: { text: `${GUIDE_NAME} is thinking…`, dot: "#f2c94c", pulse: true },
     speaking: { text: `${GUIDE_NAME} is talking`, dot: "#4a7bd0" },
-    "your-turn": { text: "Your turn: press Talk (or Space), or type", dot: "#5aa65a" },
+    "your-turn": { text: touch ? "Your turn: press Talk, or type" : "Your turn: press Talk (or Space), or type", dot: "#5aa65a" },
     listening: {
-      text: holding ? "Take your time. I'm listening." : handsFree ? "I'm listening. Just talk, and pause when you're done." : "I'm listening. Press Done (or Space) when you've finished.",
+      text: holding ? "Take your time. I'm listening." : handsFree ? "I'm listening. Just talk, and pause when you're done." : `I'm listening. Press Done${touch ? "" : " (or Space)"} when you've finished.`,
       dot: "#d9534f",
       pulse: true,
     },
