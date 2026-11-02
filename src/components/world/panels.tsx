@@ -65,12 +65,13 @@ export function ChatPanel({
   const [draft, setDraft] = useState("");
   const list = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
-  // the answer box grows with what you write (up to a few lines, then it scrolls)
+  // the answer box grows with what you write (up to a few lines, then it scrolls). While the chat tab is hidden there's
+  // nothing to measure, so it keeps its natural one-line height rather than collapsing to nothing.
   useEffect(() => {
     const el = box.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+    if (el.scrollHeight > 0) el.style.height = `${el.scrollHeight}px`;
   }, [draft]);
   const listening = status === "listening";
   const waiting = status === "connecting" || status === "thinking" || status === "scoring";
@@ -369,7 +370,7 @@ export function CodePanel({
               // the brand mono font loads asynchronously; re-measure once it has, so the cursor lines up with the text
               document.fonts.ready.then(() => monaco.editor.remeasureFonts());
             }}
-            options={{ fontFamily: "var(--font-overpass-mono), monospace", minimap: { enabled: false }, fontSize: 14, lineHeight: 22, scrollBeyondLastLine: false, padding: { top: 8 }, renderLineHighlight: "line", overviewRulerLanes: 0, tabSize: language === "javascript" || language === "typescript" ? 2 : 4 }}
+            options={{ fontFamily: "var(--font-overpass-mono), monospace", minimap: { enabled: false }, fontSize: 14, lineHeight: 22, scrollBeyondLastLine: false, padding: { top: 8 }, wordWrap: "on", wrappingIndent: "indent", lineNumbersMinChars: 3, renderLineHighlight: "line", overviewRulerLanes: 0, tabSize: language === "javascript" || language === "typescript" ? 2 : 4 }}
           />
         </div>
       </div>

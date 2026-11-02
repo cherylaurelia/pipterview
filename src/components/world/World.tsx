@@ -6,12 +6,12 @@ import { bloomGarden, GARDEN_ITEMS, gardenItem, growGarden, loadGarden, markGard
 import { loadHistory, type SessionRecord } from "@/lib/history";
 import { improvementsSince } from "@/lib/improvement";
 import { deliveryStats } from "@/lib/interview/delivery";
-import type { Intensity, SessionLength, TranscriptEntry } from "@/lib/interview/types";
+import type { SessionLength, TranscriptEntry } from "@/lib/interview/types";
 import { loadStories, storyLines, type SavedStory } from "@/lib/stories";
 import type { CodeLanguage, WorkspaceSnapshot } from "@/lib/workspace/types";
 import { FeedbackReport } from "../FeedbackReport";
 import { isTailored, toProfile, useSavedProfile } from "../ProfileForm";
-import { useSessionSettings } from "../room/SessionSetup";
+import { INTENSITY_OPTIONS, useSessionSettings } from "../room/SessionSetup";
 import { ChatPanel, CodePanel } from "./panels";
 import { ResumeStep } from "./resume";
 import { HelpPanel, LeaveCheck, MicPrimer, StatusBanner, TOUR_STEPS, TourBubble, loadTourDone, micChoice, saveMicChoice, saveTourDone, type TourStep } from "./onboarding";
@@ -43,11 +43,6 @@ const PREP_BLURB: Record<PrepType, string> = {
   resume: "The random things on your resume you hope they skip.",
 };
 
-const PRESSURE: { value: Intensity; label: string }[] = [
-  { value: "gentle", label: "Gentle" },
-  { value: "standard", label: "Standard" },
-  { value: "realistic", label: "Realistic" },
-];
 const LENGTH: { value: SessionLength; label: string }[] = [
   { value: "quick", label: "1 question" },
   { value: "full", label: "Full round" },
@@ -789,14 +784,16 @@ export default function World() {
                   </button>
                 </p>
                 <p className="text-center text-[12.5px] text-[#8a6a4a]">
-                  {PRESSURE.find((o) => o.value === settings.intensity)?.label} pressure · {LENGTH.find((o) => o.value === settings.length)?.label} ·{" "}
+                  {INTENSITY_OPTIONS.find((o) => o.value === settings.intensity)?.label} pressure · {LENGTH.find((o) => o.value === settings.length)?.label} ·{" "}
                   <button onClick={() => setCustomizing((v) => !v)} className="font-bold text-[#b0702a] underline underline-offset-2" aria-expanded={customizing}>
                     {customizing ? "Done" : "Customize"}
                   </button>
                 </p>
                 {customizing && (
                   <div className="space-y-2 rounded-2xl bg-white/70 px-3 py-2.5">
-                    <Toggle label="Pressure" value={settings.intensity} options={PRESSURE} onChange={(intensity) => setSettings({ ...settings, intensity })} />
+                    <Toggle label="Pressure" value={settings.intensity} options={INTENSITY_OPTIONS} onChange={(intensity) => setSettings({ ...settings, intensity })} />
+                    {/* what the pressure means, so picking one isn't a guess */}
+                    <p className="pl-[78px] text-[12px] leading-snug text-[#8a6a4a]">{INTENSITY_OPTIONS.find((o) => o.value === settings.intensity)?.description}.</p>
                     <Toggle label="Length" value={settings.length} options={LENGTH} onChange={(length) => setSettings({ ...settings, length })} />
                     <p className="flex items-center gap-2 text-[12.5px] text-[#6b5640]">
                       <span className="w-[70px] shrink-0 font-bold text-[#4a3424]">About you</span>
