@@ -11,7 +11,7 @@ import { groundY, Island, islandRadius, isOpen, nearGardenSlot, rng } from "./is
 import { Pond } from "./pond";
 import { Village } from "./village";
 import { softDot } from "./textures";
-import { gradientMap, painterly, paleGradientMap, swayingToon, toon, wind } from "./toon";
+import { gradientMap, painterly, paleGradientMap, swayingToon, toon, wind, windAmp } from "./toon";
 
 // The backdrop and the life around the floating island (see island.tsx for the island itself, pond.tsx for the pond),
 // in the look of a little painted diorama: a plain warm-cream backdrop that turns to sunset when you finish, puffy clay
@@ -86,7 +86,7 @@ function Grass() {
   const tuftGeo = useMemo(() => {
     const parts = Array.from({ length: 6 }, (_, i) => {
       const a = (i / 6) * Math.PI * 2, h = 0.1 + (i % 3) * 0.025;
-      const g = new THREE.ConeGeometry(0.03, h, 4).translate(0, h / 2, 0).rotateZ(0.35).rotateY(a).translate(Math.cos(a) * 0.025, 0, -Math.sin(a) * 0.025);
+      const g = new THREE.ConeGeometry(0.03, h, 4).translate(0, h / 2, 0).rotateZ(-0.35).rotateY(a).translate(Math.cos(a) * 0.025, 0, -Math.sin(a) * 0.025);
       g.deleteAttribute("uv");
       const pos = g.attributes.position, colors = new Float32Array(pos.count * 3);
       for (let k = 0; k < pos.count; k++) colors.fill(0.6 + (pos.getY(k) / h) * 0.55, k * 3, k * 3 + 3);
@@ -183,7 +183,9 @@ function Grass() {
   }, [BLADES, FLOWERS]);
 
   useFrame(({ clock }) => {
-    wind.value = clock.getElapsedTime() * (reducedMotion() ? 0.3 : 1); // a gentler breeze for reduced motion
+    // a gentler breeze for reduced motion: slower, and not as far
+    wind.value = clock.getElapsedTime() * (reducedMotion() ? 0.3 : 1);
+    windAmp.value = reducedMotion() ? 0.35 : 1;
   });
 
   return (
@@ -368,34 +370,39 @@ function Clouds() {
   );
 }
 
-// A few butterflies looping lazily around the table (they go home at sunset).
-/** Stars that come out overhead as the sun sets, twinkling a little. */
+/** Stars that come out overhead as the sun sets, each twinkling in its own time (held still for reduced motion). */
 function Stars() {
   const points = useRef<THREE.Points>(null);
   const map = useMemo(() => softDot(), []);
-  const positions = useMemo(() => {
-    const r = rng(97), COUNT = 420, out = new Float32Array(COUNT * 3);
+  const { positions, colors, phases } = useMemo(() => {
+    const r = rng(97), COUNT = 420, positions = new Float32Array(COUNT * 3), phases = new Float32Array(COUNT);
     for (let i = 0; i < COUNT; i++) {
       // spread over the upper sky, thinning towards the horizon
       const a = r() * Math.PI * 2, up = 0.18 + Math.pow(r(), 0.7) * 0.82, R = 330;
       const flat = Math.sqrt(1 - up * up);
-      out.set([Math.cos(a) * flat * R, up * R, Math.sin(a) * flat * R], i * 3);
+      positions.set([Math.cos(a) * flat * R, up * R, Math.sin(a) * flat * R], i * 3);
+      phases[i] = r() * Math.PI * 2;
     }
-    return out;
+    return { positions, colors: new Float32Array(COUNT * 3).fill(1), phases };
   }, []);
   useFrame(({ clock }) => {
     const p = points.current;
     if (!p) return;
     const night = Math.max(0, daylight.evening - 0.35) / 0.65;
     p.visible = night > 0.01;
-    (p.material as THREE.PointsMaterial).opacity = night * (0.75 + Math.sin(clock.getElapsedTime() * 1.7) * 0.15);
+    (p.material as THREE.PointsMaterial).opacity = night;
+    if (!p.visible) return;
+    const t = clock.getElapsedTime(), still = reducedMotion();
+    for (let i = 0; i < phases.length; i++) colors.fill(still ? 0.85 : 0.72 + Math.sin(t * (1.2 + (i % 5) * 0.25) + phases[i]) * 0.28, i * 3, i * 3 + 3);
+    p.geometry.attributes.color.needsUpdate = true;
   });
   return (
     <points ref={points} frustumCulled={false} visible={false}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-color" args={[colors, 3]} />
       </bufferGeometry>
-      <pointsMaterial map={map} color="#fff6dc" size={3.2} sizeAttenuation={false} transparent opacity={0} depthWrite={false} fog={false} />
+      <pointsMaterial map={map} vertexColors color="#fff6dc" size={3.2} sizeAttenuation={false} transparent opacity={0} depthWrite={false} fog={false} />
     </points>
   );
 }
@@ -419,7 +426,7 @@ function Birds() {
       // beat for a bit, then glide
       const beating = Math.sin(t * 0.7 + i * 1.3) > -0.2;
       const f = beating ? Math.sin(t * k.flap + i) * 0.7 : 0.12;
-      b.children[0].rotation.z = f;
+      b.children[0].rotation.z = f; // the hinges: rolling them lifts the wings
       b.children[1].rotation.z = Math.PI - f;
     });
   });
@@ -427,10 +434,13 @@ function Birds() {
     <group ref={group}>
       {birds.map((_, i) => (
         <group key={i}>
+          {/* each wing lies flat inside a hinge group at the body, which is what flaps */}
           {[0, 1].map((side) => (
-            <mesh key={side} geometry={wing} rotation={[-Math.PI / 2, 0, 0]}>
-              <meshBasicMaterial color="#5e5560" side={THREE.DoubleSide} fog={false} />
-            </mesh>
+            <group key={side}>
+              <mesh geometry={wing} rotation={[-Math.PI / 2, 0, 0]}>
+                <meshBasicMaterial color="#5e5560" side={THREE.DoubleSide} fog={false} />
+              </mesh>
+            </group>
           ))}
         </group>
       ))}
@@ -438,6 +448,7 @@ function Birds() {
   );
 }
 
+// A few butterflies looping lazily around the table (they go home at sunset).
 function Butterflies() {
   const group = useRef<THREE.Group>(null);
   const flyers = useMemo(() => {

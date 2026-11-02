@@ -44,6 +44,8 @@ export function toon(color: string, pale = false) {
 
 /** The breeze: one clock (moved on by the grass in landscape.tsx) shared by everything that sways. */
 export const wind = { value: 0 };
+/** How far things sway: less for reduced motion. */
+export const windAmp = { value: 1 };
 
 const swaying = new Map<string, THREE.MeshToonMaterial>();
 
@@ -58,8 +60,9 @@ export function swayingToon(vertexColors = false, pale = false) {
     m = new THREE.MeshToonMaterial({ gradientMap: pale ? paleGradientMap() : gradientMap(), vertexColors });
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uWind = wind;
+      shader.uniforms.uWindAmp = windAmp;
       shader.vertexShader = shader.vertexShader
-        .replace("#include <common>", "#include <common>\nuniform float uWind;")
+        .replace("#include <common>", "#include <common>\nuniform float uWind;\nuniform float uWindAmp;")
         .replace(
           "#include <begin_vertex>",
           `#include <begin_vertex>
@@ -68,7 +71,7 @@ export function swayingToon(vertexColors = false, pale = false) {
           #else
             vec2 at = vec2(0.0);
           #endif
-          float sway = sin(uWind * 1.5 + at.x * 0.3 + at.y * 0.2) * 0.6 + sin(uWind * 2.6 + at.x * 0.9) * 0.2;
+          float sway = (sin(uWind * 1.5 + at.x * 0.3 + at.y * 0.2) * 0.6 + sin(uWind * 2.6 + at.x * 0.9) * 0.2) * uWindAmp;
           transformed.x += sway * position.y * 0.9;
           transformed.z += sway * position.y * 0.35;`,
         );

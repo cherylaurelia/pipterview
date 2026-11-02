@@ -138,15 +138,17 @@ const POND_FRAGMENT = /* glsl */ `${WATER_COMMON}
     // the mirror image of the trees, reeds, ducks and sky, softened and rippled, and stronger at a glancing angle
     vec2 ruv = vReflect.xy / vReflect.w;
     ruv += (vec2(pnNoise(vUv * 3.0 + uTime * 0.4), pnNoise(vUv * 3.0 - uTime * 0.35)) - 0.5) * 0.018;
-    vec3 refl = vec3(0.0);
-    for (int i = 0; i < 5; i++) {
-      vec2 o = vec2(float(i - 2) * 0.0018, float((i * 3) % 5 - 2) * 0.0018);
-      refl += texture2D(tReflect, ruv + o).rgb;
+    if (uReflectOn > 0.0) { // lower quality levels skip the five reflection taps entirely
+      vec3 refl = vec3(0.0);
+      for (int i = 0; i < 5; i++) {
+        vec2 o = vec2(float(i - 2) * 0.0018, float((i * 3) % 5 - 2) * 0.0018);
+        refl += texture2D(tReflect, ruv + o).rgb;
+      }
+      refl /= 5.0;
+      float facing = max(dot(normalize(cameraPosition - vWorld), vec3(0.0, 1.0, 0.0)), 0.0);
+      float fresnel = 0.14 + 0.4 * pow(1.0 - facing, 4.0);
+      col = mix(col, mix(refl * 0.85, col, 0.3), fresnel * uReflectOn); // tinted by the water, so the pond stays teal
     }
-    refl /= 5.0;
-    float facing = max(dot(normalize(cameraPosition - vWorld), vec3(0.0, 1.0, 0.0)), 0.0);
-    float fresnel = 0.14 + 0.4 * pow(1.0 - facing, 4.0);
-    col = mix(col, mix(refl * 0.85, col, 0.3), fresnel * uReflectOn); // tinted by the water, so the pond stays teal
 
     // drifting glints: short pale dashes across the surface, like brush strokes
     float lines = smoothstep(0.93, 1.0, sin(vUv.y * 10.0 + pnNoise(vUv * 1.3) * 5.0));

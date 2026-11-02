@@ -16,6 +16,7 @@ export const breathing = { start: 0 };
 export const BREATH_PHASES = ["Breathe in", "Hold", "Breathe out", "Hold"] as const;
 export const BREATH_PHASE_SECONDS = 4;
 const ROUNDS = 3;
+const TOTAL = BREATH_PHASE_SECONDS * 4 * ROUNDS;
 
 /** How full of breath you are at `seconds` into box breathing, 0 to 1: rising, held, falling, held. */
 export function breathAt(seconds: number) {
@@ -73,24 +74,28 @@ export function CheckIn({ onDone, onBreathe }: { onDone: (nervous: number | null
 
 /**
  * A minute of box breathing at the table: a soft circle to follow, in the corner so you can see Pip breathing along.
- * Done when you say so, or after three rounds.
+ * After three rounds it says so and stops; you go on when you say so.
  */
 export function BreatheWithPip({ onDone }: { onDone: () => void }) {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
     breathing.start = performance.now();
-    const id = window.setInterval(() => setSeconds((performance.now() - breathing.start) / 1000), 100);
+    const id = window.setInterval(() => {
+      const s = (performance.now() - breathing.start) / 1000;
+      setSeconds(s);
+      if (s >= TOTAL) window.clearInterval(id);
+    }, 100);
     return () => window.clearInterval(id);
   }, []);
-  const finished = seconds >= BREATH_PHASE_SECONDS * 4 * ROUNDS;
+  const finished = seconds >= TOTAL;
   const phase = Math.floor(seconds / BREATH_PHASE_SECONDS) % 4;
   const scale = 0.55 + breathAt(seconds) * 0.45;
   return (
     <div className="pointer-events-none absolute inset-0 z-30 flex items-end justify-center px-4 pb-24 sm:items-center sm:justify-start sm:pb-0 sm:pl-10">
       <div className="pointer-events-auto flex w-[260px] flex-col items-center rounded-[24px] bg-[#fff8ec]/90 px-5 pt-4 pb-4 text-center shadow-[0_12px_32px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur" role="dialog" aria-label={`Breathe with ${GUIDE_NAME}`}>
         <div className="relative my-3 grid h-40 w-40 place-items-center">
-          <div className="absolute inset-0 rounded-full bg-[#ffe6b0]" style={{ transform: `scale(${scale})` }} />
-          <div className="absolute inset-5 rounded-full bg-[#ffd27a]/70" style={{ transform: `scale(${scale})` }} />
+          <div className="absolute inset-0 rounded-full bg-[#ffe6b0] transition-transform duration-100 ease-linear" style={{ transform: `scale(${scale})` }} />
+          <div className="absolute inset-5 rounded-full bg-[#ffd27a]/70 transition-transform duration-100 ease-linear" style={{ transform: `scale(${scale})` }} />
           <span className="relative text-[19px] font-bold text-[#4a3424]" aria-live="polite">
             {finished ? "Nice." : BREATH_PHASES[phase]}
           </span>
