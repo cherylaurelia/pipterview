@@ -34,7 +34,7 @@ export function CheckIn({ onDone, onBreathe }: { onDone: (nervous: number | null
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => box.current?.focus(), []);
   return (
-    <div ref={box} tabIndex={-1} className="absolute inset-0 z-30 flex items-center justify-center bg-[#3d2a1c]/15 px-4 outline-none" role="dialog" aria-label="Before we start">
+    <div ref={box} tabIndex={-1} className="absolute inset-0 z-30 flex items-center justify-center bg-[#3d2a1c]/15 px-4 outline-none" role="dialog" aria-modal="true" aria-label="Before we start">
       <Panel title="Before we start" className="w-[min(460px,100%)]">
         <div className="flex gap-3 px-3 pt-2 pb-3">
           <Portrait size={52} />

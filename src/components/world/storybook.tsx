@@ -79,7 +79,8 @@ export function StoryBook({ stories, onChange, onPractise }: { stories: SavedSto
                       >
                         Remove it
                       </button>
-                      <button className="text-[#6b5640] underline underline-offset-2" onClick={() => setRemoving(null)}>
+                      {/* focus comes here, since the Remove button it replaced has gone */}
+                      <button className="text-[#6b5640] underline underline-offset-2" onClick={() => setRemoving(null)} autoFocus>
                         Keep
                       </button>
                     </span>
