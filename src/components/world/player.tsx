@@ -13,7 +13,7 @@ import { Figure } from "./people";
 // You, out on the island: your chick walks where you steer it (WASD or the arrow keys, relative to the camera, Shift to
 // run) or where you click, gliding round trees and bushes and stopping at water, buildings and benches rather than
 // going through them, and waddles as it goes. It can sit on a bench (and gets up again as soon as you walk). It notices
-// what's close enough to use (the table, a bench, a creature) and says so through `onNear`.
+// what's close enough to use (the table, a bench, a door, a creature) and says so through `onNear`.
 
 const WALK = 2.4, RUN = 4.4, BODY = 0.22;
 const turn = (from: number, to: number, f: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * f;

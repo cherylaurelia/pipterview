@@ -20,6 +20,8 @@ import type { PrepType } from "./script";
 export interface ChatMessage {
   from: "guide" | "you";
   text: string;
+  /** You asked for a hint (not an answer). */
+  hint?: true;
 }
 
 export type ConvoStatus =
@@ -90,6 +92,7 @@ export function useConversation(prep: PrepType, options: Options) {
   const inFlight = useRef<AbortController | null>(null);
   const lastRequest = useRef<PendingTurn | null>(null);
   const turnPending = useRef(false); // the guide's reply hasn't fully arrived yet, so you can't answer over it
+  const [replying, setReplying] = useState(false); // the same, for rendering: buttons stay off until you can answer
   const talkStarted = useRef(0);
   const mutedRef = useRef(false);
   const handsFreeRef = useRef(true);
@@ -155,6 +158,7 @@ export function useConversation(prep: PrepType, options: Options) {
       inFlight.current = controller;
       lastRequest.current = { url, body, previous };
       turnPending.current = true;
+      setReplying(true);
       let started = false;
       const queue = mutedRef.current ? null : createSpeechQueue();
       const begin = () => {
@@ -190,6 +194,7 @@ export function useConversation(prep: PrepType, options: Options) {
         // remember bank questions you've had, so the next sessions pick others first
         if (asked && turn.state.phase === "question" && !asked.tailoredReason) rememberQuestion(turn.state.typeId, asked.id);
         turnPending.current = false;
+        setReplying(false);
 
         if (queue) {
           queue.close();
@@ -212,6 +217,7 @@ export function useConversation(prep: PrepType, options: Options) {
         if (!current()) return;
         queue?.cancel();
         turnPending.current = false;
+        setReplying(false);
         setSpeaking(false);
         // Drop a half-streamed reply; "Try again" asks for it fresh.
         if (started) setMessages((m) => m.slice(0, -1));
@@ -259,6 +265,7 @@ export function useConversation(prep: PrepType, options: Options) {
     session.current = null;
     transcript.current = [];
     turnPending.current = false;
+    setReplying(false);
     setMessages([]);
     setQuestion(null);
     setSpeaking(false);
@@ -275,7 +282,7 @@ export function useConversation(prep: PrepType, options: Options) {
 
   /** Sends your answer (typed or spoken) and gets the guide's reply. */
   const answer = useCallback(
-    (text: string, durationMs?: number, thinkMs?: number) => {
+    (text: string, durationMs?: number, thinkMs?: number, hint?: boolean) => {
       const state = session.current;
       const said = text.trim();
       if (!state || !canAnswer()) return;
@@ -297,7 +304,7 @@ export function useConversation(prep: PrepType, options: Options) {
       };
       const lines = [...transcript.current, entry];
       transcript.current = lines;
-      setMessages((m) => [...m, { from: "you", text: said }]);
+      setMessages((m) => [...m, { from: "you", text: said, ...(hint ? { hint: true as const } : {}) }]);
       setStatus("thinking");
       void guideTurn({ url: "/api/interview/turn", body: { state, transcript: lines }, previous: lines });
     },
@@ -375,7 +382,7 @@ export function useConversation(prep: PrepType, options: Options) {
 
   /** A typed answer. If the mic is open, what it heard is dropped in favor of what you typed. */
   const answerTyped = useCallback(
-    async (text: string) => {
+    async (text: string, hint?: boolean) => {
       if (statusRef.current === "listening") {
         holdAfter.current = 0;
         setHolding(false);
@@ -383,7 +390,7 @@ export function useConversation(prep: PrepType, options: Options) {
         await mic.stop();
         setStatus("your-turn");
       }
-      answer(text);
+      answer(text, undefined, undefined, hint);
     },
     [answer, mic, setStatus],
   );
@@ -418,7 +425,9 @@ export function useConversation(prep: PrepType, options: Options) {
     void score();
   }, [mic, score]);
 
-  const answered = messages.some((m) => m.from === "you");
+  // asking for a hint stays in the transcript (an interviewer would notice it) but isn't an answer to finish on
+  const answered = messages.some((m) => m.from === "you" && !m.hint);
+  const ready = !replying && (status === "your-turn" || status === "speaking" || status === "listening");
 
   return {
     status,
@@ -434,12 +443,15 @@ export function useConversation(prep: PrepType, options: Options) {
     handsFree: handsFree && mic.supported === true,
     silenceProgress,
     holding,
-    canFinish: answered && (status === "your-turn" || status === "speaking" || status === "listening"),
+    canFinish: answered && ready,
+    /** You can answer now: it's your turn (or the guide is still talking, but its whole reply has arrived). */
+    ready,
     liveText: mic.liveText,
     start,
     retry,
     reset,
     answer: answerTyped,
+    askHint: () => void answerTyped("Could I have a small hint?", true),
     toggleTalk,
     keepThinking,
     noteActivity,

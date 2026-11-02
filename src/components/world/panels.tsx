@@ -23,6 +23,7 @@ const STATUS_LINE: Partial<Record<ConvoStatus, string>> = {
 export function ChatPanel({
   messages,
   status,
+  ready,
   liveText,
   notice,
   error,
@@ -41,6 +42,8 @@ export function ChatPanel({
 }: {
   messages: ChatMessage[];
   status: ConvoStatus;
+  /** The guide's whole reply has arrived, so an answer can go now. */
+  ready: boolean;
   liveText: string;
   notice: string | null;
   error: string | null;
@@ -64,7 +67,7 @@ export function ChatPanel({
   const listening = status === "listening";
   const waiting = status === "connecting" || status === "thinking" || status === "scoring";
   // Hands-free keeps the mic open during your turn, so typing (which replaces what it heard) stays available.
-  const open = status === "your-turn" || status === "speaking" || (listening && handsFree);
+  const open = ready && (status === "your-turn" || status === "speaking" || (listening && handsFree));
 
   useEffect(() => {
     list.current?.scrollTo({ top: list.current.scrollHeight, behavior: "smooth" });
