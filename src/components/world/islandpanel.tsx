@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { GARDEN_ITEMS, gardenItem, type Garden } from "@/lib/garden";
 import { loadHistory, NERVOUSNESS_LABELS, READINESS, type SessionRecord } from "@/lib/history";
+import { isVisibleInterviewTypeId } from "@/lib/interview/types";
 import { GardenIcon } from "../GardenIcon";
 
 /** A tiny line of nerves (1 calm to 5 overwhelmed) over your sessions, drawn so it falls as you get calmer. */
@@ -40,7 +41,13 @@ function HowYoureDoing({ history }: { history: SessionRecord[] }) {
           <p className="text-[13px] leading-snug text-[#6b5640]">
             Nerves before starting: <b className="text-[#3d2a1c]">{NERVOUSNESS_LABELS[nerves.at(-1)! - 1]}</b>
             <span className="block text-[12px]">
-              {drop > 0 ? `Down ${drop} since your first session.` : nerves.length > 1 ? "They usually settle over a few sessions." : "We'll track this as you practise."}
+              {drop > 0
+                ? `Down ${drop} since your first session.`
+                : drop < 0
+                  ? `Up ${-drop} since your first session. Some days are like that; they usually settle with practice.`
+                  : nerves.length > 1
+                    ? "The same as your first session."
+                    : "We'll track this as you practise."}
             </span>
           </p>
         </div>
@@ -57,7 +64,8 @@ function HowYoureDoing({ history }: { history: SessionRecord[] }) {
 
 /** How you're doing, then everything your island can grow, in order: what you've grown (and when), what's next, and what's still to come. */
 export function IslandPanel({ garden, streak }: { garden: Garden; streak: number }) {
-  const [history] = useState(loadHistory); // read once when the panel opens (it only ever renders in the browser)
+  // read once when the panel opens (it only ever renders in the browser); only the kinds of round you can choose
+  const [history] = useState(() => loadHistory().filter((h) => isVisibleInterviewTypeId(h.typeId)));
   const total = GARDEN_ITEMS.length;
   const next = gardenItem(garden.grown);
   const date = (i: number) => {
@@ -70,7 +78,7 @@ export function IslandPanel({ garden, streak }: { garden: Garden; streak: number
       <div className="rounded-2xl bg-[#fff1d6] px-4 py-3">
         <p className="text-[12.5px] font-bold text-[#a07a4a]">Next on your island</p>
         <div className="mt-1 flex items-center gap-2.5">
-          <GardenIcon id={next.id} size={32} />
+          <GardenIcon id={next.id} size={32} grown={false} />
           <p className="text-[15px] font-bold text-[#3d2a1c]">{next.label}</p>
         </div>
         <p className="mt-1 text-[13px] text-[#6b5640]">Finish any round to grow it. Consistency over catastrophe: one small thing at a time.</p>
@@ -84,10 +92,10 @@ export function IslandPanel({ garden, streak }: { garden: Garden; streak: number
           const isNext = i === garden.grown;
           return (
             <li key={item.id} className={`flex items-center gap-3 rounded-xl px-2 py-1.5 ${isNext ? "bg-white ring-1 ring-[#f0dfc2]" : ""}`}>
-              <span className="w-5 text-right font-mono text-[11.5px] text-[#8f7a5e]">{i + 1}</span>
+              <span className="w-5 text-right font-mono text-[11.5px] text-[#80694f]">{i + 1}</span>
               <GardenIcon id={item.id} size={32} grown={grown} />
               <span className={`flex-1 text-[14px] ${grown ? "font-bold text-[#3d2a1c]" : "text-[#8a6a4a]"}`}>{item.label}</span>
-              <span className="text-[12px] text-[#86705a]">{grown ? date(i) : isNext ? "Next" : `Session ${i + 1}`}</span>
+              <span className="text-[12px] text-[#80694f]">{grown ? date(i) : isNext ? "Next" : `Session ${i + 1}`}</span>
             </li>
           );
         })}

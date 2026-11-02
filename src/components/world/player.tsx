@@ -66,7 +66,7 @@ export function Player({
         }
       }
       if (move.lengthSq() > 0) {
-        speed = usingStick ? (push > 0.92 ? RUN : WALK * Math.max(0.35, push)) : has("shift") ? RUN : WALK;
+        speed = usingStick ? RUN * Math.max(0.2, push) : has("shift") ? RUN : WALK; // the pace rises smoothly with the push
         move.normalize().multiplyScalar(speed * dt);
         // glide round trees and bushes; slide along anything else that's in the way rather than stopping dead
         const to = slideRoundPlants(p.pos.x + move.x, p.pos.z + move.y, BODY);
