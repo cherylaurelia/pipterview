@@ -22,7 +22,7 @@ Plain code checks, no AI judge:
 | Evidence grounding | Every quoted phrase (4+ words) in the feedback's evidence actually appears in the candidate's words |
 | Format | Every rubric dimension and the question's review are present |
 
-Also recorded per case: latency, tokens, and cost. Each case runs twice to measure run-to-run noise.
+Also recorded: latency per case, and the run's total tokens. Each case runs twice to measure run-to-run noise.
 
 Resolution: with 13 question groups × 2 runs, the ordering pass rate is only good to roughly ±20 points, so treat it as a smoke test for big regressions, not a fine-grained score.
 
@@ -36,5 +36,5 @@ EVAL_RUNS=1 EVAL_ONLY=two-sum npm run eval:feedback     # one question's cases, 
 MOCK_AI=1 EVAL_RUNS=1 npm run eval:feedback             # free dry run of the pipeline (mock feedback, so the grades mean nothing)
 ```
 
-Each run writes a Markdown report and the raw results (JSON) to `results/` (gitignored; copy a report into a PR when you change the prompt, rubric or model). The run fails only if a report is malformed (missing a rubric dimension or the question's review); the other checks are reported, not enforced, since with 13 question groups they're a smoke test, not a fine-grained score. The report ends with the run's total tokens (input, output and cache), from the same usage the server logs for every call (`claude usage {...}` lines).
+Each run writes a Markdown report and the raw results (JSON) to `results/` (gitignored; copy a report into a PR when you change the prompt, rubric or model). The run fails if a call fails (after writing the report from the rest) or a report is malformed (missing a rubric dimension or the question's review); the other checks are reported, not enforced, since with 13 question groups they're a smoke test, not a fine-grained score. With the real model, the report ends with the run's total tokens (input, output and cache), from the same usage the server logs for every call (`claude usage {...}` lines).
 

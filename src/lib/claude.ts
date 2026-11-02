@@ -70,7 +70,13 @@ function recordUsage(kind: Usage["kind"], response: { model?: string; usage?: { 
     cacheWrite: u.cache_creation_input_tokens ?? 0,
   };
   console.info(`claude usage ${JSON.stringify(usage)}`);
-  usageListeners.forEach((l) => l(usage));
+  for (const listener of usageListeners) {
+    try {
+      listener(usage);
+    } catch (error) {
+      console.error("claude usage listener failed", error); // never let telemetry turn a good response into an error
+    }
+  }
 }
 // Interviewer turns are short and latency-sensitive; tailoring and feedback need more care.
 const TURN_EFFORT = "low";
@@ -184,14 +190,23 @@ export async function interviewerTurn(
     system: interviewerSystemPrompt(state.typeId, state.settings, state.candidate),
     messages: buildMessages(transcript, directive),
   }, { signal });
-  for await (const event of stream) {
-    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-      const text = say(event.delta.text);
-      if (text) onSay(text);
+  // usage as it streams in, so a turn that's stopped part way (the candidate left) is still logged: it's still billed
+  const seen: { model?: string; usage: NonNullable<Parameters<typeof recordUsage>[1]["usage"]> } = { usage: {} };
+  let response;
+  try {
+    for await (const event of stream) {
+      if (event.type === "message_start") Object.assign(seen, { model: event.message.model, usage: { ...event.message.usage } });
+      else if (event.type === "message_delta") {
+        for (const [k, v] of Object.entries(event.usage)) if (v != null) Object.assign(seen.usage, { [k]: v });
+      } else if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+        const text = say(event.delta.text);
+        if (text) onSay(text);
+      }
     }
+    response = await stream.finalMessage();
+  } finally {
+    recordUsage("turn", response ?? seen);
   }
-  const response = await stream.finalMessage();
-  recordUsage("turn", response);
 
   if (response.stop_reason === "refusal" || !response.parsed_output) {
     // Stay on the same step and let the candidate try again.

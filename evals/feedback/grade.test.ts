@@ -42,6 +42,8 @@ describe("feedback eval grading", () => {
     expect(real.grounding).toMatchObject({ passed: 2, total: 2 }); // one quote per dimension
     const made = grade([result("strong", 4, "hire", 'They said "I would sort the array first".')], () => RUBRIC);
     expect(made.grounding.passed).toBe(0);
+    const partWord = grade([result("strong", 4, "hire", 'They said "ould use a hash map".')], () => RUBRIC);
+    expect(partWord.grounding.passed).toBe(0); // only the end of "would"
   });
 
   it("flags missing rubric dimensions", () => {
