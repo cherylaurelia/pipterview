@@ -674,7 +674,8 @@ function StreamLeaves() {
     const t = clock.getElapsedTime();
     leaves.forEach((leaf, i) => {
       const u = (leaf.start + t * leaf.speed) % 1, f = u * FALL_INDEX, k = Math.floor(f);
-      const a = STREAM_PTS[k], b = STREAM_PTS[Math.min(k + 1, FALL_INDEX)], w = f - k;
+      // the last stretch ends at the lip of the waterfall, not the first stream point past it
+      const a = STREAM_PTS[k], b = k + 1 >= FALL_INDEX ? FALL : STREAM_PTS[k + 1], w = f - k;
       const tx = b.x - a.x, tz = b.z - a.z, len = Math.hypot(tx, tz) || 1;
       const drift = leaf.side + Math.sin(t * 0.7 + i) * 0.1;
       tmp.position.set(a.x + tx * w - (tz / len) * drift, -0.12, a.z + tz * w + (tx / len) * drift);

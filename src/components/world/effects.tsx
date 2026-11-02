@@ -149,7 +149,9 @@ export function Effects() {
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
+  const dpr = useThree((s) => s.viewport.dpr);
   const chain = useRef<Chain | null>(null);
+  const fullDpr = useRef(0); // the Canvas's own pixel ratio, to go back to after lite
 
   useEffect(() => {
     const built = buildChain(gl, scene, camera);
@@ -163,19 +165,20 @@ export function Effects() {
   useEffect(() => {
     const c = chain.current;
     if (!c) return;
-    const dpr = gl.getPixelRatio();
     c.composer.setPixelRatio(dpr);
     c.composer.setSize(size.width, size.height); // sizes every pass too
     c.ao.setSize((size.width * dpr) / 2, (size.height * dpr) / 2); // AO at half resolution: soft anyway, and much cheaper
     c.outline.uniforms.uTexel.value.set(2 / (size.width * dpr), 2 / (size.height * dpr)); // one texel of the AO's buffers
-  }, [gl, size, scene, camera]);
+  }, [gl, size, dpr, scene, camera]);
 
   // priority 1: R3F stops rendering on its own and leaves it to us
   const setDpr = useThree((s) => s.setDpr);
   useFrame((_, dt) => {
     measureFrame(dt); // auto quality: steps down if the first seconds run slowly (see quality.ts)
     const c = chain.current, level = quality.level;
+    fullDpr.current ||= gl.getPixelRatio();
     if (level === 0 && gl.getPixelRatio() > 1) setDpr(1);
+    else if (level > 0 && gl.getPixelRatio() < fullDpr.current) setDpr(fullDpr.current); // left lite: sharp again
     // lite: no post-processing at all (the renderer still tone-maps and converts colour on its own)
     if (!c || level === 0) return gl.render(scene, camera);
     c.outline.enabled = level >= 2;

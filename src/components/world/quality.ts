@@ -52,7 +52,8 @@ export function measureFrame(dt: number) {
     sample.skip -= dt; // let shaders compile and the first flight settle before judging
     return false;
   }
-  sample.time += dt;
+  // one long frame (back from a background tab, a GC pause) counts as one slow frame, not seconds of slowness
+  sample.time += Math.min(dt, 0.1);
   sample.frames++;
   if (sample.time < 4) return false;
   const fps = sample.frames / sample.time;
@@ -64,5 +65,14 @@ export function measureFrame(dt: number) {
   return true;
 }
 
-/** Whether the system asks for reduced motion. */
-export const reducedMotion = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+/** Whether the system asks for reduced motion. Read every frame, so it's cached and kept current by one listener. */
+let reduce: boolean | null = null;
+export function reducedMotion() {
+  if (reduce === null) {
+    if (typeof window === "undefined" || !window.matchMedia) return false;
+    const q = window.matchMedia("(prefers-reduced-motion: reduce)");
+    reduce = q.matches;
+    q.addEventListener("change", (e) => void (reduce = e.matches));
+  }
+  return reduce;
+}

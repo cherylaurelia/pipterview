@@ -291,15 +291,17 @@ export default function World() {
   // the one side panel: chat and code while you're at the table; stories and help any time
   const [panel, setPanel] = useState<PanelTab | null>(null);
   const [poked, setPoked] = useState(false);
-  // Pip says hello (a happy flap and a chirp) when you walk up to the table
+  // a happy flap and a chirp, when you poke Pip or walk up to the table (one timer, so the two don't cut each other short)
   const greetTimer = useRef(0);
-  const onNear = (n: Nearby | null) => {
-    setNear(n);
-    if (n?.type !== "table") return;
+  const greet = (ms: number) => {
     sound.ambience.current?.chirp();
     setPoked(true);
     window.clearTimeout(greetTimer.current);
-    greetTimer.current = window.setTimeout(() => setPoked(false), 1600);
+    greetTimer.current = window.setTimeout(() => setPoked(false), ms);
+  };
+  const onNear = (n: Nearby | null) => {
+    setNear(n);
+    if (n?.type === "table") greet(1600);
   };
   // the pond creature you've clicked on; only on the island (it lets go when you sit down or go home)
   const [critter, setCritter] = useState<CritterPick | null>(null);
@@ -493,11 +495,7 @@ export default function World() {
     sound.ambience.current?.critter(action.sound);
   };
 
-  const pokePip = () => {
-    sound.ambience.current?.chirp();
-    setPoked(true);
-    window.setTimeout(() => setPoked(false), 1300);
-  };
+  const pokePip = () => greet(1300);
   const toggleTab = (tab: "island" | "stories" | "help") => {
     if (tab === "stories") setStories(loadStories());
     setPanel((p) => (p === tab ? (seated ? tableTab : null) : tab));
@@ -512,7 +510,7 @@ export default function World() {
     code.current = { text: null, language: "python", run: null, sentKey: null, questionId: convo.question?.id ?? null };
   }, [convo.question?.id]);
 
-  // (no useCallback: the React Compiler memoizes this, and the camera keeps it in a ref anyway)
+  // (no useCallback needed: the camera keeps the latest one in a ref)
   const onArrive = (m: WorldMode) => {
     setArrived(m);
     if (m === "world") setHintUntil(Date.now() + 12000);

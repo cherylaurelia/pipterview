@@ -183,7 +183,7 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
   const wings = [useRef<THREE.Group>(null), useRef<THREE.Group>(null)];
   const talk = useRef(0);
   const zzz = useRef<THREE.Group>(null);
-  const nod = useRef(0), tilt = useRef(0), hop = useRef(0);
+  const nod = useRef(0), tilt = useRef(0), hop = useRef(0), breathe = useRef(0), doze = useRef(0);
   const nextBlink = useRef(outfit === "guide" ? 2.2 : 3.6);
   const world = useRef(new THREE.Vector3());
   const seed = outfit === "guide" ? 1.7 : 5.3;
@@ -196,6 +196,8 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
     const n = ease(nod, mood === "listening");
     const th = ease(tilt, mood === "thinking");
     const hp = ease(hop, mood === "happy");
+    const bw = ease(breathe, mood === "breathing");
+    const dz = ease(doze, mood === "dozing");
     if (body.current) {
       // bounces: little ones of emphasis while talking, big happy ones; squash at the bottom, stretch at the top
       const bounce = k * Math.abs(Math.sin(t * 6.5)) * 0.015 + hp * Math.abs(Math.sin(t * 4.5)) * 0.07;
@@ -204,7 +206,8 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
       const g = gait?.current ?? 0, step = Math.sin(t * (10 + g * 3));
       // breathing with you: a slow swell and settle, in time with the circle on screen (see checkin.tsx)
       // dozing: slow, deep sleepy breaths
-      const br = mood === "breathing" ? breathAt((performance.now() - breathing.start) / 1000) : mood === "dozing" ? (Math.sin(t * 1.1) + 1) / 2 : 0;
+      // (both eased in and out, so nothing snaps when the mood changes)
+      const br = bw * breathAt((performance.now() - breathing.start) / 1000) + dz * ((Math.sin(t * 1.1) + 1) / 2);
       body.current.scale.set((1 - stretch * 0.5) * (1 + br * 0.05), (1 + stretch) * (1 + br * 0.08), (1 - stretch * 0.5) * (1 + br * 0.05));
       body.current.position.y = bounce + Math.abs(step) * 0.05 * Math.min(1, g);
       body.current.rotation.z = drift(t * 0.5, seed) * 0.04 + th * 0.14 + step * 0.13 * Math.min(1, g); // a slow sway; a curious tilt while thinking
@@ -219,9 +222,9 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
     if (t > nextBlink.current + 0.14) nextBlink.current = t + 2.2 + Math.random() * 3;
     const blink = t > nextBlink.current ? Math.sin(((t - nextBlink.current) / 0.14) * Math.PI) : 0;
     // eyes softly closed while breathing, otherwise the odd blink
-    [eyeL, eyeR].forEach((e) => e.current?.scale.set(1, mood === "breathing" || mood === "dozing" ? 0.2 : 1 - blink * 0.9, 1));
+    [eyeL, eyeR].forEach((e) => e.current?.scale.set(1, Math.min(1 - blink * 0.9, 1 - Math.max(bw, dz) * 0.8), 1));
     // dozing: the head droops to one side, and little z's drift up
-    if (body.current && mood === "dozing") body.current.rotation.z += 0.12;
+    if (body.current) body.current.rotation.z += dz * 0.12;
     if (zzz.current) {
       zzz.current.visible = mood === "dozing";
       zzz.current.children.forEach((z, i) => {
@@ -237,9 +240,10 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
       const g = Math.min(1, gait?.current ?? 0);
       w.current.rotation.z = side * (0.08 + k * (0.15 + 0.2 * Math.sin(t * 5 + i)) + hp * (0.5 + 0.4 * Math.sin(t * 9)) + g * (0.25 + 0.15 * Math.sin(t * 13)));
     });
-    if (chick.current && watch) {
-      // turn towards whoever it's watching (within reach), easing back to straight ahead otherwise
-      const who = watch(), c = chick.current;
+    if (chick.current) {
+      // turn towards whoever it's watching (within reach), easing back to straight ahead otherwise (or when there's
+      // no one to watch any more, or it's asleep)
+      const who = watch && mood !== "dozing" ? watch() : null, c = chick.current;
       let want = 0;
       if (who) {
         const dx = who.x - position[0], dz = who.z - position[2];

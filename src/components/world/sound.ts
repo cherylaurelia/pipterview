@@ -42,7 +42,7 @@ export interface Ambience {
   /** How close running water is, 0 (far away) to 1 (right beside the stream): its babble rises and falls with it. */
   setWater(level: number): void;
   /** A footstep of your chick's, on grass, wooden boards or a dirt path. */
-  step(surface: "grass" | "wood" | "dirt"): void;
+  step(surface: "grass" | "wood" | "stone" | "dirt"): void;
   dispose(): void;
 }
 
@@ -362,15 +362,16 @@ export function createAmbience(): Ambience {
     setWater(level: number) {
       waterGain.gain.setTargetAtTime(Math.max(0, Math.min(1, level)) * 0.5, ctx.currentTime, 0.4);
     },
-    step(surface: "grass" | "wood" | "dirt") {
+    step(surface: "grass" | "wood" | "stone" | "dirt") {
       if (!enabled) return;
       const at = ctx.currentTime + 0.005;
       if (surface === "wood") tone(nature, 170 + Math.random() * 40, at, { type: "triangle", peak: 0.06, attack: 0.002, decay: 0.07, glide: 0.8 });
+      if (surface === "stone") tone(nature, 95 + Math.random() * 20, at, { peak: 0.05, attack: 0.002, decay: 0.04, glide: 0.9 }); // a short, dull knock
       const src = ctx.createBufferSource();
       src.buffer = white;
       const filter = ctx.createBiquadFilter();
       filter.type = "bandpass";
-      filter.frequency.value = surface === "grass" ? 2600 + Math.random() * 800 : surface === "dirt" ? 1300 + Math.random() * 300 : 900;
+      filter.frequency.value = surface === "grass" ? 2600 + Math.random() * 800 : surface === "dirt" ? 1300 + Math.random() * 300 : surface === "stone" ? 1800 + Math.random() * 300 : 900;
       filter.Q.value = 1.2;
       const g = ctx.createGain();
       const peak = surface === "grass" ? 0.05 : surface === "dirt" ? 0.07 : 0.04;

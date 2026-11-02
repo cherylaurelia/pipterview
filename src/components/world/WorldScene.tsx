@@ -136,7 +136,9 @@ function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
       if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pinch && touches.size >= 2) {
         const v = view.current, k = pinch.span / span();
-        if (modeRef.current === "world") v.dist = clamp(pinch.dist * k, LIMITS.dist);
+        if (modeRef.current === "world") {
+          if (!player.sitting) v.dist = clamp(pinch.dist * k, LIMITS.dist);
+        }
         else if (modeRef.current === "seated") {
           v.zoom = clamp(pinch.zoom * k, LIMITS.zoom);
           v.lastDrag = performance.now();
@@ -150,6 +152,7 @@ function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
       v.lastDrag = performance.now();
       if (m === "splash") v.spin -= dx * 0.004;
       else if (m === "world") {
+        if (player.sitting) return; // on a bench the camera sits with you; dragging would only move it once you got up
         v.az -= dx * 0.006;
         v.el = clamp(v.el + dy * 0.004, LIMITS.el);
       } else {
@@ -161,10 +164,13 @@ function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
       down = null;
       touches.delete(e.pointerId);
       if (touches.size < 2) pinch = null;
+      else if (pinch) pinch = { span: span(), dist: view.current.dist, zoom: view.current.zoom }; // fingers changed: no jump
     };
     const onWheel = (e: WheelEvent) => {
       const v = view.current, m = modeRef.current;
-      if (m === "world") v.dist = clamp(v.dist * (1 + e.deltaY * 0.001), LIMITS.dist);
+      if (m === "world") {
+        if (!player.sitting) v.dist = clamp(v.dist * (1 + e.deltaY * 0.001), LIMITS.dist);
+      }
       else if (m === "seated") {
         v.zoom = clamp(v.zoom * (1 + e.deltaY * 0.001), LIMITS.zoom);
         v.lastDrag = performance.now();
@@ -190,6 +196,7 @@ function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
     canvas.addEventListener("pointerdown", onDown);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp); // a cancelled touch has to leave too, or the next tap is a "pinch"
     canvas.addEventListener("wheel", onWheel, { passive: true });
     window.addEventListener("keydown", onKey);
     window.addEventListener("keyup", onKey);
@@ -199,6 +206,7 @@ function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
       canvas.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("wheel", onWheel);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKey);
@@ -249,6 +257,7 @@ function CameraRig({ mode, aside, onArrive }: { mode: WorldMode; aside: number; 
     const fov = goalFor(mode, clock.getElapsedTime(), v, aside, g.pos, g.look);
     const tw = tween.current;
     if (tw) {
+      if (reducedMotion()) tw.dur = 1; // asked for less motion mid-flight: finish it now
       tw.from ??= { pos: cam.position.clone(), look: look.current.clone(), fov: cam.fov };
       const from = tw.from;
       const k = ease(Math.min(1, (performance.now() - tw.t0) / tw.dur));
@@ -367,7 +376,7 @@ export default function WorldScene({
   /** What you've walked up to (the table, a creature), or nothing. */
   onNear: (near: Nearby | null) => void;
   /** Your chick's footsteps, for their sound. */
-  onStep?: (surface: "grass" | "wood" | "dirt") => void;
+  onStep?: (surface: "grass" | "wood" | "stone" | "dirt") => void;
   onPokePip: () => void;
   onSit: () => void;
   onArrive: (mode: WorldMode) => void;
