@@ -17,31 +17,66 @@ function keys(storage: Storage) {
   return Array.from({ length: storage.length }, (_, i) => storage.key(i)).filter((k): k is string => !!k && ours(k));
 }
 
+type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
+
+const BLOCKED = "This browser isn't letting pipterview use its storage (a private window, or site data blocked?).";
+
 /** Everything this app has stored, as a JSON file's contents. */
-export function exportData(storage: Storage = window.localStorage): string {
-  const data = Object.fromEntries(keys(storage).map((k) => [k, storage.getItem(k) ?? ""]));
-  const backup: Backup = { app: APP, version: 1, exported: new Date().toISOString(), data };
-  return JSON.stringify(backup, null, 2);
+export function exportData(storage: Storage = window.localStorage): Result<{ json: string }> {
+  try {
+    const data = Object.fromEntries(keys(storage).map((k) => [k, storage.getItem(k) ?? ""]));
+    const backup: Backup = { app: APP, version: 1, exported: new Date().toISOString(), data };
+    return { ok: true, json: JSON.stringify(backup, null, 2) };
+  } catch {
+    return { ok: false, error: BLOCKED };
+  }
 }
 
-/** Restores a file made by exportData, replacing what's here. Ignores anything that isn't this app's. */
-export function importData(json: string, storage: Storage = window.localStorage): { ok: true; count: number } | { ok: false; error: string } {
+/**
+ * Restores a file made by exportData, replacing what's here. Ignores anything that isn't this app's. Checks the whole
+ * file before touching anything, and if a write fails part way (storage full), puts back exactly what was here before.
+ */
+export function importData(json: string, storage: Storage = window.localStorage): Result<{ count: number }> {
   let backup: Backup;
   try {
     backup = JSON.parse(json);
   } catch {
     return { ok: false, error: "That file isn't a pipterview backup (it isn't JSON)." };
   }
-  if (backup?.app !== APP || backup.version !== 1 || typeof backup.data !== "object" || !backup.data) {
+  const data: unknown = backup?.data;
+  if (backup?.app !== APP || backup.version !== 1 || typeof data !== "object" || !data || Array.isArray(data)) {
     return { ok: false, error: "That file isn't a pipterview backup." };
   }
-  const entries = Object.entries(backup.data).filter(([k, v]) => ours(k) && typeof v === "string");
-  for (const k of keys(storage)) storage.removeItem(k);
-  for (const [k, v] of entries) storage.setItem(k, v);
+  const entries = Object.entries(data).filter(([k]) => ours(k));
+  if (entries.some(([, v]) => typeof v !== "string")) return { ok: false, error: "That backup file is damaged, so nothing was changed." };
+
+  let before: [string, string][];
+  try {
+    before = keys(storage).map((k) => [k, storage.getItem(k) ?? ""]);
+  } catch {
+    return { ok: false, error: BLOCKED };
+  }
+  try {
+    for (const [k] of before) storage.removeItem(k);
+    for (const [k, v] of entries as [string, string][]) storage.setItem(k, v);
+  } catch {
+    try {
+      for (const k of keys(storage)) storage.removeItem(k);
+      for (const [k, v] of before) storage.setItem(k, v);
+    } catch {
+      // Couldn't even put it back; nothing more we can do from here.
+    }
+    return { ok: false, error: "There wasn't room to restore that backup, so your data was left as it was." };
+  }
   return { ok: true, count: entries.length };
 }
 
 /** Deletes everything this app has stored in this browser. */
-export function deleteAllData(storage: Storage = window.localStorage) {
-  for (const k of keys(storage)) storage.removeItem(k);
+export function deleteAllData(storage: Storage = window.localStorage): Result {
+  try {
+    for (const k of keys(storage)) storage.removeItem(k);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: BLOCKED };
+  }
 }

@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { bloomGarden, GARDEN_ITEMS, gardenItem, growGarden, loadGarden, markGardenSeen, streakDays, type Garden } from "@/lib/garden";
+import { bloomGarden, GARDEN_ITEMS, gardenItem, growGarden, loadGarden, markGardenSeen, MAX_BLOOMS, streakDays, type Garden } from "@/lib/garden";
 import { loadHistory } from "@/lib/history";
 import { improvementsSince } from "@/lib/improvement";
 import { deliveryStats } from "@/lib/interview/delivery";
@@ -408,13 +408,15 @@ export default function World() {
     if (status !== "report") return;
     const id = window.setTimeout(() => {
       setGrewNow(gardenItem(loadGarden().grown));
-      growGarden(type);
+      // use what growGarden returns, not a fresh load: if this browser won't store anything, that's the only copy
+      const grown = growGarden(type);
       // and if a habit got better than last time, wildflowers bloom (this session isn't in the history yet: the
       // report records it when it opens)
       const transcript = scoredTranscript.current;
       const better = transcript ? improvementsSince(loadHistory().at(-1), { stats: deliveryStats(transcript), nervousBefore }) : [];
-      setImproved(better);
-      setGarden(better.length ? bloomGarden() : loadGarden());
+      const blooms = better.length > 0 && (grown.blooms ?? 0) < MAX_BLOOMS;
+      setImproved(blooms ? better : []);
+      setGarden(blooms ? bloomGarden(grown) : grown);
       setLingered(true);
     }, 2500);
     return () => clearTimeout(id);

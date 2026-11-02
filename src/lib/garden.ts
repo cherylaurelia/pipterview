@@ -66,13 +66,15 @@ function save(garden: Garden) {
 export function growGarden(type: PrepType): Garden {
   const garden = loadGarden();
   const item = gardenItem(garden.grown);
-  return save({ grown: garden.grown + 1, seen: garden.seen, log: [...garden.log, { date: new Date().toISOString(), type, item: item.id }] });
+  return save({ ...garden, grown: garden.grown + 1, log: [...garden.log, { date: new Date().toISOString(), type, item: item.id }] });
 }
 
-/** You improved on something this session: a patch of wildflowers blooms. */
-export function bloomGarden(): Garden {
-  const garden = loadGarden();
-  return save({ ...garden, blooms: (garden.blooms ?? 0) + 1 });
+/** How many wildflower patches the island has room for. */
+export const MAX_BLOOMS = 40;
+
+/** You improved on something this session: a patch of wildflowers blooms (until the island is full of them). */
+export function bloomGarden(garden = loadGarden()): Garden {
+  return save({ ...garden, blooms: Math.min(MAX_BLOOMS, (garden.blooms ?? 0) + 1) });
 }
 
 /** You've watched the new things appear. */

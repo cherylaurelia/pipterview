@@ -64,7 +64,7 @@ Open http://localhost:3000 in Chrome or Edge (voice input needs the Web Speech A
 
 ## Your data
 
-Your island, stories and progress stay **in your browser**: no accounts, no cookies, no analytics. **Help → Your data** lets you download a backup, restore it in another browser, or delete everything. [What gets sent where](src/app/privacy/page.tsx) (also at `/privacy` in the app) explains what goes to Anthropic, Google's speech service and ElevenLabs.
+Your island, stories and progress stay **in your browser**: no accounts, no cookies, no analytics. **Help → Your data** lets you download a backup, restore it in another browser, or delete everything in this browser (question ratings you've sent stay on the server). [What gets sent where](src/app/privacy/page.tsx) (also at `/privacy` in the app) explains what goes to Anthropic, Google's speech service and ElevenLabs.
 
 ## Known limitations
 

@@ -74,8 +74,8 @@ export async function summarizeRatings(): Promise<QuestionRatingSummary[]> {
     else summary.notRealistic += 1;
     if (row.difficulty) summary.difficulty[row.difficulty] += 1;
     if (row.comment?.trim()) {
-      const text = row.tailored ? `“${row.questionPrompt}” — ${row.comment.trim()}` : row.comment.trim();
-      summary.comments.push({ source: row.source, text, createdAt: row.createdAt });
+      // a tailored question's wording can quote someone's resume, and this summary is public: keep it out
+      summary.comments.push({ source: row.source, text: row.comment.trim(), createdAt: row.createdAt });
     }
     byQuestion.set(key, summary);
   }
