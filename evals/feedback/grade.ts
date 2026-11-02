@@ -96,9 +96,10 @@ export function grade(results: CaseResult[], rubric: (typeId: EvalCase["typeId"]
       const m = meanScore(f);
       record(g.floor, m <= 1.5 && hireIndex(f) <= 1, `${r.case.id}: mean ${m.toFixed(2)}, ${f.recommendation}`);
     }
-    const said = normalise(r.case.turns.filter((t) => t.role === "candidate").map((t) => t.text).join(" "));
+    // padded with spaces so a quote has to match whole words, not the tail of one
+    const said = ` ${normalise(r.case.turns.filter((t) => t.role === "candidate").map((t) => t.text).join(" "))} `;
     for (const d of f.dimensions) {
-      for (const q of quotedPhrases(d.evidence)) record(g.grounding, said.includes(normalise(q)), `${r.case.id} (${d.name}): "${q}" isn't in what they said`);
+      for (const q of quotedPhrases(d.evidence)) record(g.grounding, said.includes(` ${normalise(q)} `), `${r.case.id} (${d.name}): "${q}" isn't in what they said`);
     }
     const names = new Set(f.dimensions.map((d) => d.name));
     const missing = rubric(r.case.typeId).filter((n) => !names.has(n));
@@ -113,10 +114,12 @@ export function report(g: Grade, results: CaseResult[], meta: { model: string; r
   const pct = (c: Check) => (c.total ? `${Math.round((c.passed / c.total) * 100)}%` : "n/a");
   const row = (name: string, c: Check) => `| ${name} | ${c.passed}/${c.total} | ${pct(c)} |`;
   const ms = results.map((r) => r.ms).sort((a, b) => a - b);
+  const mid = ms.length / 2;
+  const median = ms.length ? (ms.length % 2 ? ms[Math.floor(mid)] : (ms[mid - 1] + ms[mid]) / 2) : 0;
   const lines = [
     `# Feedback eval, ${meta.date}`,
     "",
-    `Model: ${meta.model}. ${results.length} feedback reports (${meta.runs} run${meta.runs === 1 ? "" : "s"} per case). Median latency ${ms.length ? Math.round(ms[Math.floor(ms.length / 2)] / 1000) : 0} s.`,
+    `Model: ${meta.model}. ${results.length} feedback reports (${meta.runs} run${meta.runs === 1 ? "" : "s"} per case). Median latency ${Math.round(median / 1000)} s.`,
     "",
     "| Check | Passed | Rate |",
     "|---|---|---|",
