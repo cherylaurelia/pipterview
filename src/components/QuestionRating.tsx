@@ -89,7 +89,7 @@ export function QuestionRating({
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           placeholder={source === "mentor" ? "What would you change? (optional)" : "Anything off about it? (optional)"}
-          className="min-w-0 flex-1 rounded-full bg-white px-3 py-1.5 ring-1 ring-[#ead7b8] placeholder:text-[#b8a080] focus:outline-none focus:ring-2 focus:ring-[#e0a43a]"
+          className="min-w-0 flex-1 rounded-full bg-white px-3 py-1.5 text-[16px] ring-1 ring-[#ead7b8] placeholder:text-[#80694f] sm:text-[14px]"
         />
         <button
           type="button"

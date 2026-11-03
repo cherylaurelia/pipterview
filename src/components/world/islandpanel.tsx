@@ -31,7 +31,7 @@ function HowYoureDoing({ history }: { history: SessionRecord[] }) {
   const drop = nerves.length > 1 ? nerves[0] - nerves.at(-1)! : 0;
   return (
     <section className="mb-3 rounded-2xl bg-white px-4 py-3 ring-1 ring-[#f0dfc2]">
-      <p className="text-[12.5px] font-bold text-[#a07a4a]">How you&apos;re doing</p>
+      <p className="text-[12.5px] font-bold text-[#8a5a1c]">How you&apos;re doing</p>
       <p className="mt-0.5 text-[13px] text-[#6b5640]">
         {history.length} session{history.length === 1 ? "" : "s"} practised · latest: <b className="text-[#3d2a1c]">{READINESS[last.recommendation].label}</b>
       </p>
@@ -73,10 +73,10 @@ export function IslandPanel({ garden, streak }: { garden: Garden; streak: number
     return iso ? new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
   };
   return (
-    <div className="retro-scroll min-h-0 flex-1 overflow-y-auto lowercase">
+    <div tabIndex={0} aria-label="Your island" className="retro-scroll min-h-0 flex-1 overflow-y-auto lowercase">
       <HowYoureDoing history={history} />
       <div className="rounded-2xl bg-[#fff1d6] px-4 py-3">
-        <p className="text-[12.5px] font-bold text-[#a07a4a]">Next on your island</p>
+        <p className="text-[12.5px] font-bold text-[#8a5a1c]">Next on your island</p>
         <div className="mt-1 flex items-center gap-2.5">
           <GardenIcon id={next.id} size={32} grown={false} />
           <p className="text-[15px] font-bold text-[#3d2a1c]">{next.label}</p>

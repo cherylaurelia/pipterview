@@ -7,7 +7,8 @@ import { isTailored, type ProfileDraft } from "../profile";
 import { NavButton, sunken } from "./retro";
 
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
-const field = "w-full bg-white px-2.5 py-1.5 text-[13.5px] text-[#1b1d22] outline-none placeholder:text-[#8f8d88]";
+// 16px on phones, so iOS doesn't zoom the page when a field is focused
+const field = "w-full bg-white px-2.5 py-1.5 text-[16px] sm:text-[13.5px] text-[#1b1d22] outline-none placeholder:text-[#80694f]";
 
 /**
  * Optional context: a resume and/or job description, so questions are about you. Everything here can be skipped;
@@ -33,14 +34,14 @@ export function ResumeStep({
   const onFile = (file: File | undefined) => {
     setFileError(null);
     if (!file) return;
-    if (file.type !== "application/pdf") return setFileError("Please choose a PDF.");
-    if (file.size > MAX_PDF_BYTES) return setFileError("That PDF is over 5 MB.");
+    if (file.type !== "application/pdf") return setFileError("Choose a PDF file, or paste your resume as text below.");
+    if (file.size > MAX_PDF_BYTES) return setFileError("That PDF is over 5 MB. Choose a smaller one, or paste your resume as text below.");
     const reader = new FileReader();
     reader.onload = () => {
       const data = String(reader.result).split(",")[1] ?? "";
       onChange({ ...draft, resumePdf: { name: file.name, data, bytes: file.size }, resumeText: "" });
     };
-    reader.onerror = () => setFileError("Couldn't read that file.");
+    reader.onerror = () => setFileError("Couldn't read that file. Try another PDF, or paste your resume as text below.");
     reader.readAsDataURL(file);
   };
 

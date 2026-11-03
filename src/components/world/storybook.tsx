@@ -40,7 +40,7 @@ export function StoryBook({ stories, onChange, onPractise }: { stories: SavedSto
                       <span
                         key={part}
                         title={part}
-                        className={`grid h-[18px] w-[18px] place-items-center rounded-[5px] text-[10px] font-bold ${missing.includes(part) ? "text-[#8f8d88]" : "bg-[#ffc95c] text-[#3d2a14]"}`}
+                        className={`grid h-[18px] w-[18px] place-items-center rounded-[5px] text-[10px] font-bold ${missing.includes(part) ? "text-[#80694f]" : "bg-[#ffc95c] text-[#3d2a14]"}`}
                         style={missing.includes(part) ? sunken : undefined}
                       >
                         {part[0].toUpperCase()}
@@ -48,11 +48,11 @@ export function StoryBook({ stories, onChange, onPractise }: { stories: SavedSto
                     ))}
                   </span>
                 </div>
-                {story.question && <p className="mt-0.5 text-[11.5px] italic text-[#8f8d88]">For: {story.question}</p>}
+                {story.question && <p className="mt-0.5 text-[11.5px] italic text-[#80694f]">For: {story.question}</p>}
                 <dl className="mt-1.5 space-y-0.5 text-[13px] leading-snug text-[#1b1d22]">
                   {STAR_PARTS.filter((p) => story[p].trim()).map((part) => (
                     <div key={part} className="flex gap-2">
-                      <dt className="w-[62px] shrink-0 text-[11px] font-bold uppercase text-[#8f8d88]">{part}</dt>
+                      <dt className="w-[62px] shrink-0 text-[11px] font-bold uppercase text-[#80694f]">{part}</dt>
                       <dd>{story[part]}</dd>
                     </div>
                   ))}
@@ -62,7 +62,7 @@ export function StoryBook({ stories, onChange, onPractise }: { stories: SavedSto
                   {story.tip}
                 </p>
                 <div className="mt-1.5 flex items-center justify-between gap-2">
-                  <span className="text-[11.5px] text-[#8f8d88]">
+                  <span className="text-[11.5px] text-[#80694f]">
                     {story.skills.join(" · ")}
                     {story.timesTold > 1 ? ` · told ${story.timesTold} times` : ""}
                   </span>
@@ -85,7 +85,7 @@ export function StoryBook({ stories, onChange, onPractise }: { stories: SavedSto
                       </button>
                     </span>
                   ) : (
-                    <button className="shrink-0 text-[11.5px] text-[#8f8d88] underline underline-offset-2 hover:text-[#9b2b22]" onClick={() => setRemoving(story.id)}>
+                    <button className="shrink-0 text-[11.5px] text-[#80694f] underline underline-offset-2 hover:text-[#9b2b22]" onClick={() => setRemoving(story.id)}>
                       Remove
                     </button>
                   )}

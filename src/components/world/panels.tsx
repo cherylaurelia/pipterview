@@ -1,11 +1,12 @@
 "use client";
 
 import Editor, { type BeforeMount } from "@monaco-editor/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Question } from "@/lib/interview/types";
 import { runCode, summarizeRun, type RunResult } from "@/lib/workspace/runner";
 import { availableLanguages, useNativeRunner } from "@/lib/workspace/available";
 import { LANGUAGE_LABELS, type CodeLanguage } from "@/lib/workspace/types";
+import { reducedMotion } from "./quality";
 import { NavButton, Portrait, sunken } from "./retro";
 import { GUIDE_NAME, STARTER_CODE } from "./script";
 import type { ChatMessage, ConvoStatus } from "./useConversation";
@@ -39,6 +40,7 @@ export function ChatPanel({
   onKeepThinking,
   onHandsFree,
   onTyping,
+  tip,
 }: {
   messages: ChatMessage[];
   status: ConvoStatus;
@@ -61,6 +63,8 @@ export function ChatPanel({
   onHandsFree: (on: boolean) => void;
   /** Typing pauses the hands-free countdown. */
   onTyping: () => void;
+  /** A tour tip, at the top of the conversation (scrolling with it) rather than floating over it. */
+  tip?: ReactNode;
 }) {
   const [draft, setDraft] = useState("");
   const list = useRef<HTMLDivElement>(null);
@@ -79,7 +83,7 @@ export function ChatPanel({
   const open = ready && (status === "your-turn" || status === "speaking" || (listening && handsFree));
 
   useEffect(() => {
-    list.current?.scrollTo({ top: list.current.scrollHeight, behavior: "smooth" });
+    list.current?.scrollTo({ top: list.current.scrollHeight, behavior: reducedMotion() ? "auto" : "smooth" });
   }, [messages, status, liveText]);
 
   const send = () => {
@@ -94,9 +98,11 @@ export function ChatPanel({
       {/* a notice or a problem, when there is one (whose turn it is shows in the banner over the scene) */}
       {/* always there, so screen readers are listening when a notice arrives */}
       <div role="status">
-        {(notice || status === "error") && <p className="mb-2 rounded-xl bg-[#fff1d6] px-3 py-1.5 text-[13px] text-[#6b4a1c]">{notice ?? "Something went wrong."}</p>}
+        {notice && <p className="mb-2 rounded-xl bg-[#fff1d6] px-3 py-1.5 text-[13px] text-[#6b4a1c]">{notice}</p>}
       </div>
-      <div ref={list} className="retro-scroll min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fbf8f2] px-4 py-4" style={sunken}>
+      {/* focusable, so the conversation scrolls from the keyboard too */}
+      <div ref={list} tabIndex={0} aria-label="Conversation" className="retro-scroll min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fbf8f2] px-4 py-4" style={sunken}>
+        {tip}
         {messages.map((m, i) => (
           <div key={i} className={m.from === "you" ? "border-l-[3px] border-[#f0c987] pl-3" : ""}>
             <p className={`mb-0.5 flex items-center gap-1.5 text-[12px] font-bold ${m.from === "guide" ? "text-[#3d2a1c]" : "text-[#8a4b00]"}`}>
@@ -114,7 +120,7 @@ export function ChatPanel({
           </div>
         )}
         {waiting && (
-          <p className="flex items-center gap-1.5 text-[13px] text-[#8f8d88]" aria-label={STATUS_LINE[status]}>
+          <p className="flex items-center gap-1.5 text-[13px] text-[#80694f]" aria-label={STATUS_LINE[status]}>
             {status === "scoring" ? `${GUIDE_NAME} is writing your feedback` : `${GUIDE_NAME} is typing`}
             {[0, 1, 2].map((i) => (
               <span key={i} className="h-1 w-1 animate-pulse rounded-full bg-[#8f8d88]" style={{ animationDelay: `${i * 0.2}s` }} />
@@ -122,8 +128,9 @@ export function ChatPanel({
           </p>
         )}
         {status === "error" && (
-          <div className="rounded-xl border border-[#e8a39f] bg-[#fdf0ef] px-3 py-2.5 text-[13px] text-[#7a1f12]">
-            <p className="mb-2">{error ?? "Something went wrong."} Your conversation so far is kept.</p>
+          <div role="alert" className="rounded-xl border border-[#e8a39f] bg-[#fdf0ef] px-3 py-2.5 text-[13px] text-[#7a1f12]">
+            <p className="font-bold">{GUIDE_NAME}&apos;s reply didn&apos;t come through. Your conversation so far is kept.</p>
+            <p className="mb-2">{error ?? "Check your connection, then try again."}</p>
             <NavButton onClick={onRetry}>Try again</NavButton>
           </div>
         )}
@@ -169,7 +176,7 @@ export function ChatPanel({
           disabled={listening && !handsFree}
           aria-label="Your answer"
           placeholder={listening && !handsFree ? "Listening…" : open ? "Type a response…" : `Type now, send when ${GUIDE_NAME}'s done`}
-          className="retro-scroll max-h-36 min-w-0 flex-1 resize-none bg-[#fbf8f2] px-2.5 py-1.5 text-[14px] leading-snug text-[#1b1d22] outline-none placeholder:text-[#8f8d88] disabled:bg-[#efeee9]"
+          className="retro-scroll max-h-36 min-w-0 flex-1 resize-none bg-[#fbf8f2] px-2.5 py-1.5 text-[16px] leading-snug sm:text-[14px] text-[#1b1d22] outline-none placeholder:text-[#80694f] disabled:bg-[#efeee9]"
           style={sunken}
         />
         {(!listening || handsFree) && (
@@ -178,7 +185,7 @@ export function ChatPanel({
           </NavButton>
         )}
       </form>
-      <div className="mt-[4px] flex items-center gap-1.5 px-0.5">
+      <div className="mt-[4px] flex flex-wrap items-center gap-1.5 px-0.5">
         {canTalk && (
           <NavButton type="button" tone={listening ? "yellow" : "plain"} onClick={onTalk} disabled={!open && !listening} className="shrink-0">
             <span className={`h-2 w-2 rounded-full ${listening ? "animate-pulse bg-[#d9534f]" : "bg-[#d9534f]/80"}`} />
@@ -394,7 +401,7 @@ export function CodePanel({
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value as CodeLanguage)}
-            className="bg-transparent text-[13px] font-bold text-[#3d2a1c] outline-none"
+            className="bg-transparent text-[16px] font-bold text-[#3d2a1c] outline-none sm:text-[13px]"
             aria-label="Language"
           >
             {languages.map((l) => (

@@ -36,6 +36,7 @@ body {
 
 /* a soft caramel scrollbar for the panels in the 3D world */
 .retro-scroll {
+  overscroll-behavior: contain; /* scrolling past a panel's end doesn't move the page or the island behind it */
   scrollbar-width: thin;
   scrollbar-color: #b8935f transparent;
 }
@@ -62,31 +63,41 @@ body {
   outline-offset: 0;
 }
 
-/* Hover feedback on everything clickable: a soft lift and brighten, and a small press on click. */
+/* Hover feedback on everything clickable: a soft lift and brighten, and a small press on click. The lift is only for
+   real pointers: on a touch screen :hover sticks after a tap and would leave the button raised. */
 :where(button, a, [role="button"], summary, label[for]):not(:disabled):not(.monaco-editor *) {
-  transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease;
+  transition: transform 0.15s ease-out, filter 0.15s ease-out, box-shadow 0.15s ease-out;
 }
-:where(button, a, [role="button"], summary):not(:disabled):not(.monaco-editor *):hover {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
+@media (hover: hover) {
+  :where(button, a, [role="button"], summary):not(:disabled):not(.monaco-editor *):hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+  }
 }
 :where(button, a, [role="button"], summary):not(:disabled):not(.monaco-editor *):active {
-  transform: translateY(1px) scale(0.98);
+  transform: scale(0.96);
 }
 
 /* The results page arrives section by section instead of all at once. */
 @keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.985);
+    transform: translateY(12px);
+    filter: blur(4px);
   }
   to {
     opacity: 1;
     transform: none;
+    filter: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
   }
 }
 .report-enter > * {
-  animation: rise-in 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: rise-in 0.3s ease-out both;
 }
 .report-enter > :nth-child(1) { animation-delay: 0.05s; }
 .report-enter > :nth-child(2) { animation-delay: 0.15s; }
@@ -97,7 +108,7 @@ body {
 .report-enter > :nth-child(n + 7) { animation-delay: 0.65s; }
 
 @media (prefers-reduced-motion: reduce) {
-  .report-enter > * { animation: none; }
+  .report-enter > * { animation-name: fade-in; } /* still arrives in order, without the movement */
   :where(button, a, [role="button"], summary):hover,
   :where(button, a, [role="button"], summary):active { transform: none; }
 }
