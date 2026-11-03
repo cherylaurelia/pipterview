@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { NervousnessScale } from "../room/NervousnessScale";
+import { reducedMotion } from "./quality";
 import { NavButton, Panel, Portrait } from "./retro";
 import { GUIDE_NAME } from "./script";
 
@@ -93,13 +94,16 @@ export function BreatheWithPip({ onDone }: { onDone: () => void }) {
   }, []);
   const finished = seconds >= TOTAL;
   const phase = Math.floor(seconds / BREATH_PHASE_SECONDS) % 4;
-  const scale = 0.55 + breathAt(seconds) * 0.45;
+  // the circle swells and shrinks with the breath; asked for less motion, it stays put and brightens and fades instead
+  const still = reducedMotion();
+  const breath = breathAt(seconds);
+  const circle = still ? { opacity: 0.35 + breath * 0.65 } : { transform: `scale(${0.55 + breath * 0.45})` };
   return (
     <div className="pointer-events-none absolute inset-0 z-30 flex items-end justify-center px-4 pb-24 sm:items-center sm:justify-start sm:pb-0 sm:pl-10">
       <div className="pointer-events-auto flex w-[260px] flex-col items-center rounded-[24px] bg-[#fff8ec]/90 px-5 pt-4 pb-4 text-center shadow-[0_12px_32px_rgba(70,45,20,0.2)] ring-1 ring-[#f0dfc2] backdrop-blur" role="dialog" aria-label={`Breathe with ${GUIDE_NAME}`}>
         <div className="relative my-3 grid h-40 w-40 place-items-center">
-          <div className="absolute inset-0 rounded-full bg-[#ffe6b0] transition-transform duration-100 ease-linear" style={{ transform: `scale(${scale})` }} />
-          <div className="absolute inset-5 rounded-full bg-[#ffd27a]/70 transition-transform duration-100 ease-linear" style={{ transform: `scale(${scale})` }} />
+          <div className="absolute inset-0 rounded-full bg-[#ffe6b0] transition-[transform,opacity] duration-100 ease-linear" style={circle} />
+          <div className="absolute inset-5 rounded-full bg-[#ffd27a]/70 transition-[transform,opacity] duration-100 ease-linear" style={circle} />
           <span className="relative text-[19px] font-bold text-[#4a3424]" aria-live="polite">
             {finished ? "Nice." : BREATH_PHASES[phase]}
           </span>

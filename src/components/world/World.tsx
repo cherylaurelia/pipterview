@@ -226,7 +226,7 @@ function IslandHint({ show, until, touch }: { show: boolean; until: number; touc
         )}
         <span>drag to look</span>
         <span>
-          {GUIDE_NAME} is at the table <span className="text-[#c49a5a]">◆</span>
+          {GUIDE_NAME} is at the table <span className="text-[#c49a5a]" aria-hidden>◆</span>
         </span>
       </p>
     </div>
@@ -743,7 +743,7 @@ export default function World() {
             <div className="flex gap-4 px-2 pt-2 pb-3">
               <PipLogo size={76} />
               <div className="min-w-0">
-                <h1 className="text-[30px] font-bold leading-none tracking-tight text-[#4a3424]">pipterview <span className="text-[22px] font-normal text-[#c49a5a]">⋆⭒˚.⋆</span></h1>
+                <h1 className="text-[30px] font-bold leading-none tracking-tight text-[#4a3424]">pipterview <span className="text-[22px] font-normal text-[#c49a5a]" aria-hidden>⋆⭒˚.⋆</span></h1>
                 <p className="mt-1 font-script text-[22px] leading-tight text-[#8a6a4a]">An extra view for your interviews.</p>
                 <p className="mt-2 text-[14.5px] leading-relaxed text-[#5a4430]">
                   {!lastSession ? (
@@ -792,7 +792,7 @@ export default function World() {
                 </p>
                 <p className="text-center text-[12.5px] text-[#8a6a4a]">
                   {INTENSITY_OPTIONS.find((o) => o.value === settings.intensity)?.label} pressure · {LENGTH.find((o) => o.value === settings.length)?.label} ·{" "}
-                  <button onClick={() => setCustomizing((v) => !v)} className="font-bold text-[#b0702a] underline underline-offset-2" aria-expanded={customizing}>
+                  <button onClick={() => setCustomizing((v) => !v)} className="font-bold text-[#8a5a1c] underline underline-offset-2" aria-expanded={customizing}>
                     {customizing ? "Done" : "Customize"}
                   </button>
                 </p>
@@ -805,7 +805,7 @@ export default function World() {
                     <p className="flex items-center gap-2 text-[12.5px] text-[#6b5640]">
                       <span className="w-[70px] shrink-0 font-bold text-[#4a3424]">About you</span>
                       <span>{isTailored(profileDraft) ? "Resume added: questions will fit you." : "Optional."}</span>
-                      <button onClick={() => setStep("context")} className="font-bold text-[#b0702a] underline underline-offset-2">
+                      <button onClick={() => setStep("context")} className="font-bold text-[#8a5a1c] underline underline-offset-2">
                         {isTailored(profileDraft) ? "Edit" : "Add a resume or job"}
                       </button>
                     </p>
@@ -907,15 +907,14 @@ export default function World() {
           }`}
         >
           <header className="mb-2.5 flex items-center gap-2">
-            <div role="tablist" className="flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-full bg-[#f3e6cf] p-1">
+            <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-full bg-[#f3e6cf] p-1">
               {tabs.map((t) => (
                 <button
                   key={t.id}
-                  role="tab"
-                  aria-selected={panel === t.id}
+                  aria-pressed={panel === t.id}
                   onClick={() => (t.id === "island" || t.id === "stories" || t.id === "help" ? toggleTab(t.id) : setPanel(t.id))}
                   className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[13.5px] font-bold transition-colors ${
-                    panel === t.id ? "bg-white text-[#3d2a1c] shadow-[0_1px_4px_rgba(90,60,30,0.18)]" : "text-[#8a6a4a] hover:text-[#4a3424]"
+                    panel === t.id ? "bg-white text-[#3d2a1c] shadow-[0_1px_4px_rgba(90,60,30,0.18)]" : "text-[#6e563f] hover:text-[#3d2a1c]"
                   }`}
                 >
                   {t.icon}
@@ -933,7 +932,10 @@ export default function World() {
           <div className="flex min-h-0 flex-1 flex-col">
             {seated && (
               <div className={`min-h-0 flex-1 flex-col ${panel === "chat" ? "flex" : "hidden"}`}>
-                <ChatPanel {...chatProps} />
+                <ChatPanel
+                  {...chatProps}
+                  tip={tourStep === "table" ? <TourBubble step="table" touch={touch} inline onNext={() => finishTourStep("table")} onSkip={skipTour} /> : undefined}
+                />
               </div>
             )}
             {seated && type === "technical" && (
@@ -1014,7 +1016,7 @@ export default function World() {
           tabIndex={-1}
           role="region"
           aria-label="Your feedback"
-          className={`fixed inset-0 z-30 overflow-y-auto bg-[#f3ead9] outline-none ${watchingSunset ? "hidden" : ""}`}
+          className={`fixed inset-0 z-30 overflow-y-auto overscroll-contain bg-[#f3ead9] outline-none ${watchingSunset ? "hidden" : ""}`}
         >
           <div className="sticky top-0 z-10 flex flex-wrap items-center justify-end gap-2 border-b border-[#ead8b8] bg-[#f3ead9]/95 px-4 py-3 backdrop-blur">
             {/* (on a phone, one row of buttons: the report's island card already says what grew, and the sunset can wait) */}
@@ -1102,8 +1104,9 @@ export default function World() {
         />
       )}
 
-      {tourStep && (
-        <div className={`absolute z-30 ${tourStep === "table" ? "top-32 left-4 sm:left-6" : "bottom-24 left-4 sm:left-6"}`}>
+      {/* the table's tip sits in the chat panel, where it covers nothing */}
+      {tourStep && tourStep !== "table" && (
+        <div className="absolute bottom-24 left-4 z-30 sm:left-6">
           <TourBubble step={tourStep} touch={touch} onNext={() => finishTourStep(tourStep)} onSkip={skipTour} />
         </div>
       )}

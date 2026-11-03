@@ -61,7 +61,7 @@ export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-[#f3ead9] px-4 py-10 text-[#3d2a1c]">
       <div className="mx-auto max-w-2xl">
-        <Link href="/" className="text-[13.5px] font-bold text-[#b0702a] hover:underline">
+        <Link href="/" className="text-[13.5px] font-bold text-[#8a5a1c] hover:underline">
           ← Back to the island
         </Link>
         <h1 className="mt-4 text-[30px] font-bold tracking-tight">What gets sent where</h1>

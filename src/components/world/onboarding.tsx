@@ -79,10 +79,11 @@ function tourText(step: TourStep, touch: boolean): ReactNode {
 }
 
 /** One tour bubble: Pip, a line of help, and a way to move on or skip the rest. */
-export function TourBubble({ step, touch, onNext, onSkip, className = "" }: { step: TourStep; touch: boolean; onNext: () => void; onSkip: () => void; className?: string }) {
+/** `inline` fills the space it is put in (inside the chat panel) instead of floating at a fixed width. */
+export function TourBubble({ step, touch, onNext, onSkip, inline = false }: { step: TourStep; touch: boolean; onNext: () => void; onSkip: () => void; inline?: boolean }) {
   const last = step === "grow";
   return (
-    <Panel title={`${GUIDE_NAME} says`} tone="active" className={`w-[min(340px,calc(100vw-2rem))] lowercase ${className}`}>
+    <Panel title={`${GUIDE_NAME} says`} tone="active" className={`${inline ? "w-full" : "w-[min(340px,calc(100vw-2rem))]"} lowercase`}>
       <div className="flex gap-2.5 px-2 pt-2 pb-2.5">
         <Portrait size={44} />
         <p className="text-[13.5px] leading-snug text-[#1b1d22]">{tourText(step, touch)}</p>

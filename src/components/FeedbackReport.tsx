@@ -52,8 +52,8 @@ function Section({ title, preview, children, open = false }: { title: string; pr
       <summary className="flex cursor-pointer list-none items-baseline gap-3 [&::-webkit-details-marker]:hidden">
         <span className={`${heading} shrink-0`}>{title}</span>
         {preview && <span className="min-w-0 flex-1 truncate text-[13px] text-[#6e563f]">{preview}</span>}
-        <span className="ml-auto shrink-0 text-[12.5px] font-bold text-[#b0702a] group-open:hidden">Show</span>
-        <span className="ml-auto hidden shrink-0 text-[12.5px] font-bold text-[#b0702a] group-open:inline">Hide</span>
+        <span className="ml-auto shrink-0 text-[12.5px] font-bold text-[#8a5a1c] group-open:hidden">Show</span>
+        <span className="ml-auto hidden shrink-0 text-[12.5px] font-bold text-[#8a5a1c] group-open:inline">Hide</span>
       </summary>
       <div className="mt-4">{children}</div>
     </details>
@@ -181,7 +181,7 @@ export function FeedbackReport({
             ) : (
               <>
                 Scores are hidden in gentle mode, so you can focus on what to practise.{" "}
-                <button className="font-bold text-[#b0702a] underline underline-offset-2" onClick={() => setShowScores(true)}>
+                <button className="font-bold text-[#8a5a1c] underline underline-offset-2" onClick={() => setShowScores(true)}>
                   Show scores
                 </button>
               </>
@@ -399,7 +399,7 @@ export function FeedbackReport({
                             key={part}
                             title={part}
                             className={`grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold ${
-                              missing.includes(part) ? "border border-dashed border-[#d9c3a0] text-[#9a8670]" : "bg-[#e0a43a] text-white"
+                              missing.includes(part) ? "border border-dashed border-[#d9c3a0] text-[#80694f]" : "bg-[#ffc95c] text-[#3d2a14]"
                             }`}
                           >
                             {part[0].toUpperCase()}
@@ -487,7 +487,7 @@ export function FeedbackReport({
             }}
             rows={2}
             placeholder="For example: pause and outline my answer before I start talking"
-            className="w-full rounded-2xl bg-white px-4 py-3 text-[14px] ring-1 ring-[#ead7b8] placeholder:text-[#9a8670] focus:outline-none focus:ring-2 focus:ring-[#e0a43a]"
+            className="w-full rounded-2xl bg-white px-4 py-3 text-[16px] sm:text-[14px] ring-1 ring-[#ead7b8] placeholder:text-[#80694f]"
           />
           <button
             disabled={!reflection.trim() || reflectionSaved}
@@ -576,8 +576,8 @@ function Stat({ label, value, note, trend }: { label: string; value: string; not
     <div className="rounded-2xl bg-white/70 p-3.5 ring-1 ring-[#ead8b8]">
       <dt className="text-[12px] font-bold text-[#8a6440]">{label}</dt>
       <dd className="mt-1 text-[17px] font-bold tracking-tight text-[#3d2a1c]">{value}</dd>
-      {note && <p className="mt-0.5 text-[12.5px] leading-snug text-[#6e563f]">{note}</p>}
-      {trend && <p className={`mt-1 text-[12.5px] font-bold ${trend.good ? "text-[#9a5b12]" : "text-[#9a8670]"}`}>{trend.text}</p>}
+      {note && <dd className="mt-0.5 text-[12.5px] leading-snug text-[#6e563f]">{note}</dd>}
+      {trend && <dd className={`mt-1 text-[12.5px] font-bold ${trend.good ? "text-[#9a5b12]" : "text-[#80694f]"}`}>{trend.text}</dd>}
     </div>
   );
 }

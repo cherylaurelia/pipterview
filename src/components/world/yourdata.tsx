@@ -35,7 +35,7 @@ export function YourData() {
       <h3 className="text-[13.5px] font-bold text-[#4a3424]">Your data</h3>
       <p className="mt-1 text-[12.5px] leading-snug text-[#6b5640]">
         Your island, stories and progress live only in this browser. Download a copy to keep them safe or move them to another
-        browser. <a href="/privacy" className="font-bold text-[#b0702a] underline underline-offset-2">What gets sent where</a>
+        browser. <a href="/privacy" className="font-bold text-[#8a5a1c] underline underline-offset-2">What gets sent where</a>
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
         <NavButton onClick={download}>Download my data</NavButton>

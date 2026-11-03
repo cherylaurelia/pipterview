@@ -56,10 +56,16 @@ interface PendingTurn {
   previous: TranscriptEntry[];
 }
 
+/** What to tell someone when a request fails: the server's own message, or (when it never arrived) what to check. */
+function errorText(err: unknown) {
+  if (err instanceof TypeError) return "Couldn't reach the server. Check your connection, then try again."; // fetch's network failure
+  return err instanceof Error ? err.message : String(err);
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(data.error ?? `The server had a problem (${res.status}). Try again in a moment.`);
   return data as T;
 }
 
@@ -143,7 +149,7 @@ export function useConversation(prep: PrepType, options: Options) {
     } catch (err) {
       if (token !== turnToken.current) return;
       lastRequest.current = null; // "Try again" should re-score, not replay a turn
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorText(err));
       setStatus("error");
     }
   }, [setStatus]);
@@ -221,7 +227,7 @@ export function useConversation(prep: PrepType, options: Options) {
         setSpeaking(false);
         // Drop a half-streamed reply; "Try again" asks for it fresh.
         if (started) setMessages((m) => m.slice(0, -1));
-        setError(err instanceof Error ? err.message : String(err));
+        setError(errorText(err));
         setStatus("error");
       }
     },

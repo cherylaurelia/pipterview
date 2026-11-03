@@ -21,7 +21,7 @@ export async function streamTurnRequest(
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
   if (!res.ok || !res.body) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? `Request failed (${res.status})`);
+    throw new Error(data.error ?? `The server had a problem (${res.status}). Try again in a moment.`);
   }
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = "";
@@ -38,6 +38,6 @@ export async function streamTurnRequest(
       else if (event.type === "done") return { state: event.state, entry: event.entry };
       else if (event.type === "error") throw new Error(event.error);
     }
-    if (done) throw new Error("The interviewer's reply was cut off. Please try again.");
+    if (done) throw new Error("The reply was cut off partway. Try again.");
   }
 }
