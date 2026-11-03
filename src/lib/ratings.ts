@@ -4,8 +4,8 @@ import { z } from "zod";
 import { INTERVIEW_TYPE_IDS } from "./interview/types";
 
 /**
- * Question-quality ratings from candidates (after an interview) and mentors
- * (on /review). Stored as JSON lines in data/ratings.jsonl, which is fine for
+ * Question-quality ratings from candidates, asked after an interview.
+ * Stored as JSON lines in data/ratings.jsonl, which is fine for
  * local dev and a hackathon demo. On a host with a read-only filesystem
  * (e.g. Vercel), swap these two functions for a real database.
  */

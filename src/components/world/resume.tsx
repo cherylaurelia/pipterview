@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ROLES } from "@/lib/interview/catalog";
 import { ROLE_IDS, type RoleId } from "@/lib/interview/types";
-import { isTailored, type ProfileDraft } from "../ProfileForm";
+import { isTailored, type ProfileDraft } from "../profile";
 import { NavButton, sunken } from "./retro";
 
 const MAX_PDF_BYTES = 5 * 1024 * 1024;

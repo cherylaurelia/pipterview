@@ -12,7 +12,7 @@ const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   too_hard: "Too hard",
 };
 
-/** "Was this a realistic question?" Used by candidates after an interview and by mentors on /review. */
+/** "Was this a realistic question?", asked after an interview. */
 export function QuestionRating({
   question,
   typeId,

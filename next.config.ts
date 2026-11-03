@@ -1,11 +1,9 @@
 import type { NextConfig } from "next";
-import { HIDDEN_INTERVIEW_TYPE_IDS } from "./src/lib/interview/types";
-
 const nextConfig: NextConfig = {
   /* config options here */
-  // hidden round types (system design, for now) send anyone who opens their room back to the island
+  // the old 2D pages are gone; links to them land on the island, which does all of it now
   async redirects() {
-    return HIDDEN_INTERVIEW_TYPE_IDS.map((type) => ({ source: `/interview/${type}`, destination: "/", permanent: false }));
+    return ["/interview/:type", "/progress", "/review"].map((source) => ({ source, destination: "/", permanent: false }));
   },
   cacheComponents: true,
   partialPrefetching: true,

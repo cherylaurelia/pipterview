@@ -13,7 +13,7 @@ import { QuestionRating } from "./QuestionRating";
 import { GardenIcon } from "./GardenIcon";
 import { RoundIcon } from "./RoundIcon";
 import { NervousnessScale } from "./room/NervousnessScale";
-import { INTENSITY_OPTIONS } from "./room/SessionSetup";
+import { INTENSITY_OPTIONS } from "./room/settings";
 
 // The feedback report, in the world's warm style: what matters first (how it went, what went well, the one or two
 // things to practise, what grew on your island), then the details folded into sections you open when you want them.
@@ -66,9 +66,7 @@ export function FeedbackReport({
   transcript,
   work,
   nervousBefore,
-  againHref,
   island,
-  embedded = false,
   onAgain,
 }: {
   feedback: Feedback;
@@ -76,13 +74,9 @@ export function FeedbackReport({
   transcript: TranscriptEntry[];
   work: WorkspaceSnapshot[];
   nervousBefore?: number;
-  /** Where "Practise again" goes. Defaults to this round's interview room. */
-  againHref?: string;
   /** What this session grew on your island (the world passes this). */
   island?: IslandSummary;
-  /** Shown inside the world, which supplies its own header and buttons. */
-  embedded?: boolean;
-  /** Inside the world: start another round straight away, at a suggested pressure. */
+  /** Start another round straight away, at a suggested pressure. The world supplies the header and other buttons. */
   onAgain?: (intensity: Intensity) => void;
 }) {
   const type = getInterviewType(state.typeId);
@@ -155,7 +149,7 @@ export function FeedbackReport({
     .join(" · ");
 
   return (
-    <main className={`min-h-full text-[#3d2a1c] ${embedded ? "" : "bg-[#f6efe4]"}`}>
+    <main className="min-h-full text-[#3d2a1c]">
       <div className="report-enter mx-auto max-w-3xl space-y-4 px-4 py-6 sm:px-6">
         {/* how it went */}
         <section className={`${card} px-6 py-6 sm:px-8`}>
@@ -526,13 +520,8 @@ export function FeedbackReport({
                 ? "When you're ready, a gentle session is a good next step."
                 : "Another session at this level will make the next one easier."}
           </p>
-          {!embedded && (
-            <a href={againHref ?? `/interview/${state.typeId}`} className="shrink-0 rounded-full bg-[#ffc95c] px-5 py-2 text-[14px] font-bold text-[#3d2a14]">
-              Practise again
-            </a>
-          )}
           {/* the suggestion, one press away (another round at the same level is already in the bar at the top) */}
-          {embedded && onAgain && (nextIntensity || (needsSupport && state.settings.intensity !== "gentle")) && (
+          {onAgain && (nextIntensity || (needsSupport && state.settings.intensity !== "gentle")) && (
             <button
               onClick={() => onAgain(nextIntensity ?? "gentle")}
               className="shrink-0 rounded-full bg-white px-5 py-2 text-[14px] font-bold text-[#3d2a14] ring-1 ring-[#ead7b8] hover:bg-[#fff4df]"
