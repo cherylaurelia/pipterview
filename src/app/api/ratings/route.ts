@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   }
 }
 
-/** Aggregated ratings per question, for the /review page. */
+/** Aggregated ratings per question. */
 export async function GET() {
   return Response.json({ questions: await summarizeRatings() });
 }

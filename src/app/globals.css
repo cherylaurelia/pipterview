@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Light, calm interface: white surfaces, soft neutral lines, one teal accent. */
+/* The page underneath: the island draws over it, and the privacy page reads on it. */
 :root {
   --background: #ffffff;
   --foreground: #0f172a;
@@ -32,16 +32,6 @@ body {
 :focus-visible {
   outline: 2px solid #8a4b00;
   outline-offset: 2px;
-}
-
-@keyframes breathe {
-  0%,
-  100% {
-    transform: scale(0.6);
-  }
-  50% {
-    transform: scale(1);
-  }
 }
 
 /* a soft caramel scrollbar for the panels in the 3D world */

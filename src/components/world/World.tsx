@@ -10,8 +10,8 @@ import type { SessionLength, TranscriptEntry } from "@/lib/interview/types";
 import { loadStories, storyLines, type SavedStory } from "@/lib/stories";
 import type { CodeLanguage, WorkspaceSnapshot } from "@/lib/workspace/types";
 import { FeedbackReport } from "../FeedbackReport";
-import { isTailored, toProfile, useSavedProfile } from "../ProfileForm";
-import { INTENSITY_OPTIONS, useSessionSettings } from "../room/SessionSetup";
+import { isTailored, toProfile, useSavedProfile } from "../profile";
+import { INTENSITY_OPTIONS, useSessionSettings } from "../room/settings";
 import { ChatPanel, CodePanel } from "./panels";
 import { ResumeStep } from "./resume";
 import { HelpPanel, LeaveCheck, MicPrimer, StatusBanner, TOUR_STEPS, TourBubble, loadTourDone, micChoice, saveMicChoice, saveTourDone, type TourStep } from "./onboarding";
@@ -465,7 +465,7 @@ export default function World() {
     if (!tourDone || micAsk || checkIn || panel === "help") return null;
     const open = (step: TourStep) => !tourDone.includes(step);
     if (mode === "world" && arrived === "world" && open("island")) return "island";
-    if (seated && open("table")) return "table";
+    if (seated && !evening && open("table")) return "table"; // its tips are for answering, not for the report
     if (mode === "world" && arrived === "world" && garden.grown > 0 && open("grow")) return "grow";
     return null;
   })();
@@ -1044,7 +1044,6 @@ export default function World() {
               transcript={convo.scored.transcript}
               work={convo.scored.work}
               nervousBefore={nervousBefore}
-              embedded
               onAgain={(intensity) => {
                 setSettings({ ...settings, intensity });
                 anotherRound();
