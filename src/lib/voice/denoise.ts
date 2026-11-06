@@ -28,16 +28,29 @@ function loadEngine() {
   engine ??= (async () => {
     const lib = await import("@sapphi-red/web-noise-suppressor");
     const ctx = new AudioContext({ sampleRate: 48000 }); // RNNoise works on 48 kHz audio
-    const [wasm] = await Promise.all([
-      lib.loadRnnoise({ url: `${BASE}rnnoise.wasm`, simdUrl: `${BASE}rnnoise_simd.wasm` }),
-      ctx.audioWorklet.addModule(`${BASE}rnnoiseWorklet.js`),
-    ]);
-    return { ctx, wasm, lib };
+    try {
+      const [wasm] = await Promise.all([
+        lib.loadRnnoise({ url: `${BASE}rnnoise.wasm`, simdUrl: `${BASE}rnnoise_simd.wasm` }),
+        ctx.audioWorklet.addModule(`${BASE}rnnoiseWorklet.js`),
+      ]);
+      return { ctx, wasm, lib };
+    } catch (err) {
+      void ctx.close();
+      throw err;
+    }
   })().catch((err) => {
     engine = null; // try again next turn
     throw err;
   });
   return engine;
+}
+
+/**
+ * Loads RNNoise ahead of the first turn (call it on a click or key press, when an audio context may start), so opening
+ * the mic is quick when you press Talk.
+ */
+export function warmDenoiser() {
+  if (canDenoise()) loadEngine().catch(() => {});
 }
 
 /** Resolves false if `p` hasn't settled in `ms` (an audio context can wait forever for a click to resume it). */
