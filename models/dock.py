@@ -2,7 +2,9 @@ import sand3d as s3d
 
 # The wooden dock, from the shore out over the pond: planks in three shades on two stringers, on posts, with a tin
 # bucket and a post for the lantern at the far end. It runs from y = 400 out to y = -length, which is the world's +Z
-# (towards the pond's middle); the deck is at the water line, z = 0. The world hangs the lantern on the post.
+# (towards the pond's middle); z = 0 is the water line, and the deck's top is 95 mm above it. The far pair of posts stand
+# proud of the deck as bollards. The world hangs the lantern on the post, and `length` must match DOCK.length in
+# island.tsx (models.test.ts checks).
 
 
 def dock(length=1900, start=-400, planks=12, top=70):

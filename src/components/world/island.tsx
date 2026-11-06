@@ -109,7 +109,7 @@ const FALL = (() => {
 export const DOCK = (() => {
   const theta = 0.8, R = pondRadius(theta);
   const x = POND.x + Math.cos(theta) * R, z = POND.z + Math.sin(theta) * R;
-  return { x, z, angle: Math.atan2(POND.x - x, POND.z - z), length: 1.9 };
+  return { x, z, angle: Math.atan2(POND.x - x, POND.z - z), length: 1.9 }; // the length is also models/dock.py's
 })();
 
 // a little dirt path from the main path down to the dock

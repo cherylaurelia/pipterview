@@ -462,6 +462,7 @@ function Dock() {
       <Suspense fallback={null}>
         <Model name="dock" material={pale("bucket")} />
       </Suspense>
+      {/* on top of the dock's lantern post (models/dock.py; models.test.ts checks the two agree) */}
       <BoxLantern position={[-0.36, 0.57, DOCK.length - 0.06]} scale={0.8} />
     </group>
   );

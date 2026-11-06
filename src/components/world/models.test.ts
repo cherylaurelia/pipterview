@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { DOCK } from "./island";
 import { MODELS } from "./models";
 
 // The GLBs that models.tsx draws, as `npm run models` built them: each part named, each material named after its colour.
 
 interface Gltf {
-  nodes: { name?: string; mesh?: number; scale?: number[]; children?: number[] }[];
+  nodes: { name?: string; mesh?: number; scale?: number[]; children?: number[]; translation?: number[] }[];
   extensionsRequired?: string[];
   meshes: { primitives: { material?: number }[] }[];
   materials: { name: string }[];
@@ -50,6 +51,13 @@ describe("sand3d models", () => {
     expect(parts(gltf("windmill"))).toEqual(expect.arrayContaining(["tower", "base", "sack"]));
     expect(parts(gltf("sails"))).toContain("cloth");
     expect(parts(gltf("dock"))).toContain("bucket");
+  });
+
+  it("the dock is as long as DOCK, so the lantern sits on its post", () => {
+    const post = gltf("dock").nodes.find((n) => n.name === "lantern_post")!.translation!; // mm, in the model's space
+    expect(post[0] / 1000).toBeCloseTo(-0.36, 3);
+    expect(post[1] / 1000 + 0.5).toBeCloseTo(0.57, 3); // its top, where pond.tsx hangs the lantern
+    expect(post[2] / 1000).toBeCloseTo(DOCK.length - 0.06, 3);
   });
 
   it("the chair has its seat, four legs, two posts and two rails", () => {
