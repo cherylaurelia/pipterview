@@ -43,6 +43,7 @@ export function Player({
   useFrame(({ camera, clock }, delta) => {
     const dt = Math.min(delta, 0.05), p = player, { f, move } = tmp.current;
     let speed = 0;
+    p.out = active;
     if (active) {
       // the camera's forward along the ground, and its right
       f.set(p.pos.x - camera.position.x, p.pos.z - camera.position.z).normalize();

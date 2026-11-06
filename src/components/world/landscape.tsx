@@ -6,12 +6,14 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CritterPick } from "./critters";
 import { daylight } from "./daylight";
+import { player } from "./explore";
 import { reducedMotion } from "./quality";
 import { groundY, Island, islandRadius, isOpen, nearGardenSlot, rng } from "./island";
 import { Pond } from "./pond";
 import { Village } from "./village";
 import { softDot } from "./textures";
-import { gradientMap, painterly, paleGradientMap, swayingToon, toon, wind, windAmp } from "./toon";
+import { gradientMap, painterly, paleGradientMap, swayingToon, toon, trample, gusts, wind, windAmp } from "./toon";
+import { tuning } from "./tuning";
 
 // The backdrop and the life around the floating island (see island.tsx for the island itself, pond.tsx for the pond),
 // in the look of a little painted diorama: a plain warm-cream backdrop that turns to sunset when you finish, puffy clay
@@ -144,15 +146,36 @@ function Grass() {
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
     if (flowers.current) {
+      // most flowers grow in drifts, as wildflowers do: a patch of one kind with a few white ones mixed in; the rest are
+      // strays dotted about between them
       const mesh = flowers.current;
-      const petals = ["#ffd84a", "#ffd84a", "#ffe680", "#ffffff", "#ffffff", "#ffb347", "#ffb8cf"];
-      scatter(mesh, FLOWERS, (i) => {
-        e.set(0, 0, 0);
-        p.y += 0.08 + r() * 0.08;
+      const kinds = ["#ffd84a", "#ffffff", "#ffb8cf", "#c9a8f0", "#a98be0", "#ffb347", "#ffe680"];
+      const drifts = Array.from({ length: 34 }, () => {
+        let x = 0, z = 0;
+        do {
+          x = (r() - 0.5) * 26;
+          z = (r() - 0.5) * 26;
+        } while (!isOpen(x, z));
+        return { x, z, size: 0.5 + r() * 0.9, kind: kinds[Math.floor(r() * kinds.length)] };
+      });
+      for (let i = 0; i < FLOWERS; i++) {
+        const d = drifts[i % drifts.length], stray = i % 4 === 3;
+        let x = 0, z = 0, tries = 0;
+        do {
+          // round the drift's middle, thinning out towards its edge (two random numbers make a soft, centred spread)
+          const a = r() * Math.PI * 2, rad = (r() + r()) * 0.5 * d.size * 1.6;
+          x = stray ? (r() - 0.5) * 28 : d.x + Math.cos(a) * rad;
+          z = stray ? (r() - 0.5) * 28 : d.z + Math.sin(a) * rad;
+        } while (!isOpen(x, z) && ++tries < 12);
+        if (!isOpen(x, z)) [x, z] = [d.x, d.z];
+        p.set(x, groundY(x, z) + 0.08 + r() * 0.1, z);
         const k = 0.5 + r() * 0.6;
         s.set(k * 1.2, k * 0.4, k * 1.2); // flat little flower heads, not beads
-        mesh.setColorAt(i, c.set(petals[Math.floor(r() * petals.length)]));
-      });
+        m.compose(p, q.setFromEuler(e.set(0, 0, 0)), s);
+        mesh.setMatrixAt(i, m);
+        mesh.setColorAt(i, c.set(stray ? kinds[Math.floor(r() * kinds.length)] : r() < 0.2 ? "#ffffff" : d.kind));
+      }
+      mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
     if (fringe.current) {
@@ -186,6 +209,8 @@ function Grass() {
     // a gentler breeze for reduced motion: slower, and not as far
     wind.value = clock.getElapsedTime() * (reducedMotion() ? 0.3 : 1);
     windAmp.value = reducedMotion() ? 0.35 : 1;
+    trample.value.set(player.pos.x, player.out ? 1 : -1, player.pos.z);
+    gusts.value = tuning.gusts;
   });
 
   return (

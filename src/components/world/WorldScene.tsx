@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { Avoidance, clearView, EL_MAX, orbit } from "./camera";
 import type { CritterPick } from "./critters";
-import { daylight } from "./daylight";
+import { daylight, focus, sun as sunAt } from "./daylight";
 import { Effects } from "./effects";
 import { Garden } from "./garden";
 import { COLORS, GRASS_LAYER, Landscape } from "./landscape";
@@ -14,6 +14,7 @@ import { surfaceY } from "./island";
 import { Figure, RoundTable, type Mood } from "./people";
 import { Player, TableMarker } from "./player";
 import { reducedMotion } from "./quality";
+import { tuning } from "./tuning";
 
 export type WorldMode = "splash" | "world" | "seated";
 
@@ -257,12 +258,13 @@ function CameraRig({ mode, aside, lift, onArrive }: { mode: WorldMode; aside: nu
         arrive.current(mode);
       }
     } else {
-      const f = 1 - Math.exp(-Math.min(dt, 0.05) * (mode === "world" ? 6 : 3.5)); // follows you closely when walking
+      const f = 1 - Math.exp(-Math.min(dt, 0.05) * (mode === "world" ? 6 * tuning.follow : 3.5)); // follows you closely when walking
       cam.position.lerp(g.pos, f);
       look.current.lerp(g.look, f);
       cam.fov += (fov - cam.fov) * f;
     }
     cam.lookAt(look.current);
+    focus.distance = cam.position.distanceTo(look.current);
     // raise the picture without tilting the camera: the frame shifts, so the guide stays face-on above the panel
     lifted.current += (lift - lifted.current) * Math.min(1, dt * 3);
     if (Math.abs(lifted.current) > 0.001) {
@@ -302,6 +304,7 @@ function DayCycle({ evening }: { evening: boolean }) {
       sun.current.color.copy(DAY.sun).lerp(SUNSET.sun, e);
       sun.current.intensity = 2.0 - e * 0.4;
       sun.current.position.set(SUN_POS.x, SUN_POS.y - e * 6, SUN_POS.z); // lower still at sunset, longer shadows
+      sunAt.copy(sun.current.position);
     }
     if (fill.current) {
       fill.current.color.copy(DAY.fill).lerp(SUNSET.fill, e);

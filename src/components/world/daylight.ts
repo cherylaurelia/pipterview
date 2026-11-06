@@ -6,6 +6,12 @@ import * as THREE from "three";
 
 export const daylight = { evening: 0 };
 
+/** Where the sun is (WorldScene's DayCycle moves it lower towards sunset), for the haze and light shafts in effects.tsx. */
+export const sun = new THREE.Vector3(-11, 15, -13);
+
+/** How far the camera is from what it's looking at (set by the camera rig), so the haze only gathers beyond it. */
+export const focus = { distance: 6 };
+
 /** Blends two colours by `evening` into `out`. */
 export function dusk(out: THREE.Color, day: THREE.Color, sunset: THREE.Color) {
   return out.copy(day).lerp(sunset, daylight.evening);
