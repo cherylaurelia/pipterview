@@ -90,7 +90,7 @@ export function blockedAt(from: THREE.Vector3, to: THREE.Vector3, spheres = SPHE
   return nearest;
 }
 
-export const MAX_LIFT = 0.6; // radians the camera may rise over something before it comes in closer instead
+export const MAX_LIFT = 0.85; // radians the camera may rise over something (to nearly overhead) before it comes in closer
 /** The highest the camera goes (radians above the horizon), whether you drag it there or it rises over something. */
 export const EL_MAX = 1.25;
 
