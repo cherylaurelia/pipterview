@@ -14,7 +14,7 @@ export default function WorldTuner() {
     air: { haze: [tuning.haze, 0, 3, 0.05], shafts: [tuning.shafts, 0, 3, 0.05], clouds: [tuning.clouds, 0, 3, 0.05] },
     meadow: { gusts: [tuning.gusts, 0, 3, 0.05] },
     light: { bloom: [tuning.bloom, 0, 3, 0.05], exposure: [tuning.exposure, 0.6, 1.6, 0.02] },
-    camera: { follow: [tuning.follow, 0.3, 2.5, 0.05] },
+    camera: { follow: [tuning.follow, 0.3, 2.5, 0.05], focusBlur: [tuning.focusBlur, 0, 3, 0.05] },
   });
   useEffect(() => {
     Object.assign(tuning, { ...v.air, ...v.meadow, ...v.light, ...v.camera });
