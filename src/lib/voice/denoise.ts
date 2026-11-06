@@ -5,7 +5,7 @@
  * as a track speech recognition can listen to instead of the raw mic: fans, keyboards, a café behind you. Only where
  * recognition takes a track (Chromium); everywhere else, and if any step fails, `openDenoisedMic` gives null and
  * recognition listens to the mic itself, as it always has. The files are copies of the package's, in public/voice/; the
- * package itself loads on the first turn (it can't even be imported outside a browser).
+ * package itself loads on the first click or key press (it can't even be imported outside a browser).
  */
 
 export interface DenoisedMic {
