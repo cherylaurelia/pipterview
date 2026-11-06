@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canStand, DOORS, getUp, nearestDoor, nearestSeat, player, setSeat, sitOn } from "./explore";
+import { canStand, DOORS, getUp, hop, nearestDoor, nearestSeat, player, setSeat, sitOn } from "./explore";
 import { BRIDGE, DOCK, groundY, POND, surfaceY, walkable, waterNearness } from "./island";
 import { CROWNS, slideRoundPlants } from "./landscape";
 
@@ -81,5 +81,22 @@ describe("the sound of water", () => {
     expect(atTable).toBeGreaterThan(0.05);
     expect(atTable).toBeLessThan(byStream);
     expect(farAway).toBeLessThan(0.1);
+  });
+});
+
+describe("hop", () => {
+  it("asks for a hop when you're on your feet, but not on a bench or mid-air", () => {
+    player.hop = false;
+    player.sitting = "pond";
+    hop();
+    expect(player.hop).toBe(false);
+    player.sitting = null;
+    player.air = 0.2;
+    hop();
+    expect(player.hop).toBe(false);
+    player.air = 0;
+    hop();
+    expect(player.hop).toBe(true);
+    player.hop = false;
   });
 });

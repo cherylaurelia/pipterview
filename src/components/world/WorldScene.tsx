@@ -9,7 +9,7 @@ import { daylight, focus, sun as sunAt } from "./daylight";
 import { Effects } from "./effects";
 import { Garden } from "./garden";
 import { COLORS, GRASS_LAYER, Landscape } from "./landscape";
-import { goHomeSpot, held, player, seatAt, walkTo, type Nearby } from "./explore";
+import { goHomeSpot, held, hop, player, seatAt, walkTo, type Nearby } from "./explore";
 import { surfaceY } from "./island";
 import { Figure, RoundTable, type Mood } from "./people";
 import { Player, TableMarker } from "./player";
@@ -50,7 +50,8 @@ function goalFor(mode: WorldMode, t: number, dt: number, view: UserView, aside: 
   }
   if (mode === "world") {
     let { az, el, dist } = view;
-    look.set(player.pos.x, surfaceY(player.pos.x, player.pos.z) + ISLAND.lift, player.pos.z);
+    // looking a little ahead of you as you walk, so you see where you're going, and up a little with a hop
+    look.set(player.pos.x + player.vel.x * 0.22, surfaceY(player.pos.x, player.pos.z) + ISLAND.lift + player.air * 0.4, player.pos.z + player.vel.y * 0.22);
     // sitting on a bench: the camera settles in just behind you, looking out at the view with you (your own angle
     // comes back when you get up)
     const seat = player.sitting ? seatAt(player.sitting) : undefined;
@@ -81,8 +82,8 @@ const typing = () => {
 const WALK_KEYS = ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "shift"];
 
 /**
- * Drag to look around, scroll to zoom. On the island, the walking keys go to your chick (R takes you back to the
- * table), and a click or tap on the ground (not a drag, and not on something clickable) walks you there: see
+ * Drag to look around, scroll to zoom. On the island, the walking keys go to your chick (Space hops, R takes you back
+ * to the table), and a click or tap on the ground (not a drag, and not on something clickable) walks you there: see
  * `clickToWalk`, which the canvas calls when a click misses everything clickable.
  */
 function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
@@ -170,6 +171,11 @@ function useViewControls(mode: WorldMode, view: React.RefObject<UserView>) {
       if (e.type === "keyup") return void held.delete(key);
       if (modeRef.current !== "world" || typing() || e.metaKey || e.ctrlKey || e.altKey) return;
       if (key === "r") return goHomeSpot();
+      if (key === " ") {
+        e.preventDefault(); // not a page scroll
+        if (!e.repeat) hop();
+        return;
+      }
       if (!WALK_KEYS.includes(key)) return;
       e.preventDefault();
       held.add(key);

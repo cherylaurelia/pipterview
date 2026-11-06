@@ -71,7 +71,7 @@ describe("Avoidance", () => {
   it("never snaps: a frame moves it only a little, even when the goal jumps", () => {
     const a = new Avoidance();
     a.update({ lift: MAX_LIFT, reach: 0.4 }, 1 / 60);
-    expect(a.lift).toBeLessThan(0.06);
+    expect(a.lift).toBeLessThan(MAX_LIFT * 0.1); // a tenth of the way, at most, in one frame
     expect(a.reach).toBeGreaterThan(0.95);
   });
 

@@ -19,7 +19,17 @@ export const player = {
   sitting: null as string | null,
   /** Out walking about the island (rather than at the table), so the grass knows to part round you. */
   out: false,
+  /** How fast and which way you're moving along the ground (m/s): it builds up and eases off, rather than snapping. */
+  vel: new THREE.Vector2(),
+  /** How high you are off the ground mid-hop (m), and whether a hop's been asked for. */
+  air: 0,
+  hop: false,
 };
+
+/** A little hop (Space), when you're on your feet. */
+export function hop() {
+  if (!player.sitting && player.air === 0) player.hop = true;
+}
 
 /** Keys held down (lower case), for walking. */
 export const held = new Set<string>();
@@ -35,6 +45,7 @@ export function walkTo(x: number, z: number) {
 /** Back to your spot by the table. */
 export function goHomeSpot() {
   player.pos.copy(HOME);
+  player.vel.set(0, 0);
   player.heading = Math.atan2(-HOME.x, -HOME.z);
   player.goal = null;
   player.sitting = null;
