@@ -439,7 +439,7 @@ function HangingRoots() {
   useFrame(({ clock }) => {
     const m = mesh.current;
     if (!m) return;
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     roots.forEach((root, i) => {
       const R = islandRadius(root.theta) * 0.985;
       tmp.position.set(Math.cos(root.theta) * R, root.moss ? -0.2 : -0.35, Math.sin(root.theta) * R);
@@ -590,8 +590,8 @@ function Stream() {
   const ref = useRef<THREE.Mesh>(null);
   const fall = useRef<THREE.Mesh>(null);
   useFrame(({ clock }) => {
-    tickWater(ref.current, clock.getElapsedTime());
-    tickWater(fall.current, clock.getElapsedTime());
+    tickWater(ref.current, clock.elapsedTime);
+    tickWater(fall.current, clock.elapsedTime);
   });
   const { geometry, material } = useMemo(() => {
     const pts = STREAM_PTS.slice(0, FALL_INDEX + 1);
@@ -619,7 +619,7 @@ function Stream() {
   const mist = useRef<THREE.Group>(null);
   const mistMap = useMemo(() => softDot(), []);
   useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     mist.current?.children.forEach((m, i) => {
       const k = (t * 0.12 + i / 7) % 1; // each puff billows out and fades, then starts again
       m.position.set(Math.sin(i * 2.3) * (0.6 + k), -FALL_DROP + 0.4 + k * 1.2, FALL_REACH + Math.cos(i * 1.7) * 0.4 + k * 0.5);
@@ -671,7 +671,7 @@ function StreamLeaves() {
   useFrame(({ clock }) => {
     const m = mesh.current;
     if (!m) return;
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     leaves.forEach((leaf, i) => {
       const u = (leaf.start + t * leaf.speed) % 1, f = u * FALL_INDEX, k = Math.floor(f);
       // the last stretch ends at the lip of the waterfall, not the first stream point past it
@@ -745,7 +745,7 @@ function StreamBanks() {
 export function BoxLantern({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
   const core = useRef<THREE.MeshStandardMaterial>(null);
   useFrame(({ clock }) => {
-    if (core.current) core.current.emissiveIntensity = (0.35 + daylight.evening * 2.4) * (1 + Math.sin(clock.getElapsedTime() * 6 + position[0]) * 0.05);
+    if (core.current) core.current.emissiveIntensity = (0.35 + daylight.evening * 2.4) * (1 + Math.sin(clock.elapsedTime * 6 + position[0]) * 0.05);
   });
   return (
     <group position={position} scale={scale}>

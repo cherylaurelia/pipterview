@@ -198,7 +198,10 @@ interface Chain {
 }
 
 function buildChain(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera): Chain {
-  const composer = new EffectComposer(gl);
+  // multisampled buffers: the composer's own targets don't get the canvas's antialiasing, so without this the full-quality
+  // chain would have jagged edges that lite mode doesn't
+  const size = gl.getDrawingBufferSize(new THREE.Vector2());
+  const composer = new EffectComposer(gl, new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 }));
   composer.addPass(new RenderPass(scene, camera));
   const ao = new SolidAOPass(scene, camera, 512, 512);
   ao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.4, thickness: 1.2, scale: 1.1, samples: 12 });

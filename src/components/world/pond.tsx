@@ -59,7 +59,7 @@ function Splashes() {
   const dropMesh = useRef<THREE.InstancedMesh>(null);
   const tmp = useMemo(() => new THREE.Object3D(), []);
   useFrame(({ clock }) => {
-    now = clock.getElapsedTime();
+    now = clock.elapsedTime;
     rings.current?.children.forEach((ring, i) => {
       const r = ripples[i], age = r ? now - r.t0 : Infinity;
       ring.visible = age < 1.6;
@@ -261,7 +261,7 @@ function Water() {
     return g;
   }, []);
   useFrame(({ clock }) => {
-    tickWater(ref.current, clock.getElapsedTime());
+    tickWater(ref.current, clock.elapsedTime);
     water.tick();
   });
   return <mesh ref={ref} position={[POND.x, WATER_Y, POND.z]} geometry={geometry} material={water.material} onBeforeRender={water.render} />;
@@ -504,7 +504,7 @@ function PickRing({ on, r }: { on: boolean; r: number }) {
   useFrame(({ clock }) => {
     if (!ref.current) return;
     ref.current.visible = on;
-    ref.current.scale.setScalar(r * (1 + Math.sin(clock.getElapsedTime() * 4) * 0.06));
+    ref.current.scale.setScalar(r * (1 + Math.sin(clock.elapsedTime * 4) * 0.06));
   });
   return (
     <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]} visible={false}>
@@ -548,7 +548,7 @@ function Frog(props: PickProps) {
   const v = useMemo(() => ({ a: new THREE.Vector3(), b: new THREE.Vector3() }), []);
 
   useFrame(({ clock }, dt) => {
-    const t = clock.getElapsedTime(), s = state.current, g = outer.current;
+    const t = clock.elapsedTime, s = state.current, g = outer.current;
     if (!g || !body.current) return;
     const action = takeAction("frog", 0);
     if (action === "Hop" && !s.hop) s.hop = { from: s.pad, to: (s.pad + 1) % FROG_PADS.length, t0: t };
@@ -748,7 +748,7 @@ function Duck({ index, ...props }: PickProps & { index: number }) {
   const wings = useRef<THREE.Group>(null);
   const state = useRef({ quack: -10, dive: -10, flap: -10, nextRipple: 0 });
   useFrame(({ clock }) => {
-    const t = clock.getElapsedTime(), s = state.current, g = outer.current;
+    const t = clock.elapsedTime, s = state.current, g = outer.current;
     if (!g || !body.current) return;
     const action = takeAction("duck", index);
     if (action === "Quack") s.quack = t;
@@ -814,7 +814,7 @@ function GrassDuck({ index, ...props }: PickProps & { index: number }) {
     nextIdle: 3 + index * 2.5,
   });
   useFrame(({ clock }, dt) => {
-    const t = clock.getElapsedTime(), s = state.current, g = outer.current;
+    const t = clock.elapsedTime, s = state.current, g = outer.current;
     if (!g || !body.current || GRASS_SPOTS.length < 2) return;
     const here = GRASS_SPOTS[s.spot % GRASS_SPOTS.length];
     const walking = t - s.walk < s.walkFor;
@@ -878,7 +878,7 @@ function Minnows() {
   }, []);
   const schoolRef = useRef({ x: POND.x, z: POND.z, heading: 0, goal: { x: POND.x, z: POND.z }, next: 0 });
   useFrame(({ clock }, dt) => {
-    const t = clock.getElapsedTime(), school = schoolRef.current;
+    const t = clock.elapsedTime, school = schoolRef.current;
     if (t > school.next) {
       // every couple of seconds the school darts off somewhere new in the open water
       for (let tries = 0; tries < 20; tries++) {
@@ -919,7 +919,7 @@ function Dragonflies() {
     [0, 1].map((i) => ({ pos: new THREE.Vector3(POND.x + i - 0.5, 0.4, POND.z), goal: new THREE.Vector3(POND.x, 0.4, POND.z), heading: 0, next: i * 1.3 })),
   );
   useFrame(({ clock }, dt) => {
-    const t = clock.getElapsedTime(), flies = fliesRef.current;
+    const t = clock.elapsedTime, flies = fliesRef.current;
     flies.forEach((f, i) => {
       if (t > f.next) {
         const a = Math.random() * Math.PI * 2, d = Math.random() * (POND.r + 0.3);
@@ -982,7 +982,7 @@ function FloatingPetals() {
   useFrame(({ clock }) => {
     const m = mesh.current;
     if (!m) return;
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     petals.forEach((p, i) => {
       const a = p.theta + t * p.speed;
       tmp.position.set(POND.x + Math.cos(a) * p.d, WATER_Y + 0.003, POND.z + Math.sin(a) * p.d);
@@ -1025,7 +1025,7 @@ function Koi(props: PickProps) {
   );
   const feed = useRef({ t0: -100, x: 0, z: 0 });
   useFrame(({ clock }, dt) => {
-    const t = clock.getElapsedTime(), f = feed.current;
+    const t = clock.elapsedTime, f = feed.current;
     const feeding = t - f.t0 < 7;
     fish.forEach((k, i) => {
       const action = takeAction("koi", i);

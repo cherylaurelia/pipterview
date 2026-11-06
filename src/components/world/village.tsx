@@ -63,7 +63,7 @@ function Smoke({ position }: { position: [number, number, number] }) {
   const group = useRef<THREE.Group>(null);
   const map = useMemo(() => softDot(), []);
   useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     group.current?.children.forEach((puff, i) => {
       const k = (t * 0.18 + i / 6) % 1;
       puff.position.set(Math.sin(t * 0.7 + i) * 0.15 + k * 0.4, k * 2.2, Math.cos(t * 0.5 + i) * 0.1);

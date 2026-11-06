@@ -53,6 +53,23 @@ export const gusts = { value: 1 };
 
 const swaying = new Map<string, THREE.MeshToonMaterial>();
 
+let castsNothing: THREE.MeshDepthMaterial | null = null;
+/**
+ * For `customDepthMaterial` on things that should be shadowed but not cast shadows: with variance shadow maps, anything
+ * that receives shadows is also drawn into the shadow map, which for the grass is thousands of blades every frame for
+ * no visible gain. This draws nothing there.
+ */
+export function castNoShadow() {
+  if (!castsNothing) {
+    castsNothing = new THREE.MeshDepthMaterial();
+    castsNothing.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace("void main() {", "void main() {\n  discard;");
+    };
+    castsNothing.customProgramCacheKey = () => "cast-no-shadow";
+  }
+  return castsNothing;
+}
+
 /**
  * The soft-shaded material for instanced grass, reeds and cattails, which lean in the breeze: each leans by its
  * height, in waves that roll across the island, with gusts that sweep across now and then, bending the blades further
