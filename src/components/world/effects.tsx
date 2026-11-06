@@ -114,6 +114,7 @@ const AtmosphereShader = {
     uSunColor: { value: new THREE.Color("#ffd9a6") },
     uDensity: { value: 0.03 },
     uClouds: { value: 1 },
+    uSteps: { value: 28 },
     uStart: { value: 6 },
     uTime: { value: 0 },
     uRays: { value: 0.3 },
@@ -126,7 +127,7 @@ const AtmosphereShader = {
     #include <packing>
     ${NOISE_GLSL}
     uniform sampler2D tDiffuse, tDepth;
-    uniform float uNear, uFar, uDensity, uRays, uFacing, uTime, uStart, uClouds;
+    uniform float uNear, uFar, uDensity, uRays, uFacing, uTime, uStart, uClouds, uSteps;
     uniform mat4 uInvProj, uCamWorld;
     uniform vec3 uCamPos, uSunDir, uHaze, uSunColor;
     uniform vec2 uSunUv;
@@ -149,15 +150,16 @@ const AtmosphereShader = {
       vec3 c = base.rgb * (1.0 - cloud * 0.16 * uClouds * (1.0 - sky) * step(at.y, 3.5) * (1.0 - haze));
       c = mix(c, air, haze * 0.6);
       // light shafts: open sky gathered on the way towards the sun, fading with each step
-      vec2 step2 = (uSunUv - vUv) / 28.0 * 0.85;
+      vec2 step2 = (uSunUv - vUv) / uSteps * 0.85;
       vec2 uv = vUv;
       float light = 0.0, fall = 1.0;
       for (int i = 0; i < 28; i++) {
+        if (float(i) >= uSteps || uRays * uFacing < 0.001) break; // fewer steps on lighter quality; none facing away
         uv += step2;
         light += step(0.99999, texture2D(tDepth, clamp(uv, 0.001, 0.999)).x) * fall;
         fall *= 0.95;
       }
-      light /= 12.0;
+      light *= 28.0 / (12.0 * uSteps); // the same brightness whatever the number of steps
       float shafts = light * (1.0 - sky * 0.7) * uRays * uFacing * (0.35 + 0.65 * pow(toSun, 2.0));
       c += uSunColor * shafts;
       gl_FragColor = vec4(c, base.a);
@@ -294,6 +296,7 @@ export function Effects() {
     if (!c || level === 0) return gl.render(scene, camera);
     c.outline.enabled = level >= 2;
     aim(c.air, camera, daylight.evening);
+    c.air.uniforms.uSteps.value = level >= 2 ? 28 : 12;
     c.grade.uniforms.uEvening.value = daylight.evening;
     c.bloom.strength = (0.3 + daylight.evening * 0.25) * tuning.bloom; // lanterns and fireflies glow more at dusk
     c.composer.render(dt);
