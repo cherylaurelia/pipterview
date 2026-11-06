@@ -3,11 +3,12 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { Avoidance, clearView, orbit } from "./camera";
 import type { CritterPick } from "./critters";
 import { daylight } from "./daylight";
 import { Effects } from "./effects";
 import { Garden } from "./garden";
-import { COLORS, CROWNS, GRASS_LAYER, Landscape } from "./landscape";
+import { COLORS, GRASS_LAYER, Landscape } from "./landscape";
 import { goHomeSpot, held, player, seatAt, walkTo, type Nearby } from "./explore";
 import { surfaceY } from "./island";
 import { Figure, RoundTable, type Mood } from "./people";
@@ -39,21 +40,7 @@ interface UserView {
 
 const clamp = (v: number, [lo, hi]: readonly [number, number]) => Math.min(hi, Math.max(lo, v));
 
-/** How far along from `from` to `to` (0 to 1) the line first enters a tree crown or other camera blocker; 1 if never. */
-function blockedAt(from: THREE.Vector3, to: THREE.Vector3) {
-  const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z, len2 = dx * dx + dy * dy + dz * dz;
-  let nearest = 1;
-  for (const c of CROWNS) {
-    const ox = from.x - c.x, oy = from.y - c.y, oz = from.z - c.z;
-    const b = (ox * dx + oy * dy + oz * dz) / len2, cc = (ox * ox + oy * oy + oz * oz - c.r * c.r) / len2, disc = b * b - cc;
-    if (disc <= 0) continue;
-    const t = -b - Math.sqrt(disc);
-    if (t > 0 && t < nearest) nearest = t;
-  }
-  return nearest;
-}
-
-function goalFor(mode: WorldMode, t: number, view: UserView, aside: number, pos: THREE.Vector3, look: THREE.Vector3) {
+function goalFor(mode: WorldMode, t: number, dt: number, view: UserView, aside: number, avoid: Avoidance, pos: THREE.Vector3, look: THREE.Vector3) {
   if (mode === "splash") {
     const a = 0.55 + (reducedMotion() ? 0 : t * 0.03) + view.spin; // a slow orbit, unless you've asked for less motion
     pos.set(Math.sin(a) * SPLASH.radius, SPLASH.height, Math.cos(a) * SPLASH.radius);
@@ -72,16 +59,10 @@ function goalFor(mode: WorldMode, t: number, view: UserView, aside: number, pos:
       dist = 4.2;
       look.y = seat.y + 0.6;
     }
-    // if a tree (or Pip, or the table) is between you and the camera, the camera rises over it, and only if that's not
-    // enough does it come in closer, rather than sitting inside the leaves
-    let nearest = 1;
-    for (const lift of [0, 0.18, 0.36, 0.54]) {
-      const e = Math.min(LIMITS.el[1], el + lift);
-      pos.set(Math.sin(az) * Math.cos(e), Math.sin(e), Math.cos(az) * Math.cos(e)).multiplyScalar(dist).add(look);
-      nearest = blockedAt(look, pos);
-      if (nearest >= 1) break;
-    }
-    if (nearest < 1) pos.lerpVectors(look, pos, Math.max(0.3, nearest - 0.06));
+    // if a tree, Pip, the table or a building is between you and the camera, the camera rises over it, and only if
+    // that's not enough does it come in closer, easing in and out of it (camera.ts)
+    avoid.update(clearView(look, az, el, dist), dt);
+    orbit(pos, look, az, el, dist, avoid.lift, avoid.reach);
     return ISLAND.fov;
   }
   const p = SEATED.pitch + view.pitch;
@@ -232,6 +213,7 @@ function CameraRig({ mode, aside, lift, onArrive }: { mode: WorldMode; aside: nu
   useEffect(() => void camera.layers.enable(GRASS_LAYER), [camera]);
   const goal = useRef({ pos: new THREE.Vector3(), look: new THREE.Vector3() });
   const lifted = useRef(0); // how far the picture is raised right now (it eases towards `lift`)
+  const avoid = useRef(new Avoidance()); // how the camera is getting round whatever's in the way
   // a flight in progress; `from` is filled in on its first frame, from wherever the camera is then
   const tween = useRef<{ t0: number; dur: number; from: { pos: THREE.Vector3; look: THREE.Vector3; fov: number } | null } | null>(null);
   const arrive = useRef(onArrive);
@@ -257,7 +239,7 @@ function CameraRig({ mode, aside, lift, onArrive }: { mode: WorldMode; aside: nu
       v.zoom += (1 - v.zoom) * f;
     }
     // (a raised picture also stands back a little, so the guide fits in the smaller space above the panel)
-    const fov = goalFor(mode, clock.getElapsedTime(), v, aside, g.pos, g.look) * (1 + lifted.current * 1.2);
+    const fov = goalFor(mode, clock.getElapsedTime(), dt, v, aside, avoid.current, g.pos, g.look) * (1 + lifted.current * 1.2);
     const tw = tween.current;
     if (tw) {
       if (reducedMotion()) tw.dur = 1; // asked for less motion mid-flight: finish it now
