@@ -1,0 +1,22 @@
+{
+  "name": "pipterview-video",
+  "private": true,
+  "description": "pipterview's launch clip, made with Remotion from real screens of the app",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts Launch out/pipterview-launch.mp4",
+    "still": "remotion still src/index.ts Launch out/poster.png --frame=560",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.537",
+    "@remotion/google-fonts": "4.0.537",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "remotion": "4.0.537"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

@@ -61,3 +61,7 @@ evals/feedback/results/
 
 # python (the sand3d models)
 __pycache__/
+
+# the launch video (video/): its dependencies and renders
+/video/node_modules
+/video/out
