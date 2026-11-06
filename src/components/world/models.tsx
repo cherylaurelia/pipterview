@@ -34,11 +34,14 @@ function unpacked(geometry: THREE.BufferGeometry) {
   return g;
 }
 
-/** A mesh's part name: its own, or its nearest named parent's (the compressor hangs meshes under unnamed nodes). */
+/**
+ * A mesh's part name: its own, or its nearest named parent's (the compressor hangs meshes under unnamed nodes), less
+ * Blender's copy number (the loader drops the dot, so "leg.001" arrives as "leg001").
+ */
 function partName(o: THREE.Object3D) {
   let n: THREE.Object3D | null = o;
   while (n && !n.name) n = n.parent;
-  return (n?.name ?? "").replace(/[._]\d+$/, "");
+  return (n?.name ?? "").replace(/[._]?\d{3}$/, "");
 }
 
 const parts = new WeakMap<GLTF, ModelPart[]>();

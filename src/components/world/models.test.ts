@@ -31,7 +31,9 @@ describe("sand3d models", () => {
   });
 
   it.each(["table", "chair"])("%s: exported in metres", (name) => {
-    expect(gltf(name).nodes.find((n) => n.name === name)?.scale?.[0]).toBeCloseTo(0.001);
+    const scale = gltf(name).nodes.find((n) => n.name === name)?.scale;
+    expect(scale).toHaveLength(3);
+    for (const s of scale!) expect(s).toBeCloseTo(0.001, 6);
   });
 
   it.each(["table", "chair"])("%s: meshopt-compressed (built by npm run models)", (name) => {
