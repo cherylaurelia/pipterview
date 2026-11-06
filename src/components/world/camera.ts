@@ -91,7 +91,8 @@ export function blockedAt(from: THREE.Vector3, to: THREE.Vector3, spheres = SPHE
 }
 
 export const MAX_LIFT = 0.6; // radians the camera may rise over something before it comes in closer instead
-const EL_MAX = 1.25;
+/** The highest the camera goes (radians above the horizon), whether you drag it there or it rises over something. */
+export const EL_MAX = 1.25;
 
 /** The camera's place at `az`, `el` (raised by `lift`) and `dist` from `look`, a fraction `reach` of the way out. */
 export function orbit(out: THREE.Vector3, look: THREE.Vector3, az: number, el: number, dist: number, lift = 0, reach = 1) {
@@ -101,22 +102,37 @@ export function orbit(out: THREE.Vector3, look: THREE.Vector3, az: number, el: n
 
 const probe = new THREE.Vector3();
 
+const STEPS = 12; // the rise is first tried in steps of MAX_LIFT / STEPS, so a gap between two blockers isn't skipped
+export const MARGIN = 0.03; // radians of rise kept spare above the least that clears, so the edge of a crown isn't grazed
+
 /**
- * How to see `look` clearly from the orbit at az/el/dist: the least rise that clears the view (found by halving, to a
- * hundredth of a radian), or, when even the most rise isn't enough, the full rise and how far out (`reach`) is clear.
+ * How to see `look` clearly from the orbit at az/el/dist: the least rise that clears the view (the first clear step,
+ * then halved down to a hundredth of a radian, plus a little to spare), or, when no rise is enough, the full rise and
+ * how far out (`reach`) the camera can be and still be short of what's in the way.
  */
 export function clearView(look: THREE.Vector3, az: number, el: number, dist: number, spheres = SPHERES, boxes = BOXES) {
   const clearAt = (lift: number) => blockedAt(look, orbit(probe, look, az, el, dist, lift), spheres, boxes);
   if (clearAt(0) >= 1) return { lift: 0, reach: 1 };
-  const top = clearAt(MAX_LIFT);
-  if (top < 1) return { lift: MAX_LIFT, reach: Math.max(0.3, top - 0.06) };
-  let lo = 0, hi = MAX_LIFT;
+  let hi = -1;
+  for (let k = 1; k <= STEPS; k++) {
+    if (clearAt((k / STEPS) * MAX_LIFT) >= 1) {
+      hi = (k / STEPS) * MAX_LIFT;
+      break;
+    }
+  }
+  if (hi < 0) {
+    // squared, so the camera stays short of the blocker and `reach` runs smoothly up to 1 as it clears; never closer
+    // in than 0.3 of the way unless the blocker itself is nearer than that
+    const top = clearAt(MAX_LIFT);
+    return { lift: MAX_LIFT, reach: Math.max(top * top, Math.min(0.3, top * 0.9)) };
+  }
+  let lo = hi - MAX_LIFT / STEPS;
   while (hi - lo > 0.01) {
     const mid = (lo + hi) / 2;
     if (clearAt(mid) >= 1) hi = mid;
     else lo = mid;
   }
-  return { lift: Math.min(MAX_LIFT, hi + 0.03), reach: 1 };
+  return { lift: Math.min(MAX_LIFT, hi + MARGIN), reach: 1 };
 }
 
 /**

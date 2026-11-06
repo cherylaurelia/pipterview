@@ -3,7 +3,7 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { Avoidance, clearView, orbit } from "./camera";
+import { Avoidance, clearView, EL_MAX, orbit } from "./camera";
 import type { CritterPick } from "./critters";
 import { daylight } from "./daylight";
 import { Effects } from "./effects";
@@ -24,7 +24,7 @@ export type WorldMode = "splash" | "world" | "seated";
 const SPLASH = { radius: 36, height: 21, fov: 38 };
 const ISLAND = { az: 0.37, el: 0.42, dist: 6.5, fov: 45, lift: 0.7 };
 const SEATED = { pos: new THREE.Vector3(0, 1.5, 1.45), pitch: -0.15, reach: 2.6, fov: 46 };
-const LIMITS = { el: [0.12, 1.25], dist: [2.5, 18], yaw: 1.2, pitch: [-0.5, 0.55], zoom: [0.6, 1.25] } as const;
+const LIMITS = { el: [0.12, EL_MAX], dist: [2.5, 18], yaw: 1.2, pitch: [-0.5, 0.55], zoom: [0.6, 1.25] } as const;
 
 /** What you've done with the camera (kept across mode changes, so the island stays how you left it). */
 interface UserView {
@@ -225,6 +225,7 @@ function CameraRig({ mode, aside, lift, onArrive }: { mode: WorldMode; aside: nu
   useEffect(() => {
     // reduced motion: a cut rather than a flight
     tween.current = { t0: performance.now(), dur: reducedMotion() ? 1 : mode === "splash" ? 900 : 1700, from: null };
+    avoid.current = new Avoidance(); // a fresh start: nothing was in the way of a camera that wasn't following you
   }, [mode]);
 
   useFrame(({ clock, camera }, dt) => {

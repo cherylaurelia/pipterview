@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { Avoidance, blockedAt, BOXES, clearView, MAX_LIFT, orbit } from "./camera";
+import { Avoidance, blockedAt, BOXES, clearView, MARGIN, MAX_LIFT, orbit } from "./camera";
 import { COTTAGE, COTTAGE_TURN } from "./island";
 
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -9,7 +9,7 @@ describe("blockedAt", () => {
   it("sees the cottage between you and a camera on its far side", () => {
     const cos = Math.cos(COTTAGE_TURN), sin = Math.sin(COTTAGE_TURN);
     const front = v(COTTAGE.x + sin * 3, 0.8, COTTAGE.z + cos * 3), behind = v(COTTAGE.x - sin * 4, 1.5, COTTAGE.z - cos * 4);
-    expect(blockedAt(front, behind)).toBeLessThan(1);
+    expect(blockedAt(front, behind, [], BOXES)).toBeLessThan(1); // the cottage alone, not a tree on the way
   });
 
   it("ignores a box or sphere you're standing inside the padding of", () => {
@@ -26,13 +26,13 @@ describe("blockedAt", () => {
 describe("clearView", () => {
   const ball = [{ x: 0, y: 1, z: 2, r: 0.8 }];
 
-  it("rises just enough to see over something, and no more", () => {
+  it("rises just enough to see over something, with only a little to spare", () => {
     const look = v(0, 0.7, 0);
     const { lift, reach } = clearView(look, 0, 0.3, 6, ball, []);
     expect(reach).toBe(1);
     expect(lift).toBeGreaterThan(0);
     expect(blockedAt(look, orbit(new THREE.Vector3(), look, 0, 0.3, 6, lift), ball, [])).toBe(1);
-    expect(blockedAt(look, orbit(new THREE.Vector3(), look, 0, 0.3, 6, lift - 0.06), ball, [])).toBeLessThan(1);
+    expect(blockedAt(look, orbit(new THREE.Vector3(), look, 0, 0.3, 6, lift - MARGIN - 0.012), ball, [])).toBeLessThan(1);
   });
 
   it("changes smoothly as you walk past, never jumping between fixed heights", () => {
@@ -43,6 +43,20 @@ describe("clearView", () => {
       last = lift;
     }
     expect(worst).toBeLessThan(0.08);
+  });
+
+  it("finds the gap between two blockers rather than rising past it", () => {
+    // one low ball just over the line of sight, and one higher up; the gap between them is the least rise that clears
+    const two = [{ x: 0, y: 1.3, z: 2.5, r: 0.5 }, { x: 0, y: 4.5, z: 4.5, r: 0.9 }];
+    const look = v(0, 0.7, 0), { lift } = clearView(look, 0, 0.2, 6, two, []);
+    expect(blockedAt(look, orbit(new THREE.Vector3(), look, 0, 0.2, 6, lift), two, [])).toBe(1);
+    expect(lift).toBeLessThan(0.45);
+  });
+
+  it("keeps the camera short of a blocker it can't rise over, coming closer smoothly", () => {
+    const wall = [{ x: 0, y: 3, z: 2, r: 2.5 }], look = v(0, 0.7, -0.5);
+    const { reach } = clearView(look, 0, 0.3, 6, wall, []);
+    expect(reach).toBeLessThan(blockedAt(look, orbit(new THREE.Vector3(), look, 0, 0.3, 6, MAX_LIFT), wall, []));
   });
 
   it("comes in closer only when even the full rise isn't enough", () => {
