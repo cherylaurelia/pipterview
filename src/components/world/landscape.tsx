@@ -9,6 +9,7 @@ import { daylight } from "./daylight";
 import { player } from "./explore";
 import { reducedMotion } from "./quality";
 import { groundY, Island, islandRadius, isOpen, nearGardenSlot, rng } from "./island";
+import { flowerMaterial, Meadow } from "./meadow";
 import { Pond } from "./pond";
 import { Village } from "./village";
 import { softDot } from "./textures";
@@ -76,15 +77,13 @@ function Sky() {
   );
 }
 
-// Tufts of grass and specks of wildflowers (mostly buttercups, some daisies, a little orange and pink) over the island's
-// open ground, plus a fringe of longer blades leaning out over the rim, so the edge looks soft and brushed rather than
-// cut. Three instanced meshes.
+// The meadow (meadow.tsx), with short tufts underneath for a thick carpet, wildflowers in drifts among the blades, and a
+// fringe of longer blades leaning out over the rim, so the edge looks soft and brushed rather than cut.
 function Grass() {
-  const blades = useRef<THREE.InstancedMesh>(null);
   const flowers = useRef<THREE.InstancedMesh>(null);
   const fringe = useRef<THREE.InstancedMesh>(null);
   const tufts = useRef<THREE.InstancedMesh>(null);
-  const BLADES = 8000, FLOWERS = 2400, FRINGE = 2600, TUFTS = 3200;
+  const FLOWERS = 2400, FRINGE = 2600, TUFTS = 3200;
   // a tuft: six short, wide blades splayed out from one spot, darker at the root, for a soft, thick carpet underfoot
   const tuftGeo = useMemo(() => {
     const parts = Array.from({ length: 6 }, (_, i) => {
@@ -125,9 +124,9 @@ function Grass() {
       mesh.instanceMatrix.needsUpdate = true;
     };
     // the grass lives on layer 1, which the pond's reflection (and click picking) skip: thousands of blades for little gain
-    for (const mesh of [blades.current, flowers.current, fringe.current, tufts.current]) mesh?.layers.set(GRASS_LAYER);
+    for (const mesh of [flowers.current, fringe.current, tufts.current]) mesh?.layers.set(GRASS_LAYER);
     // shadowed by the trees, but not drawn into the shadow map themselves (see castNoShadow)
-    for (const mesh of [blades.current, tufts.current]) if (mesh) mesh.customDepthMaterial = castNoShadow();
+    if (tufts.current) tufts.current.customDepthMaterial = castNoShadow();
     if (tufts.current) {
       const mesh = tufts.current;
       scatter(mesh, TUFTS, (i) => {
@@ -135,16 +134,6 @@ function Grass() {
         const k = 0.8 + r() * 0.7;
         s.set(k, k * (0.7 + r() * 0.5), k);
         mesh.setColorAt(i, c.setHSL(0.24 + r() * 0.04, 0.55 + r() * 0.15, 0.46 + r() * 0.12));
-      });
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    }
-    if (blades.current) {
-      const mesh = blades.current;
-      scatter(mesh, BLADES, (i) => {
-        e.set((r() - 0.5) * 0.4, r() * Math.PI, (r() - 0.5) * 0.4);
-        const k = 0.5 + r() * 0.7;
-        s.set(k, k * (0.7 + r() * 0.8), k);
-        mesh.setColorAt(i, c.setHSL(0.24 + r() * 0.04, 0.55 + r() * 0.15, 0.44 + r() * 0.12));
       });
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
@@ -171,7 +160,7 @@ function Grass() {
           z = stray ? (r() - 0.5) * 28 : d.z + Math.sin(a) * rad;
         } while (!isOpen(x, z) && ++tries < 12);
         if (!isOpen(x, z)) [x, z] = [d.x, d.z];
-        p.set(x, groundY(x, z) + 0.08 + r() * 0.1, z);
+        p.set(x, groundY(x, z) + 0.16 + r() * 0.2, z); // up among the blade tips
         const k = 0.5 + r() * 0.6;
         s.set(k * 1.2, k * 0.4, k * 1.2); // flat little flower heads, not beads
         m.compose(p, q.setFromEuler(e.set(0, 0, 0)), s);
@@ -206,7 +195,7 @@ function Grass() {
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
-  }, [BLADES, FLOWERS]);
+  }, [FLOWERS]);
 
   useFrame(({ clock }) => {
     // a gentler breeze for reduced motion: slower, and not as far
@@ -218,12 +207,11 @@ function Grass() {
 
   return (
     <>
-      <instancedMesh ref={blades} args={[bladeGeo, swayingToon(true), BLADES]} receiveShadow />
+      <Meadow layer={GRASS_LAYER} />
       <instancedMesh ref={fringe} args={[bladeGeo, swayingToon(true), FRINGE]} />
       <instancedMesh ref={tufts} args={[tuftGeo, swayingToon(true), TUFTS]} receiveShadow />
-      <instancedMesh ref={flowers} args={[undefined, undefined, FLOWERS]}>
+      <instancedMesh ref={flowers} args={[undefined, flowerMaterial(), FLOWERS]}>
         <sphereGeometry args={[0.024, 8, 6]} />
-        <meshToonMaterial gradientMap={gradientMap()} emissive="#fff3d0" emissiveIntensity={0.15} />
       </instancedMesh>
     </>
   );

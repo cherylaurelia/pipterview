@@ -166,6 +166,55 @@ const AtmosphereShader = {
     }`,
 };
 
+/**
+ * Depth of field with a tilt-shift touch, as in a photo of a miniature: what the camera is looking at stays sharp, and
+ * things nearer or further soften with their distance from it; the top and bottom of the picture soften a little too.
+ * A gather blur: 16 taps on a golden-angle spiral, each weighted by how blurred its own spot is, so a sharp subject
+ * doesn't smear over the soft background behind it.
+ */
+const TiltShiftShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    tDepth: { value: null },
+    uNear: { value: 0.05 },
+    uFar: { value: 900 },
+    uFocus: { value: 6 },
+    uBlur: { value: 5 },
+    uTilt: { value: 0.6 },
+    uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 1024) },
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: /* glsl */ `
+    #include <packing>
+    uniform sampler2D tDiffuse, tDepth;
+    uniform float uNear, uFar, uFocus, uBlur, uTilt;
+    uniform vec2 uTexel;
+    varying vec2 vUv;
+    float softness(vec2 uv) {
+      float dist = -perspectiveDepthToViewZ(texture2D(tDepth, uv).x, uNear, uFar);
+      float off = abs(dist - uFocus) / (uFocus * 0.9 + 1.0); // how far from the focus, for its distance
+      float band = smoothstep(0.2, 0.5, abs(uv.y - 0.5)) * uTilt;
+      return clamp(max(smoothstep(0.08, 1.0, off), band), 0.0, 1.0);
+    }
+    void main() {
+      vec4 base = texture2D(tDiffuse, vUv);
+      float me = softness(vUv);
+      if (me * uBlur < 0.4) { gl_FragColor = base; return; }
+      vec3 sum = base.rgb;
+      float total = 1.0;
+      for (int i = 1; i < 16; i++) {
+        float f = float(i);
+        vec2 o = vec2(cos(f * 2.39996), sin(f * 2.39996)) * sqrt(f / 16.0) * me * uBlur * uTexel;
+        float w = 0.25 + 0.75 * softness(vUv + o);
+        sum += texture2D(tDiffuse, vUv + o).rgb * w;
+        total += w;
+      }
+      gl_FragColor = vec4(sum / total, base.a);
+    }`,
+};
+
 /** See-through things (sky, clouds, the waterfall, blush) shouldn't cast ambient occlusion. */
 const seeThrough = (o: THREE.Object3D) => {
   if (o instanceof THREE.Sprite) return true;
@@ -193,6 +242,7 @@ interface Chain {
   ao: GTAOPass;
   air: ShaderPass;
   outline: ShaderPass;
+  dof: ShaderPass;
   bloom: UnrealBloomPass;
   grade: ShaderPass;
 }
@@ -211,19 +261,22 @@ function buildChain(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.C
   air.uniforms.tDepth.value = ao.depthTexture;
   composer.addPass(air);
   const outline = new ShaderPass(OutlineShader);
+  const dof = new ShaderPass(TiltShiftShader);
+  dof.uniforms.tDepth.value = ao.depthTexture;
   outline.uniforms.tDepth.value = ao.depthTexture;
   outline.uniforms.tNormal.value = ao.normalTexture;
   if (camera instanceof THREE.PerspectiveCamera) {
-    outline.uniforms.uNear.value = air.uniforms.uNear.value = camera.near;
-    outline.uniforms.uFar.value = air.uniforms.uFar.value = camera.far;
+    outline.uniforms.uNear.value = air.uniforms.uNear.value = dof.uniforms.uNear.value = camera.near;
+    outline.uniforms.uFar.value = air.uniforms.uFar.value = dof.uniforms.uFar.value = camera.far;
   }
   composer.addPass(outline);
+  composer.addPass(dof);
   const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.3, 0.4, 1.0); // only true highlights (lanterns, the sun) glow
   composer.addPass(bloom);
   composer.addPass(new OutputPass()); // tone mapping and sRGB, so the grade works on the final colours
   const grade = new ShaderPass(GradeShader);
   composer.addPass(grade);
-  return { composer, ao, air, outline, bloom, grade };
+  return { composer, ao, air, outline, dof, bloom, grade };
 }
 
 const HAZE = { day: new THREE.Color("#e9dcc8"), dusk: new THREE.Color("#e8b9b0") };
@@ -281,6 +334,7 @@ export function Effects() {
     c.composer.setSize(size.width, size.height); // sizes every pass too
     c.ao.setSize((size.width * dpr) / 2, (size.height * dpr) / 2); // AO at half resolution: soft anyway, and much cheaper
     c.outline.uniforms.uTexel.value.set(2 / (size.width * dpr), 2 / (size.height * dpr)); // one texel of the AO's buffers
+    c.dof.uniforms.uTexel.value.set(dpr / (size.width * dpr), dpr / (size.height * dpr)); // a CSS pixel, so the blur looks the same on any screen
   }, [gl, size, dpr, scene, camera]);
 
   // priority 1: R3F stops rendering on its own and leaves it to us
@@ -298,6 +352,10 @@ export function Effects() {
     // lite: no post-processing at all (the renderer still tone-maps and converts colour on its own)
     if (!c || level === 0) return gl.render(scene, camera);
     c.outline.enabled = level >= 2;
+    c.dof.enabled = level >= 2 && tuning.focusBlur > 0; // the depth of field only at full quality
+    c.dof.uniforms.uFocus.value = focus.distance;
+    c.dof.uniforms.uBlur.value = focus.blur * tuning.focusBlur;
+    c.dof.uniforms.uTilt.value = focus.tilt;
     aim(c.air, camera, daylight.evening);
     c.air.uniforms.uSteps.value = level >= 2 ? 28 : 12;
     c.grade.uniforms.uEvening.value = daylight.evening;

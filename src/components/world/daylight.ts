@@ -9,8 +9,13 @@ export const daylight = { evening: 0 };
 /** Where the sun is (WorldScene's DayCycle moves it lower towards sunset), for the haze and light shafts in effects.tsx. */
 export const sun = new THREE.Vector3(-11, 15, -13);
 
-/** How far the camera is from what it's looking at (set by the camera rig), so the haze only gathers beyond it. */
-export const focus = { distance: 6 };
+/**
+ * What the camera is looking at (set by the camera rig): how far away it is, so the haze only gathers beyond it and the
+ * depth of field keeps it sharp; how soft things away from it go (`blur`, the widest blur in CSS pixels, before the
+ * focusBlur dial in tuning.ts); and how much the top and
+ * bottom of the picture soften too (`tilt`), for the tilt-shift look of a photo of a miniature.
+ */
+export const focus = { distance: 6, blur: 5, tilt: 0.6 };
 
 /** Blends two colours by `evening` into `out`. */
 export function dusk(out: THREE.Color, day: THREE.Color, sunset: THREE.Color) {

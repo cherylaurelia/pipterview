@@ -271,6 +271,12 @@ function CameraRig({ mode, aside, lift, onArrive }: { mode: WorldMode; aside: nu
     }
     cam.lookAt(look.current);
     focus.distance = cam.position.distanceTo(look.current);
+    // the miniature look: strongest over the whole island, gentler walking about, and at the table only the background
+    // softens behind the guide
+    const [blur, tilt] = mode === "splash" ? [6, 0.9] : mode === "world" ? [4.5, 0.55] : [3.5, 0];
+    const k = Math.min(1, dt * 2);
+    focus.blur += (blur - focus.blur) * k;
+    focus.tilt += (tilt - focus.tilt) * k;
     // raise the picture without tilting the camera: the frame shifts, so the guide stays face-on above the panel
     lifted.current += (lift - lifted.current) * Math.min(1, dt * 3);
     if (Math.abs(lifted.current) > 0.001) {
