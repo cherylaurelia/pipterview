@@ -17,6 +17,8 @@ export const player = {
   goal: null as THREE.Vector3 | null,
   /** The seat you're sitting on, if any. */
   sitting: null as string | null,
+  /** Out walking about the island (rather than at the table), so the grass knows to part round you. */
+  out: false,
 };
 
 /** Keys held down (lower case), for walking. */

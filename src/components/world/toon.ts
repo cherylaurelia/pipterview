@@ -46,12 +46,18 @@ export function toon(color: string, pale = false) {
 export const wind = { value: 0 };
 /** How far things sway: less for reduced motion. */
 export const windAmp = { value: 1 };
+/** Where your chick is walking (y < 0 when it isn't out), so the grass round it parts as it goes. */
+export const trample = { value: new THREE.Vector3(0, -1, 0) };
+/** How strong the gusts are (1 as designed; see tuning.ts). */
+export const gusts = { value: 1 };
 
 const swaying = new Map<string, THREE.MeshToonMaterial>();
 
 /**
  * The soft-shaded material for instanced grass, reeds and cattails, which lean in the breeze: each leans by its
- * height, in waves that roll across the island. `vertexColors` for meshes that carry their own colours.
+ * height, in waves that roll across the island, with gusts that sweep across now and then, bending the blades further
+ * and catching the light on their tips, as wind does in a real meadow. Blades near your chick bend away from it.
+ * `vertexColors` for meshes that carry their own colours.
  */
 export function swayingToon(vertexColors = false, pale = false) {
   const key = `${vertexColors}-${pale}`;
@@ -61,8 +67,10 @@ export function swayingToon(vertexColors = false, pale = false) {
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uWind = wind;
       shader.uniforms.uWindAmp = windAmp;
+      shader.uniforms.uTrample = trample;
+      shader.uniforms.uGusts = gusts;
       shader.vertexShader = shader.vertexShader
-        .replace("#include <common>", "#include <common>\nuniform float uWind;\nuniform float uWindAmp;")
+        .replace("#include <common>", `#include <common>\nuniform float uWind;\nuniform float uWindAmp;\nuniform vec3 uTrample;\nuniform float uGusts;\nvarying float vGust;\nvarying float vPatch;\n${NOISE_GLSL}`)
         .replace(
           "#include <begin_vertex>",
           `#include <begin_vertex>
@@ -72,11 +80,32 @@ export function swayingToon(vertexColors = false, pale = false) {
             vec2 at = vec2(0.0);
           #endif
           float sway = (sin(uWind * 1.5 + at.x * 0.3 + at.y * 0.2) * 0.6 + sin(uWind * 2.6 + at.x * 0.9) * 0.2) * uWindAmp;
+          // a gust: a band of stronger wind rolling across the island, its front wavering
+          float gust = pow(0.5 + 0.5 * sin(dot(at, vec2(0.32, 0.18)) - uWind * 1.2 + sin(at.y * 0.4 + uWind * 0.3)), 6.0) * uWindAmp * uGusts;
+          sway += gust * 0.9;
+          vGust = gust * clamp(position.y * 6.0, 0.0, 1.0);
+          // big soft patches across the meadow, lusher in some places and sun-dried in others
+          vPatch = pnNoise(at * 0.13) * 0.65 + pnNoise(at * 0.41 + 7.0) * 0.35;
           transformed.x += sway * position.y * 0.9;
-          transformed.z += sway * position.y * 0.35;`,
+          transformed.z += sway * position.y * 0.35;
+          #ifdef USE_INSTANCING
+            // bent away from your chick, in the world's frame (turned back into the blade's own)
+            vec2 away = at - uTrample.xz;
+            float push = (1.0 - smoothstep(0.12, 0.7, length(away))) * step(0.0, uTrample.y);
+            vec2 out2 = normalize(away + vec2(1e-4)) * push;
+            transformed += inverse(mat3(instanceMatrix)) * vec3(out2.x, -0.45 * push, out2.y) * position.y * 1.5;
+          #endif`,
+        );
+      shader.fragmentShader = shader.fragmentShader
+        .replace("#include <common>", "#include <common>\nvarying float vGust;\nvarying float vPatch;")
+        .replace(
+          "#include <color_fragment>",
+          `#include <color_fragment>
+          diffuseColor.rgb *= mix(vec3(0.82, 0.93, 0.82), vec3(1.1, 1.05, 0.82), smoothstep(0.25, 0.75, vPatch));
+          diffuseColor.rgb *= 1.0 + vGust * 0.22; // the gust's sheen on the tips`,
         );
     };
-    m.customProgramCacheKey = () => `sway-${key}`;
+    m.customProgramCacheKey = () => `sway3-${key}`;
     swaying.set(key, m);
   }
   return m;

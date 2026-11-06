@@ -36,6 +36,9 @@ import type { Mood } from "./people";
 import type { WorldMode } from "./WorldScene";
 
 const WorldScene = dynamic(() => import("./WorldScene"), { ssr: false, loading: () => <div className="absolute inset-0 bg-[#ece6dc]" /> });
+// the live tuning panel for the island's look, only loaded with ?tune in the address (see tuning.ts)
+const WorldTuner = dynamic(() => import("./WorldTuner"), { ssr: false });
+const TUNE = { subscribe: () => () => {}, on: () => new URLSearchParams(window.location.search).has("tune") };
 
 const PREP_BLURB: Record<PrepType, string> = {
   behavioral: "The stories you've lived but haven't said out loud yet.",
@@ -393,6 +396,7 @@ export default function World() {
   // touch screens get taps and the stick rather than keys; narrow screens get the panel along the bottom
   const touch = useSyncExternalStore(TOUCH.subscribe, TOUCH.matches, () => false);
   const stacked = useSyncExternalStore(STACKED.subscribe, STACKED.matches, () => false);
+  const tune = useSyncExternalStore(TUNE.subscribe, TUNE.on, () => false);
   // Pip dozes off at the table if you've wandered off for a while (and wakes to say hello when you come back)
   const [dozing, setDozing] = useState(false);
   useEffect(() => {
@@ -727,6 +731,7 @@ export default function World() {
               onSit={sitDown}
               onArrive={onArrive}
             />
+            {tune && <WorldTuner />}
           </SceneBoundary>
         )}
       </div>

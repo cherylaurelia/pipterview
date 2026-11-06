@@ -9,11 +9,14 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { daylight } from "./daylight";
+import { daylight, focus, sun } from "./daylight";
 import { measureFrame, quality } from "./quality";
+import { NOISE_GLSL } from "./toon";
+import { tuning } from "./tuning";
 
 // The "shader pack" look, after cozy Minecraft shaders: soft ambient occlusion where things meet (contact shadows under
-// the chairs, in the grass, along the banks), soft ink outlines round shapes (like an illustration), a gentle bloom on
+// the chairs, in the grass, along the banks), haze and light shafts in the air, soft ink outlines round shapes (like an
+// illustration), a gentle bloom on
 // anything bright (lanterns, the sun, sparkles), then a
 // colour grade in the final image: split toning (cool violet shadows, warm golden highlights, so light and shade always
 // harmonise), a soft S-curve, a touch more saturation, and a vignette.
@@ -90,6 +93,77 @@ const OutlineShader = {
     }`,
 };
 
+/**
+ * The air between you and things, as in the painterly games this scene takes after: far things sink into a soft
+ * haze (more of it low down, less up high), which turns warm and golden in the direction of the sun, and the sun's
+ * light streams in shafts past trees, buildings and Pip wherever the sky shows between them. Both read the depth the
+ * AO pass has already rendered; the shafts march from each pixel towards the sun, gathering open sky as they go.
+ */
+const AtmosphereShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    tDepth: { value: null },
+    uNear: { value: 0.05 },
+    uFar: { value: 900 },
+    uInvProj: { value: new THREE.Matrix4() },
+    uCamWorld: { value: new THREE.Matrix4() },
+    uCamPos: { value: new THREE.Vector3() },
+    uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+    uSunUv: { value: new THREE.Vector2(0.5, 1.2) },
+    uHaze: { value: new THREE.Color("#e9dcc8") },
+    uSunColor: { value: new THREE.Color("#ffd9a6") },
+    uDensity: { value: 0.03 },
+    uClouds: { value: 1 },
+    uStart: { value: 6 },
+    uTime: { value: 0 },
+    uRays: { value: 0.3 },
+    uFacing: { value: 0 },
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: /* glsl */ `
+    #include <packing>
+    ${NOISE_GLSL}
+    uniform sampler2D tDiffuse, tDepth;
+    uniform float uNear, uFar, uDensity, uRays, uFacing, uTime, uStart, uClouds;
+    uniform mat4 uInvProj, uCamWorld;
+    uniform vec3 uCamPos, uSunDir, uHaze, uSunColor;
+    uniform vec2 uSunUv;
+    varying vec2 vUv;
+    void main() {
+      vec4 base = texture2D(tDiffuse, vUv);
+      float d = texture2D(tDepth, vUv).x;
+      float sky = step(0.99999, d);
+      vec4 v = uInvProj * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
+      vec3 dir = normalize(mat3(uCamWorld) * (v.xyz / v.w));
+      float toSun = max(dot(dir, uSunDir), 0.0);
+      // haze: by distance beyond what you're looking at (none up close), thicker low down, golden towards the sun
+      float dist = -perspectiveDepthToViewZ(d, uNear, uFar);
+      float y = uCamPos.y + dir.y * dist;
+      float haze = (1.0 - sky) * (1.0 - exp(-max(dist - uStart, 0.0) * uDensity)) * mix(1.0, 0.4, smoothstep(0.0, 8.0, y));
+      vec3 air = mix(uHaze, uSunColor, pow(toSun, 5.0) * 0.75);
+      // the shadows of clouds drifting over the island, soft-edged, slowly sliding with the breeze
+      vec3 at = uCamPos + dir * dist;
+      float cloud = smoothstep(0.52, 0.78, pnNoise(at.xz * 0.07 + vec2(uTime * 0.018, uTime * 0.011)) * 0.7 + pnNoise(at.xz * 0.19 - uTime * 0.01) * 0.3);
+      vec3 c = base.rgb * (1.0 - cloud * 0.16 * uClouds * (1.0 - sky) * step(at.y, 3.5) * (1.0 - haze));
+      c = mix(c, air, haze * 0.6);
+      // light shafts: open sky gathered on the way towards the sun, fading with each step
+      vec2 step2 = (uSunUv - vUv) / 28.0 * 0.85;
+      vec2 uv = vUv;
+      float light = 0.0, fall = 1.0;
+      for (int i = 0; i < 28; i++) {
+        uv += step2;
+        light += step(0.99999, texture2D(tDepth, clamp(uv, 0.001, 0.999)).x) * fall;
+        fall *= 0.95;
+      }
+      light /= 12.0;
+      float shafts = light * (1.0 - sky * 0.7) * uRays * uFacing * (0.35 + 0.65 * pow(toSun, 2.0));
+      c += uSunColor * shafts;
+      gl_FragColor = vec4(c, base.a);
+    }`,
+};
+
 /** See-through things (sky, clouds, the waterfall, blush) shouldn't cast ambient occlusion. */
 const seeThrough = (o: THREE.Object3D) => {
   if (o instanceof THREE.Sprite) return true;
@@ -115,6 +189,7 @@ class SolidAOPass extends GTAOPass {
 interface Chain {
   composer: EffectComposer;
   ao: GTAOPass;
+  air: ShaderPass;
   outline: ShaderPass;
   bloom: UnrealBloomPass;
   grade: ShaderPass;
@@ -127,12 +202,15 @@ function buildChain(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.C
   ao.updateGtaoMaterial({ radius: 0.5, distanceExponent: 1.4, thickness: 1.2, scale: 1.1, samples: 12 });
   ao.blendIntensity = 0.85;
   composer.addPass(ao);
+  const air = new ShaderPass(AtmosphereShader);
+  air.uniforms.tDepth.value = ao.depthTexture;
+  composer.addPass(air);
   const outline = new ShaderPass(OutlineShader);
   outline.uniforms.tDepth.value = ao.depthTexture;
   outline.uniforms.tNormal.value = ao.normalTexture;
   if (camera instanceof THREE.PerspectiveCamera) {
-    outline.uniforms.uNear.value = camera.near;
-    outline.uniforms.uFar.value = camera.far;
+    outline.uniforms.uNear.value = air.uniforms.uNear.value = camera.near;
+    outline.uniforms.uFar.value = air.uniforms.uFar.value = camera.far;
   }
   composer.addPass(outline);
   const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.3, 0.4, 1.0); // only true highlights (lanterns, the sun) glow
@@ -140,7 +218,37 @@ function buildChain(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.C
   composer.addPass(new OutputPass()); // tone mapping and sRGB, so the grade works on the final colours
   const grade = new ShaderPass(GradeShader);
   composer.addPass(grade);
-  return { composer, ao, outline, bloom, grade };
+  return { composer, ao, air, outline, bloom, grade };
+}
+
+const HAZE = { day: new THREE.Color("#e9dcc8"), dusk: new THREE.Color("#e8b9b0") };
+const SUNLIGHT = { day: new THREE.Color("#ffdcaa"), dusk: new THREE.Color("#ffa877") };
+const sunDir = new THREE.Vector3(), sunUv = new THREE.Vector3(), forward = new THREE.Vector3();
+
+/** Points the atmosphere at the sun for this frame: where it is on screen, whether you're facing it, and the colours. */
+function aim(air: ShaderPass, camera: THREE.Camera, evening: number) {
+  const u = air.uniforms;
+  sunDir.copy(sun).normalize();
+  u.uSunDir.value.copy(sunDir);
+  u.uInvProj.value.copy(camera.projectionMatrixInverse);
+  u.uCamWorld.value.copy(camera.matrixWorld);
+  u.uCamPos.value.setFromMatrixPosition(camera.matrixWorld);
+  sunUv.copy(u.uCamPos.value).addScaledVector(sunDir, 500).project(camera);
+  u.uSunUv.value.set(sunUv.x * 0.5 + 0.5, sunUv.y * 0.5 + 0.5);
+  camera.getWorldDirection(forward);
+  u.uFacing.value = THREE.MathUtils.smoothstep(forward.dot(sunDir), -0.1, 0.5); // shafts only while you look sunwards
+  u.uHaze.value.copy(HAZE.day).lerp(HAZE.dusk, evening);
+  u.uSunColor.value.copy(SUNLIGHT.day).lerp(SUNLIGHT.dusk, evening);
+  u.uRays.value = (0.22 + evening * 0.3) * tuning.shafts; // stronger as the sun goes down
+  u.uDensity.value = 0.03 * tuning.haze;
+  u.uClouds.value = tuning.clouds;
+  u.uTime.value = performance.now() / 1000;
+  u.uStart.value = focus.distance + 2; // clear up to just past what you're looking at
+}
+
+/** The exposure dial (tuning.ts), on the renderer's tone mapping. */
+function expose(gl: THREE.WebGLRenderer) {
+  gl.toneMappingExposure = tuning.exposure;
 }
 
 /** Takes over rendering with the post-processing chain. Render it inside the Canvas. */
@@ -174,6 +282,7 @@ export function Effects() {
   const setDpr = useThree((s) => s.setDpr);
   useFrame((_, dt) => {
     measureFrame(dt); // auto quality: steps down if the first seconds run slowly (see quality.ts)
+    expose(gl);
     const c = chain.current, level = quality.level;
     if (level === 0 && gl.getPixelRatio() > 1) setDpr(1);
     else if (level > 0) {
@@ -184,8 +293,9 @@ export function Effects() {
     // lite: no post-processing at all (the renderer still tone-maps and converts colour on its own)
     if (!c || level === 0) return gl.render(scene, camera);
     c.outline.enabled = level >= 2;
+    aim(c.air, camera, daylight.evening);
     c.grade.uniforms.uEvening.value = daylight.evening;
-    c.bloom.strength = 0.3 + daylight.evening * 0.25; // lanterns and fireflies glow more at dusk
+    c.bloom.strength = (0.3 + daylight.evening * 0.25) * tuning.bloom; // lanterns and fireflies glow more at dusk
     c.composer.render(dt);
   }, 1);
   return null;
