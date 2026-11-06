@@ -25,3 +25,7 @@ Prompts, the rubric and the model all change what feedback people get. Before an
 ## The 3D world
 
 The scene is React Three Fiber on three.js (WebGL 2), with custom shaders for the painted look. Keep it light: instanced meshes for anything there are many of, merged geometry for static clusters, and check the effect on the automatic quality levels (`quality.ts`). If you add something people can walk into, teach the matching collision helper about it, and add a test to `explore.test.ts`: `walkable()` (in `island.tsx`) for water, buildings and the island's edge, `slideRoundPlants()` (in `landscape.tsx`) for trees and bushes, and `canStand()` / `setSeat()` (in `explore.ts`) for benches.
+
+### Furniture in sand3d
+
+The table and the chairs are [sand3d](https://github.com/Sandflow-ai/sand3d) programs in `models/` (one file per model, its function named after it), exported to `public/models/*.glb` and loaded by `models.tsx`. To change one, edit its program and run `npm run models` (needs [uv](https://docs.astral.sh/uv/), which fetches Python 3.13 and sand3d with Blender's `bpy` on first run, about 750 MB); `npm run models chair` builds one. Commit the program and its GLB together. Give every part a material whose colour is in the program (`s3d.material(part, "oak", color="#a77a4f")`): the world draws each part in the toon material of that colour, and a part's name (`top`, `leg`) is how the code finds it. sand3d works in millimetres with Z up; the export is in metres with Y up, so a program's +Y is the world's -Z.

@@ -58,3 +58,6 @@ next-env.d.ts
 
 /references
 evals/feedback/results/
+
+# python (the sand3d models)
+__pycache__/

@@ -1,11 +1,14 @@
 "use client";
 
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { fluffyToon, gradientMap, toon } from "./toon";
 import { breathAt, breathing } from "./checkin";
 import { isDrag } from "./controls";
+import { Model, preloadModels, useModel } from "./models";
+
+preloadModels();
 
 // The two characters at the table: soft, matte, clay-toy chicks after the Pip logo (public/design/logo/pip-logo.png):
 // a plump gumdrop body that is head and body in one, with a full round head, black oval eyes, a small rounded beak,
@@ -114,37 +117,16 @@ function Foot({ side }: { side: -1 | 1 }) {
   );
 }
 
-export const WOOD = "#c99a6a", WOOD_DARK = "#a77a4f";
-
-/** A small wooden chair with a soft cushion. */
+/** A small wooden chair (models/chair.py) with a soft cushion in the sitter's colour. */
 function WoodChair({ cushion }: { cushion: string }) {
-  const wood = toon(WOOD), dark = toon(WOOD_DARK);
   return (
     <group>
-      <mesh position={[0, 0.44, -0.06]} material={wood} castShadow receiveShadow>
-        <boxGeometry args={[0.52, 0.05, 0.52]} />
-      </mesh>
+      <Suspense fallback={null}>
+        <Model name="chair" />
+      </Suspense>
       <mesh position={[0, 0.5, -0.04]} scale={[1, 0.6, 1]} material={toon(cushion)} castShadow receiveShadow>
         <sphereGeometry args={[0.25, 24, 12]} />
       </mesh>
-      {[-1, 1].flatMap((x) =>
-        [-1, 1].map((z) => (
-          <mesh key={`${x}${z}`} position={[x * 0.22, 0.21, -0.06 + z * 0.21]} material={dark} castShadow>
-            <cylinderGeometry args={[0.026, 0.03, 0.42, 10]} />
-          </mesh>
-        )),
-      )}
-      {/* the back: two posts and rounded rails, behind the chick */}
-      {[-1, 1].map((x) => (
-        <mesh key={x} position={[x * 0.22, 0.75, -0.36]} material={dark} castShadow>
-          <cylinderGeometry args={[0.026, 0.026, 0.6, 10]} />
-        </mesh>
-      ))}
-      {[0.66, 0.92].map((y) => (
-        <mesh key={y} position={[0, y, -0.36]} rotation={[0, 0, Math.PI / 2]} material={wood} castShadow>
-          <capsuleGeometry args={[0.035, 0.42, 4, 10]} />
-        </mesh>
-      ))}
     </group>
   );
 }
@@ -452,6 +434,19 @@ function Lantern({ position, lit }: { position: V3; lit: boolean }) {
   );
 }
 
+/** The round wooden table (models/table.py); its pale top glows a little while you point at it. */
+function TableModel({ lit }: { lit: boolean }) {
+  return useModel("table").map((p, i) =>
+    p.name === "top" ? (
+      <mesh key={i} geometry={p.geometry} castShadow receiveShadow>
+        <meshToonMaterial color={p.color} gradientMap={gradientMap()} emissive="#f5c84c" emissiveIntensity={lit ? 0.12 : 0} />
+      </mesh>
+    ) : (
+      <mesh key={i} geometry={p.geometry} material={toon(p.color)} castShadow receiveShadow />
+    ),
+  );
+}
+
 /** The round wooden table, set for tea. Clickable while `interactive`; the lantern lights up on your turn. */
 export function RoundTable({ interactive, yourTurn = false, onSelect }: { interactive: boolean; yourTurn?: boolean; onSelect: () => void }) {
   const [hover, setHover] = useState(false);
@@ -499,24 +494,9 @@ export function RoundTable({ interactive, yourTurn = false, onSelect }: { intera
         onSelect();
       }}
     >
-      <mesh position={[0, TABLE_TOP - 0.01, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.78, 0.76, 0.05, 64]} />
-        <meshToonMaterial color="#e8cba4" gradientMap={gradientMap()} emissive="#f5c84c" emissiveIntensity={lit ? 0.12 : 0} />
-      </mesh>
-      <mesh position={[0, TABLE_TOP - 0.05, 0]}>
-        <cylinderGeometry args={[0.72, 0.72, 0.04, 48]} />
-        <primitive object={toon(WOOD_DARK)} attach="material" />
-      </mesh>
-      <mesh position={[0, TABLE_TOP / 2, 0]} castShadow>
-        <cylinderGeometry args={[0.07, 0.09, TABLE_TOP, 16]} />
-        <primitive object={toon(WOOD_DARK)} attach="material" />
-      </mesh>
-      {[0, 1, 2, 3].map((i) => (
-        <mesh key={i} position={[0, 0.03, 0]} rotation={[0, (i * Math.PI) / 2 + Math.PI / 4, 0]} castShadow receiveShadow>
-          <boxGeometry args={[0.07, 0.05, 0.75]} />
-          <primitive object={toon(WOOD_DARK)} attach="material" />
-        </mesh>
-      ))}
+      <Suspense fallback={null}>
+        <TableModel lit={lit} />
+      </Suspense>
 
       {/* set for tea */}
       <Mug position={[0.36, TABLE_TOP + 0.015, -0.42]} color="#f4ede1" />
