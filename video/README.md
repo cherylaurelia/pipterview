@@ -30,7 +30,7 @@ The report is left out on purpose: in mock mode its feedback is placeholder text
 4. `chat.jpg`: "Start practising", "Skip" on the check-in, then "I'll type instead". Send one answer (the one used: "In my last internship our team disagreed about whether to rewrite a flaky service…") and wait for Pip's follow-up.
 5. `sunset.jpg`: "I'm done" there, then "Watch the sunset" on the report.
 6. `code.jpg`: start fresh again, choose the Technical round, then "Skip" and "I'll type instead"; the editor opens with the problem.
-7. Capture each with DevTools' "Capture screenshot", save it as JPEG into `public/screens/` under the same name, and run `npm run render`.
+7. Capture each with DevTools' "Capture screenshot" (it saves a PNG) and convert it to JPEG under the same name in `video/public/screens/`, for example `sips -s format jpeg -s formatOptions 93 shot.png --out video/public/screens/chat.jpg` on macOS. Then run `npm run render` from `video/`.
 
 ## License
 
