@@ -172,7 +172,7 @@ export function Figure({ position, rotationY, outfit, mood = "idle", firstPerson
   const pal = PALETTES[outfit];
 
   useFrame(({ clock, camera }, dt) => {
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     const ease = (r: React.RefObject<number>, on: boolean) => (r.current += ((on ? 1 : 0) - r.current) * Math.min(1, dt * 3));
     const k = ease(talk, mood === "speaking");
     const n = ease(nod, mood === "listening");
@@ -349,7 +349,7 @@ function Mug({ position, color }: { position: V3; color: string }) {
   const steam = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
     steam.current?.children.forEach((puff, i) => {
-      const k = (clock.getElapsedTime() * 0.35 + i / 3) % 1; // each puff rises, drifts and fades, then starts again
+      const k = (clock.elapsedTime * 0.35 + i / 3) % 1; // each puff rises, drifts and fades, then starts again
       puff.position.set(Math.sin(k * 6 + i) * 0.015, 0.1 + k * 0.22, 0);
       puff.scale.setScalar(0.4 + k * 0.8);
       ((puff as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = Math.sin(k * Math.PI) * 0.18;
@@ -413,7 +413,7 @@ function Lantern({ position, lit }: { position: V3; lit: boolean }) {
   const light = useRef<THREE.PointLight>(null);
   useFrame(({ clock }, dt) => {
     glow.current += ((lit ? 1 : 0) - glow.current) * Math.min(1, dt * 2.5);
-    const flicker = 1 + Math.sin(clock.getElapsedTime() * 7) * 0.04;
+    const flicker = 1 + Math.sin(clock.elapsedTime * 7) * 0.04;
     if (shade.current) shade.current.emissiveIntensity = (0.1 + glow.current * 0.75) * flicker;
     if (light.current) light.current.intensity = glow.current * 0.3 * flicker;
   });
@@ -461,7 +461,7 @@ export function RoundTable({ interactive, yourTurn = false, onSelect }: { intera
 
   useFrame(({ clock }) => {
     if (!ring.current) return;
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     ring.current.visible = interactive;
     const s = 1 + (Math.sin(t * 2.2) * 0.5 + 0.5) * 0.08 + (lit ? 0.06 : 0);
     ring.current.scale.set(s, s, 1);

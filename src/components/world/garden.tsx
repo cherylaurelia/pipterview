@@ -26,8 +26,8 @@ function Grow({ fresh, delay = 0, children }: { fresh: boolean; delay?: number; 
       if (sparkles.current) sparkles.current.visible = false;
       return;
     }
-    start.current ??= clock.getElapsedTime() + delay;
-    const t = Math.max(0, clock.getElapsedTime() - start.current);
+    start.current ??= clock.elapsedTime + delay;
+    const t = Math.max(0, clock.elapsedTime - start.current);
     // an elastic ease-out: shoots past full size, wobbles, settles
     const k = t <= 0 ? 0 : t >= 1.4 ? 1 : 1 - Math.exp(-6 * t) * Math.cos(t * 11);
     group.current.scale.setScalar(Math.max(0.001, k));
@@ -154,7 +154,7 @@ function BlossomTree({ blossom, fruit }: { blossom: string[]; fruit?: string }) 
 function Beehive() {
   const bees = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     bees.current?.children.forEach((b, i) => {
       const a = t * (1.6 + i * 0.4) + i * 2;
       b.position.set(Math.cos(a) * (0.55 + i * 0.1), 0.7 + Math.sin(t * 3 + i) * 0.15, Math.sin(a) * (0.55 + i * 0.1));
@@ -188,7 +188,7 @@ function Beehive() {
 function Ducks() {
   const ducklings = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     ducklings.current?.children.forEach((d, i) => {
       const p = duckPath(0, t - 1.6 * (i + 1)); // each a little further behind
       d.position.set(p.x - POND.x, -0.12 + Math.sin(t * 3 + i) * 0.006, p.z - POND.z);
@@ -290,7 +290,7 @@ function Scarecrow() {
 function Balloon() {
   const balloon = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     if (balloon.current) balloon.current.position.set(-6 + Math.sin(t * 0.07) * 2, 7.5 + Math.sin(t * 0.5) * 0.3, -5 + Math.cos(t * 0.07) * 2);
   });
   return (

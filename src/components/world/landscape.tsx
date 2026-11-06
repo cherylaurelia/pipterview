@@ -12,7 +12,7 @@ import { groundY, Island, islandRadius, isOpen, nearGardenSlot, rng } from "./is
 import { Pond } from "./pond";
 import { Village } from "./village";
 import { softDot } from "./textures";
-import { gradientMap, painterly, paleGradientMap, swayingToon, toon, trample, gusts, wind, windAmp } from "./toon";
+import { gradientMap, painterly, paleGradientMap, swayingToon, toon, trample, gusts, wind, windAmp, castNoShadow } from "./toon";
 import { tuning } from "./tuning";
 
 // The backdrop and the life around the floating island (see island.tsx for the island itself, pond.tsx for the pond),
@@ -57,6 +57,7 @@ function Sky() {
             // written as display colours, decoded to the linear light the effects chain expects; kept just under the
             // bloom threshold so the sky itself never glows over the scene
             gl_FragColor = vec4(min(pow(c, vec3(2.2)), vec3(0.97)), 1.0);
+            #include <colorspace_fragment> // back to display colours when drawn straight to the screen (lite mode)
           }`,
       }),
     [],
@@ -125,6 +126,8 @@ function Grass() {
     };
     // the grass lives on layer 1, which the pond's reflection (and click picking) skip: thousands of blades for little gain
     for (const mesh of [blades.current, flowers.current, fringe.current, tufts.current]) mesh?.layers.set(GRASS_LAYER);
+    // shadowed by the trees, but not drawn into the shadow map themselves (see castNoShadow)
+    for (const mesh of [blades.current, tufts.current]) if (mesh) mesh.customDepthMaterial = castNoShadow();
     if (tufts.current) {
       const mesh = tufts.current;
       scatter(mesh, TUFTS, (i) => {
@@ -207,7 +210,7 @@ function Grass() {
 
   useFrame(({ clock }) => {
     // a gentler breeze for reduced motion: slower, and not as far
-    wind.value = clock.getElapsedTime() * (reducedMotion() ? 0.3 : 1);
+    wind.value = clock.elapsedTime * (reducedMotion() ? 0.3 : 1);
     windAmp.value = reducedMotion() ? 0.35 : 1;
     trample.value.set(player.pos.x, player.out ? 1 : -1, player.pos.z);
     gusts.value = tuning.gusts;
@@ -373,7 +376,7 @@ function Clouds() {
   useFrame(({ clock }, dt) => {
     if (ring.current) {
       ring.current.rotation.y += dt * 0.006;
-      ring.current.position.y = Math.sin(clock.getElapsedTime() * 0.3) * 0.3;
+      ring.current.position.y = Math.sin(clock.elapsedTime * 0.3) * 0.3;
     }
     if (haze.current) haze.current.rotation.y += dt * 0.004;
     material.color.set("#ffffff").lerp(CLOUD_SUNSET, daylight.evening * 0.6);
@@ -417,7 +420,7 @@ function Stars() {
     p.visible = night > 0.01;
     (p.material as THREE.PointsMaterial).opacity = night;
     if (!p.visible) return;
-    const t = clock.getElapsedTime(), still = reducedMotion();
+    const t = clock.elapsedTime, still = reducedMotion();
     for (let i = 0; i < phases.length; i++) colors.fill(still ? 0.85 : 0.72 + Math.sin(t * (1.2 + (i % 5) * 0.25) + phases[i]) * 0.28, i * 3, i * 3 + 3);
     p.geometry.attributes.color.needsUpdate = true;
   });
@@ -441,7 +444,7 @@ function Birds() {
   }, []);
   const wing = useMemo(() => new THREE.PlaneGeometry(0.34, 0.09).translate(0.17, 0, 0), []);
   useFrame(({ clock }) => {
-    const t = clock.getElapsedTime(), g = group.current;
+    const t = clock.elapsedTime, g = group.current;
     if (!g) return;
     g.visible = daylight.evening < 0.7;
     g.children.forEach((b, i) => {
@@ -481,7 +484,7 @@ function Butterflies() {
     return Array.from({ length: 5 }, (_, i) => ({ r: 2.2 + r() * 2.5, speed: 0.15 + r() * 0.12, phase: r() * Math.PI * 2, y: 0.9 + r() * 0.8, color: ["#ffb8cf", "#ffffff", "#ffe066", "#cdb8f5", "#a9d4f5"][i] }));
   }, []);
   useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     if (group.current) group.current.visible = daylight.evening < 0.6;
     group.current?.children.forEach((b, i) => {
       const f = flyers[i];
@@ -530,7 +533,7 @@ function Petals() {
   useFrame(({ clock }) => {
     const m = mesh.current;
     if (!m) return;
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     m.visible = daylight.evening < 0.9;
     petals.forEach((pt, i) => {
       const y = 5 - ((pt.y0 + t * pt.speed) % 5); // fall from 5 m to the ground, then start again at the top
@@ -562,7 +565,7 @@ function Fireflies() {
   useFrame(({ clock }) => {
     const p = points.current;
     if (!p) return;
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     const attr = p.geometry.attributes.position as THREE.BufferAttribute;
     flies.forEach((f, i) => {
       const a = f.a + t * f.speed;

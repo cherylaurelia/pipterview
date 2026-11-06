@@ -117,10 +117,10 @@ export function Player({
     } else stepClock.current = 0;
     // walking along the shore or out on the dock sends little rings across the water
     const edge = pondEdge(p.pos.x, p.pos.z);
-    if (speed > 0 && edge < 0.6 && clock.getElapsedTime() > nextRipple.current) {
+    if (speed > 0 && edge < 0.6 && clock.elapsedTime > nextRipple.current) {
       const d = Math.hypot(POND.x - p.pos.x, POND.z - p.pos.z) || 1, inward = Math.max(0.3, edge + 0.35);
       ripple(p.pos.x + ((POND.x - p.pos.x) / d) * inward, p.pos.z + ((POND.z - p.pos.z) / d) * inward, 0.5);
-      nextRipple.current = clock.getElapsedTime() + 0.45;
+      nextRipple.current = clock.elapsedTime + 0.45;
     }
     const seat = p.sitting ? seatAt(p.sitting) : undefined;
     if (seat) {
@@ -136,7 +136,7 @@ export function Player({
       marker.current.visible = active && !!p.goal;
       if (p.goal) {
         marker.current.position.set(p.goal.x, surfaceY(p.goal.x, p.goal.z) + 0.03, p.goal.z);
-        marker.current.scale.setScalar(0.25 + Math.sin(clock.getElapsedTime() * 6) * 0.03);
+        marker.current.scale.setScalar(0.25 + Math.sin(clock.elapsedTime * 6) * 0.03);
       }
     }
   });
@@ -163,7 +163,7 @@ export function TableMarker({ visible }: { visible: boolean }) {
     // only when you're away from the table, and never right in front of the camera
     const far = Math.hypot(player.pos.x, player.pos.z) > 3.5 && camera.position.distanceTo(g.position) > 5;
     g.visible = visible && far;
-    const t = clock.getElapsedTime();
+    const t = clock.elapsedTime;
     g.position.y = 2.3 + Math.sin(t * 2) * 0.12;
     g.rotation.y = t * 0.8;
   });

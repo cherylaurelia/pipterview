@@ -241,7 +241,7 @@ function CameraRig({ mode, aside, lift, onArrive }: { mode: WorldMode; aside: nu
       v.zoom += (1 - v.zoom) * f;
     }
     // (a raised picture also stands back a little, so the guide fits in the smaller space above the panel)
-    const fov = goalFor(mode, clock.getElapsedTime(), dt, v, aside, avoid.current, g.pos, g.look) * (1 + lifted.current * 1.2);
+    const fov = goalFor(mode, clock.elapsedTime, dt, v, aside, avoid.current, g.pos, g.look) * (1 + lifted.current * 1.2);
     const tw = tween.current;
     if (tw) {
       if (reducedMotion()) tw.dur = 1; // asked for less motion mid-flight: finish it now
@@ -322,7 +322,7 @@ function DayCycle({ evening }: { evening: boolean }) {
         intensity={2.0}
         color={DAY.sun}
         castShadow
-        shadow-mapSize={[4096, 4096]}
+        shadow-mapSize={[2048, 2048]} // ~68 texels a metre over the island: plenty under the soft blur
         shadow-camera-left={-15}
         shadow-camera-right={15}
         shadow-camera-top={15}
