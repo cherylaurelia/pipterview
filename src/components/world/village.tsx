@@ -1,11 +1,12 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { daylight } from "./daylight";
 import { setSeat } from "./explore";
 import { BENCHES, BoxLantern, COTTAGE, COTTAGE_TURN, FIELD, groundY, rng, WINDMILL, WINDMILL_TURN } from "./island";
+import { Model, pale } from "./models";
 import { softDot } from "./textures";
 import { paintedToon, swayingToon, toon } from "./toon";
 
@@ -20,13 +21,12 @@ let cottageGlass: THREE.MeshStandardMaterial | null = null;
 const glassMaterial = () => (cottageGlass ??= new THREE.MeshStandardMaterial({ color: "#ffe7b0", emissive: "#ffb34d", emissiveIntensity: 0.1 }));
 
 /**
- * A wooden bench (its seat faces +z) you can sit on: it tells explore.ts where its seat is, in the world, once it's in
+ * A wooden bench (models/bench.py; its seat faces +z) you can sit on: it tells explore.ts where its seat is, in the world, once it's in
  * place. `id` must be unique.
  */
 export function Bench({ id }: { id: string }) {
   const ref = useRef<THREE.Group>(null);
   const placed = useRef(false);
-  const wood = toon("#b07a4f"), dark = toon("#7a5a40");
   useFrame(() => {
     if (placed.current || !ref.current) return;
     placed.current = true;
@@ -39,31 +39,9 @@ export function Bench({ id }: { id: string }) {
   useEffect(() => () => setSeat(id, null), [id]);
   return (
     <group ref={ref}>
-      {/* three slats for the seat, two for the back */}
-      {[-0.13, 0, 0.13].map((z) => (
-        <mesh key={z} position={[0, 0.42, z]} material={wood} castShadow receiveShadow>
-          <boxGeometry args={[1.3, 0.06, 0.11]} />
-        </mesh>
-      ))}
-      {[0.64, 0.82].map((y) => (
-        <mesh key={y} position={[0, y, -0.2]} rotation={[-0.15, 0, 0]} material={wood} castShadow>
-          <boxGeometry args={[1.3, 0.12, 0.05]} />
-        </mesh>
-      ))}
-      {[-0.55, 0.55].map((x) => (
-        <group key={x}>
-          <mesh position={[x, 0.2, 0]} material={dark} castShadow>
-            <boxGeometry args={[0.08, 0.42, 0.36]} />
-          </mesh>
-          <mesh position={[x, 0.62, -0.19]} rotation={[-0.15, 0, 0]} material={dark} castShadow>
-            <boxGeometry args={[0.07, 0.5, 0.06]} />
-          </mesh>
-          {/* armrests */}
-          <mesh position={[x * 1.05, 0.55, -0.02]} material={dark} castShadow>
-            <boxGeometry args={[0.08, 0.05, 0.38]} />
-          </mesh>
-        </group>
-      ))}
+      <Suspense fallback={null}>
+        <Model name="bench" />
+      </Suspense>
     </group>
   );
 }
@@ -104,254 +82,47 @@ function Smoke({ position }: { position: [number, number, number] }) {
   );
 }
 
-/** A window: a pale frame with a cross of glazing bars, glass that glows at dusk, shutters, and a box of flowers below. */
-function CottageWindow({ position, rotationY = 0, glass }: { position: [number, number, number]; rotationY?: number; glass: THREE.Material }) {
-  const frame = toon("#fff6e6", true), shutter = toon("#6f9fb0");
-  return (
-    <group position={position} rotation={[0, rotationY, 0]}>
-      <mesh material={frame}>
-        <boxGeometry args={[0.44, 0.42, 0.05]} />
-      </mesh>
-      <mesh position={[0, 0, 0.012]} material={glass}>
-        <boxGeometry args={[0.36, 0.34, 0.04]} />
-      </mesh>
-      <mesh position={[0, 0, 0.035]} material={frame}>
-        <boxGeometry args={[0.03, 0.34, 0.02]} />
-      </mesh>
-      <mesh position={[0, 0, 0.035]} material={frame}>
-        <boxGeometry args={[0.36, 0.03, 0.02]} />
-      </mesh>
-      {[-1, 1].map((side) => (
-        <mesh key={side} position={[side * 0.32, 0, 0.01]} rotation={[0, side * -0.25, 0]} material={shutter} castShadow>
-          <boxGeometry args={[0.2, 0.44, 0.03]} />
-        </mesh>
-      ))}
-      {/* the flower box */}
-      <mesh position={[0, -0.27, 0.08]} material={toon("#8a5a3c")} castShadow>
-        <boxGeometry args={[0.48, 0.1, 0.14]} />
-      </mesh>
-      {[-0.18, -0.09, 0, 0.09, 0.18].map((x, i) => (
-        <mesh key={x} position={[x, -0.18, 0.08 + (i % 2) * 0.03]} material={toon(["#ff9fb8", "#ffd84a", "#ffffff", "#ff9fb8", "#c9a8f0"][i], true)}>
-          <sphereGeometry args={[0.045, 10, 8]} />
-        </mesh>
-      ))}
-      {[-0.2, 0.2].map((x) => (
-        <mesh key={x} position={[x, -0.2, 0.09]} material={toon("#6fb84a")}>
-          <sphereGeometry args={[0.04, 8, 6]} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-/** Rows of overlapping roof shingles down both slopes of the cottage roof, a little uneven, in two shades of red. */
-function Shingles() {
-  const SLOPE = Math.atan2(1.15, 1.38), LENGTH = Math.hypot(1.38, 1.15), ROWS = 7;
-  return (
-    <>
-      {[-1, 1].flatMap((side) =>
-        Array.from({ length: ROWS }, (_, k) => {
-          const along = 0.12 + (k / ROWS) * (LENGTH - 0.2);
-          const x = side * (1.38 - along * Math.cos(SLOPE)) + side * Math.sin(SLOPE) * 0.035;
-          const y = along * Math.sin(SLOPE) + Math.cos(SLOPE) * 0.035;
-          return (
-            <mesh
-              key={`${side}${k}`}
-              position={[x, y, ((k * 37) % 5) * 0.004 - 0.008]}
-              rotation={[0, 0, side * -SLOPE + ((k * 13) % 3 - 1) * 0.01]}
-              material={toon(k % 2 ? "#c8644c" : "#d2704f")}
-              castShadow
-            >
-              <boxGeometry args={[0.3, 0.05, 2.56]} />
-            </mesh>
-          );
-        }),
-      )}
-    </>
-  );
-}
-
 /**
- * The cottage: cream walls with dark timber framing on a stone footing, a deep red roof that overhangs, a chimney with
- * smoke, a front door with a step, knob and lantern, shuttered windows with flower boxes that light up at sunset, and
- * a stack of firewood round the side.
+ * The cottage (models/cottage.py): cream walls with dark timber framing on a stone footing, a deep red shingled roof, a
+ * chimney with smoke, a front door with a step, knob and lantern, shuttered windows with flower boxes that light up at
+ * sunset, and a stack of firewood round the side.
  */
 function Cottage() {
   const glass = glassMaterial();
   useFrame(() => {
     glassMaterial().emissiveIntensity = 0.1 + daylight.evening * 1.6;
   });
-  const roof = useMemo(() => {
-    const shape = new THREE.Shape([new THREE.Vector2(-1.38, 0), new THREE.Vector2(1.38, 0), new THREE.Vector2(0, 1.15)]);
-    return new THREE.ExtrudeGeometry(shape, { depth: 2.5, bevelEnabled: false }).translate(0, 0, -1.25);
-  }, []);
-  const beam = toon("#7d5236");
+  const others = pale("footing", "window_frame", "glazing_bar", "bloom", "step");
   return (
     <group position={[COTTAGE.x, groundY(COTTAGE.x, COTTAGE.z), COTTAGE.z]} rotation={[0, COTTAGE_TURN, 0]}>
-      <mesh position={[0, 0.08, 0]} material={toon("#c9c0b2", true)} castShadow receiveShadow>
-        <boxGeometry args={[2.22, 0.16, 2.12]} />
-      </mesh>
-      <mesh position={[0, 0.73, 0]} rotation={[0, 0, 0.012]} material={paintedToon("#f6ecdc", true)} castShadow receiveShadow>
-        <boxGeometry args={[2.1, 1.3, 2.0]} />
-      </mesh>
-      {/* timber framing: corner posts and a band under the eaves */}
-      {[-1, 1].flatMap((x) =>
-        [-1, 1].map((z) => (
-          <mesh key={`${x}${z}`} position={[x * 1.05, 0.73, z * 1.0]} material={beam} castShadow>
-            <boxGeometry args={[0.1, 1.32, 0.1]} />
-          </mesh>
-        )),
-      )}
-      {[-1, 1].map((z) => (
-        <mesh key={z} position={[0, 1.33, z * 1.01]} material={beam}>
-          <boxGeometry args={[2.14, 0.09, 0.06]} />
-        </mesh>
-      ))}
-      <group position={[0, 1.38, 0]} rotation={[0, 0, -0.018]}>
-        <mesh geometry={roof} material={toon("#b9573f")} castShadow />
-        <Shingles />
-      </group>
-      <mesh position={[0, 2.54, 0]} rotation={[Math.PI / 2, 0, 0]} material={toon("#9e4a38")} castShadow>
-        <cylinderGeometry args={[0.07, 0.07, 2.56, 8]} />
-      </mesh>
-      <mesh position={[0.6, 2.1, -0.35]} material={toon("#b6a898")} castShadow>
-        <boxGeometry args={[0.3, 0.75, 0.3]} />
-      </mesh>
-      <mesh position={[0.6, 2.5, -0.35]} material={toon("#8f8378")}>
-        <boxGeometry args={[0.36, 0.07, 0.36]} />
-      </mesh>
+      <Suspense fallback={null}>
+        <Model name="cottage" material={(p) => (p.name === "walls" ? paintedToon(p.color, true) : p.name === "glass" ? glass : others(p))} />
+      </Suspense>
       <Smoke position={[0.6, 2.6, -0.35]} />
-
-      {/* the door: frame, door, knob, a stone step and a lantern beside it */}
-      <mesh position={[0, 0.58, 1.01]} material={beam}>
-        <boxGeometry args={[0.56, 0.98, 0.04]} />
-      </mesh>
-      <mesh position={[0, 0.56, 1.03]} material={toon("#8a5a3c")}>
-        <boxGeometry args={[0.44, 0.88, 0.04]} />
-      </mesh>
-      <mesh position={[0.14, 0.55, 1.07]} material={toon("#e8c45a")}>
-        <sphereGeometry args={[0.03, 10, 8]} />
-      </mesh>
-      <mesh position={[0, 0.05, 1.22]} material={toon("#d8d0c4", true)} receiveShadow>
-        <boxGeometry args={[0.7, 0.1, 0.35]} />
-      </mesh>
       <BoxLantern position={[0.42, 0.95, 1.08]} scale={0.8} />
-
-      <CottageWindow position={[-0.65, 0.82, 1.02]} glass={glass} />
-      <CottageWindow position={[0.68, 0.82, 1.02]} glass={glass} />
-      <CottageWindow position={[1.06, 0.82, 0]} rotationY={Math.PI / 2} glass={glass} />
-      <CottageWindow position={[-1.06, 0.82, 0]} rotationY={-Math.PI / 2} glass={glass} />
-
-      {/* firewood stacked against the side wall */}
-      {[0, 1, 2].flatMap((row) =>
-        Array.from({ length: 4 - row }, (_, i) => (
-          <mesh key={`${row}${i}`} position={[-1.3, 0.1 + row * 0.15, -0.55 + i * 0.16 + row * 0.08]} rotation={[0, 0, Math.PI / 2]} material={toon(i % 2 ? "#a77a4f" : "#b88a5a")} castShadow>
-            <cylinderGeometry args={[0.075, 0.075, 0.5, 8]} />
-          </mesh>
-        )),
-      )}
     </group>
   );
 }
 
 /**
- * The windmill: a tapering white tower on a stone base, with little windows, a wooden balcony round its middle, a red
- * cap with a finial, latticed sails that turn in the breeze, and sacks of flour and a barrel by the door.
+ * The windmill (models/windmill.py): a tapering white tower on a stone base, with a little window, a wooden balcony
+ * round its middle, a red cap with a finial, latticed sails (models/sails.py) that turn in the breeze, and sacks of
+ * flour and a barrel by the door.
  */
 function Windmill() {
   const sails = useRef<THREE.Group>(null);
   useFrame((_, dt) => {
     if (sails.current) sails.current.rotation.z += dt * 0.5;
   });
-  const wood = toon("#7a5a40"), stone = toon("#c9c0b2", true);
+  const others = pale("base", "window_frame", "sack");
   return (
     <group position={[WINDMILL.x, groundY(WINDMILL.x, WINDMILL.z), WINDMILL.z]} rotation={[0, WINDMILL_TURN, 0]}>
-      <mesh position={[0, 0.17, 0]} material={stone} castShadow receiveShadow>
-        <cylinderGeometry args={[0.78, 0.84, 0.34, 12]} />
-      </mesh>
-      <mesh position={[0, 1.35, 0]} rotation={[0.012, 0, -0.01]} material={paintedToon("#efe6d6", true)} castShadow receiveShadow>
-        <cylinderGeometry args={[0.45, 0.68, 2.4, 10]} />
-      </mesh>
-      <mesh position={[0, 2.9, 0]} material={toon("#c8644c")} castShadow>
-        <coneGeometry args={[0.62, 0.8, 10]} />
-      </mesh>
-      <mesh position={[0, 3.36, 0]} material={toon("#e8c45a")}>
-        <sphereGeometry args={[0.07, 10, 8]} />
-      </mesh>
-      {/* the balcony: a deck ring, and railing posts round it */}
-      <mesh position={[0, 1.7, 0]} material={wood} castShadow>
-        <cylinderGeometry args={[0.82, 0.82, 0.06, 16]} />
-      </mesh>
-      {Array.from({ length: 14 }, (_, i) => {
-        const a = (i / 14) * Math.PI * 2;
-        return (
-          <mesh key={i} position={[Math.cos(a) * 0.78, 1.86, Math.sin(a) * 0.78]} material={wood}>
-            <cylinderGeometry args={[0.018, 0.018, 0.3, 5]} />
-          </mesh>
-        );
-      })}
-      <mesh position={[0, 2.0, 0]} rotation={[Math.PI / 2, 0, 0]} material={wood}>
-        <torusGeometry args={[0.78, 0.022, 5, 32]} />
-      </mesh>
-      {/* the door, and a little window above it */}
-      <mesh position={[0, 0.65, 0.63]} rotation={[-0.09, 0, 0]} material={toon("#8a5a3c")}>
-        <boxGeometry args={[0.34, 0.62, 0.06]} />
-      </mesh>
-      {[1.25].map((y) => (
-        <group key={y} position={[0, y, 0.6]} rotation={[-0.09, 0, 0]}>
-          <mesh material={toon("#fff6e6", true)}>
-            <boxGeometry args={[0.24, 0.26, 0.05]} />
-          </mesh>
-          <mesh position={[0, 0, 0.02]} material={toon("#5e7f96")}>
-            <boxGeometry args={[0.17, 0.19, 0.03]} />
-          </mesh>
+      <Suspense fallback={null}>
+        <Model name="windmill" material={(p) => (p.name === "tower" ? paintedToon(p.color, true) : others(p))} />
+        <group ref={sails} position={[0, 2.72, 1.0]}>
+          <Model name="sails" material={pale("cloth")} />
         </group>
-      ))}
-      {/* sails: a stock and a lattice of bars for each, with cloth over most of it */}
-      {/* the shaft out from the cap, so the sails turn clear in front of the balcony */}
-      <mesh position={[0, 2.72, 0.7]} rotation={[Math.PI / 2, 0, 0]} material={wood}>
-        <cylinderGeometry args={[0.05, 0.05, 0.6, 8]} />
-      </mesh>
-      <group ref={sails} position={[0, 2.72, 1.0]}>
-        <mesh material={wood} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.1, 0.1, 0.16, 10]} />
-        </mesh>
-        {[0, 1, 2, 3].map((k) => (
-          <group key={k} rotation={[0, 0, (k * Math.PI) / 2]}>
-            <mesh position={[0, 0.8, 0]} material={wood}>
-              <boxGeometry args={[0.05, 1.6, 0.04]} />
-            </mesh>
-            {[0.35, 0.6, 0.85, 1.1, 1.35].map((y) => (
-              <mesh key={y} position={[0.13, y, 0.01]} material={wood}>
-                <boxGeometry args={[0.26, 0.025, 0.025]} />
-              </mesh>
-            ))}
-            <mesh position={[0.25, 0.85, 0.01]} material={wood}>
-              <boxGeometry args={[0.025, 1.1, 0.025]} />
-            </mesh>
-            <mesh position={[0.13, 0.95, 0.02]} material={toon("#f3ede2", true)}>
-              <boxGeometry args={[0.22, 0.9, 0.01]} />
-            </mesh>
-          </group>
-        ))}
-      </group>
-      {/* flour sacks and a barrel by the door */}
-      {[
-        [0.5, 0.15, 0.75, 0.2],
-        [0.72, 0.13, 0.62, -0.4],
-      ].map(([x, y, z, r], i) => (
-        <mesh key={i} position={[x, y, z]} rotation={[0, r, 0]} scale={[0.17, 0.15, 0.13]} material={toon("#e8dcc2", true)} castShadow>
-          <sphereGeometry args={[1, 12, 10]} />
-        </mesh>
-      ))}
-      <mesh position={[-0.6, 0.22, 0.7]} material={toon("#a26e45")} castShadow>
-        <cylinderGeometry args={[0.16, 0.16, 0.44, 12]} />
-      </mesh>
-      {[0.08, 0.36].map((y) => (
-        <mesh key={y} position={[-0.6, y, 0.7]} rotation={[Math.PI / 2, 0, 0]} material={toon("#5e5650")}>
-          <torusGeometry args={[0.162, 0.012, 4, 20]} />
-        </mesh>
-      ))}
+      </Suspense>
     </group>
   );
 }
