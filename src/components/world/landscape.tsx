@@ -9,7 +9,7 @@ import { daylight } from "./daylight";
 import { player } from "./explore";
 import { reducedMotion } from "./quality";
 import { groundY, Island, islandRadius, isOpen, nearGardenSlot, rng } from "./island";
-import { Meadow } from "./meadow";
+import { flowerMaterial, Meadow } from "./meadow";
 import { Pond } from "./pond";
 import { Village } from "./village";
 import { softDot } from "./textures";
@@ -210,9 +210,8 @@ function Grass() {
       <Meadow layer={GRASS_LAYER} />
       <instancedMesh ref={fringe} args={[bladeGeo, swayingToon(true), FRINGE]} />
       <instancedMesh ref={tufts} args={[tuftGeo, swayingToon(true), TUFTS]} receiveShadow />
-      <instancedMesh ref={flowers} args={[undefined, undefined, FLOWERS]}>
+      <instancedMesh ref={flowers} args={[undefined, flowerMaterial(), FLOWERS]}>
         <sphereGeometry args={[0.024, 8, 6]} />
-        <meshToonMaterial gradientMap={gradientMap()} emissive="#fff3d0" emissiveIntensity={0.15} />
       </instancedMesh>
     </>
   );

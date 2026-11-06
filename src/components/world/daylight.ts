@@ -11,7 +11,8 @@ export const sun = new THREE.Vector3(-11, 15, -13);
 
 /**
  * What the camera is looking at (set by the camera rig): how far away it is, so the haze only gathers beyond it and the
- * depth of field keeps it sharp; how soft things away from it go (`blur`, in pixels at most); and how much the top and
+ * depth of field keeps it sharp; how soft things away from it go (`blur`, the widest blur in CSS pixels, before the
+ * focusBlur dial in tuning.ts); and how much the top and
  * bottom of the picture soften too (`tilt`), for the tilt-shift look of a photo of a miniature.
  */
 export const focus = { distance: 6, blur: 5, tilt: 0.6 };

@@ -169,7 +169,7 @@ const AtmosphereShader = {
 /**
  * Depth of field with a tilt-shift touch, as in a photo of a miniature: what the camera is looking at stays sharp, and
  * things nearer or further soften with their distance from it; the top and bottom of the picture soften a little too.
- * A gather blur: 24 taps on a golden-angle spiral, each weighted by how blurred its own spot is, so a sharp subject
+ * A gather blur: 16 taps on a golden-angle spiral, each weighted by how blurred its own spot is, so a sharp subject
  * doesn't smear over the soft background behind it.
  */
 const TiltShiftShader = {
@@ -204,9 +204,9 @@ const TiltShiftShader = {
       if (me * uBlur < 0.4) { gl_FragColor = base; return; }
       vec3 sum = base.rgb;
       float total = 1.0;
-      for (int i = 1; i < 24; i++) {
+      for (int i = 1; i < 16; i++) {
         float f = float(i);
-        vec2 o = vec2(cos(f * 2.39996), sin(f * 2.39996)) * sqrt(f / 24.0) * me * uBlur * uTexel;
+        vec2 o = vec2(cos(f * 2.39996), sin(f * 2.39996)) * sqrt(f / 16.0) * me * uBlur * uTexel;
         float w = 0.25 + 0.75 * softness(vUv + o);
         sum += texture2D(tDiffuse, vUv + o).rgb * w;
         total += w;

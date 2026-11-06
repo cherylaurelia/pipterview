@@ -12,7 +12,8 @@ import { castNoShadow, gradientMap, gusts, NOISE_GLSL, trample, wind, windAmp } 
 // The meadow: tens of thousands of real grass blades (curved, tapered, darker at the root and lighter at the tip) in
 // clumps over the island's open ground, as in the cosy games this scene takes after. Each blade bends from its root in
 // the breeze and further in the gusts that roll across, parts round your chick, and glows a little where the sun
-// shines through it from behind. Big soft patches are lusher or sun-dried. One instanced mesh, one draw call.
+// shines through it from behind. Big soft patches are lusher or sun-dried. Instanced in 16 chunks, so the parts of
+// the island out of view aren't drawn.
 
 const CLUMPS = 14000; // five blades each
 const LITE = 0.35; // the share drawn on the lightest quality
@@ -59,19 +60,37 @@ function clumpGeometry() {
 const light = { dir: { value: new THREE.Vector3(0, 1, 0) }, color: { value: new THREE.Color("#ffd27a") } };
 const DAY_GLOW = new THREE.Color("#ffd27a"), DUSK_GLOW = new THREE.Color("#ff9a5c");
 
+/**
+ * How far the meadow leans at `at` (world x, z) for a point `bend` of the way up its sway (0 at the root, 1 at a tip):
+ * the breeze, the gusts rolling across, and pushed aside round your chick. Shared by the blades and the flowers among
+ * them, so they move together.
+ */
+const LEAN_GLSL = /* glsl */ `
+  uniform float uWind, uWindAmp, uGusts;
+  uniform vec3 uTrample;
+  vec2 meadowLean(vec2 at, float bend, out float gust, out float pressed) {
+    float sway = (sin(uWind * 1.5 + at.x * 0.3 + at.y * 0.2) * 0.6 + sin(uWind * 2.6 + at.x * 0.9) * 0.2) * uWindAmp;
+    gust = pow(0.5 + 0.5 * sin(dot(at, vec2(0.32, 0.18)) - uWind * 1.2 + sin(at.y * 0.4 + uWind * 0.3)), 6.0) * uWindAmp * uGusts;
+    vec2 lean = normalize(vec2(1.0, 0.4)) * (sway * 0.1 + gust * 0.22) * bend;
+    vec2 away = at - uTrample.xz;
+    pressed = (1.0 - smoothstep(0.1, 0.6, length(away))) * step(0.0, uTrample.y);
+    return lean + normalize(away + vec2(1e-4)) * pressed * 0.28 * bend;
+  }`;
+const leanUniforms = () => ({ uWind: wind, uWindAmp: windAmp, uTrample: trample, uGusts: gusts });
+
 let material: THREE.MeshToonMaterial | null = null;
 
 function meadowMaterial() {
   if (material) return material;
   material = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradientMap(), side: THREE.DoubleSide });
   material.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, { uWind: wind, uWindAmp: windAmp, uTrample: trample, uGusts: gusts, uSunDir: light.dir, uGlow: light.color });
+    Object.assign(shader.uniforms, leanUniforms(), { uSunDir: light.dir, uGlow: light.color });
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
         `#include <common>
-        uniform float uWind, uWindAmp, uGusts;
-        uniform vec3 uTrample, uSunDir;
+        uniform vec3 uSunDir;
+        ${LEAN_GLSL}
         attribute float tip;
         varying float vTip, vGust, vPatch, vGlow;
         varying vec3 vUp;
@@ -83,13 +102,8 @@ function meadowMaterial() {
         "#include <begin_vertex>",
         `#include <begin_vertex>
         vec2 at = instanceMatrix[3].xz;
-        float sway = (sin(uWind * 1.5 + at.x * 0.3 + at.y * 0.2) * 0.6 + sin(uWind * 2.6 + at.x * 0.9) * 0.2) * uWindAmp;
-        float gust = pow(0.5 + 0.5 * sin(dot(at, vec2(0.32, 0.18)) - uWind * 1.2 + sin(at.y * 0.4 + uWind * 0.3)), 6.0) * uWindAmp * uGusts;
-        float bend = tip * tip; // bending from the root: the tips travel furthest
-        vec2 lean = normalize(vec2(1.0, 0.4)) * (sway * 0.1 + gust * 0.22) * bend;
-        vec2 away = at - uTrample.xz;
-        float pressed = (1.0 - smoothstep(0.1, 0.6, length(away))) * step(0.0, uTrample.y);
-        lean += normalize(away + vec2(1e-4)) * pressed * 0.28 * bend;
+        float gust, pressed, bend = tip * tip; // bending from the root: the tips travel furthest
+        vec2 lean = meadowLean(at, bend, gust, pressed);
         // world-space lean, turned back into the clump's own frame; the tip drops as it leans so the blade keeps its length
         transformed += inverse(mat3(instanceMatrix)) * vec3(lean.x, -dot(lean, lean) * 0.9 - pressed * 0.1 * bend, lean.y);
         vTip = tip;
@@ -111,47 +125,90 @@ function meadowMaterial() {
       )
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n  totalEmissiveRadiance += uGlow * diffuseColor.rgb * vGlow * 0.9;");
   };
-  material.customProgramCacheKey = () => "meadow-1";
+  material.customProgramCacheKey = () => "meadow-2";
   return material;
+}
+
+let flowers: THREE.MeshToonMaterial | null = null;
+
+/** For the wildflowers up among the blades: they lean with the meadow round them, as if on stems (landscape.tsx). */
+export function flowerMaterial() {
+  if (flowers) return flowers;
+  flowers = new THREE.MeshToonMaterial({ gradientMap: gradientMap(), emissive: "#fff3d0", emissiveIntensity: 0.15 });
+  flowers.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, leanUniforms());
+    shader.vertexShader = shader.vertexShader.replace("#include <common>", `#include <common>\n${LEAN_GLSL}`).replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>
+      float gust, pressed;
+      vec2 lean = meadowLean(instanceMatrix[3].xz, 0.55, gust, pressed); // a flower head sits about two-thirds up
+      transformed += inverse(mat3(instanceMatrix)) * vec3(lean.x, -pressed * 0.08, lean.y);`,
+    );
+  };
+  flowers.customProgramCacheKey = () => "meadow-flowers";
+  return flowers;
 }
 
 /** A smooth, cheap 2D field (−1 to 1) for where the grass grows tall. */
 const field = (x: number, z: number) => Math.sin(x * 0.37 + Math.sin(z * 0.21) * 2) * 0.5 + Math.sin(z * 0.43 - x * 0.17) * 0.5;
 
-export function Meadow({ layer }: { layer: number }) {
-  const mesh = useRef<THREE.InstancedMesh>(null);
-  const geometry = useMemo(() => clumpGeometry(), []);
+const GRID = 4; // the meadow in 4×4 chunks, so the ones out of view aren't drawn
+const chunkOf = (x: number, z: number) => Math.min(GRID - 1, Math.floor(((x + 14) / 28) * GRID)) * GRID + Math.min(GRID - 1, Math.floor(((z + 14) / 28) * GRID));
 
+/** Where every clump goes, chunk by chunk: its placement and its colour. */
+function plant() {
+  const r = rng(23), m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0), c = new THREE.Color();
+  const chunks = Array.from({ length: GRID * GRID }, () => ({ matrices: [] as THREE.Matrix4[], colors: [] as THREE.Color[] }));
+  for (let i = 0; i < CLUMPS; i++) {
+    let x = 0, z = 0;
+    do {
+      x = (r() - 0.5) * 28;
+      z = (r() - 0.5) * 28;
+    } while (!isOpen(x, z));
+    // taller in the lush stretches, shorter near the paths and banks (where isOpen with a margin fails)
+    const tall = 0.24 + (field(x, z) * 0.5 + 0.5) * 0.18 + r() * 0.08, edge = isOpen(x, z, 0.3) ? 1 : 0.6;
+    const k = 0.85 + r() * 0.45;
+    s.set(k, tall * edge, k);
+    const chunk = chunks[chunkOf(x, z)];
+    chunk.matrices.push(m.compose(p.set(x, groundY(x, z) - 0.01, z), q.setFromAxisAngle(up, r() * Math.PI * 2), s).clone());
+    chunk.colors.push(c.setHSL(0.24 + r() * 0.05, 0.52 + r() * 0.18, 0.38 + r() * 0.12).clone());
+  }
+  return chunks.filter((ch) => ch.matrices.length > 0);
+}
+
+function Chunk({ geometry, matrices, colors, layer }: { geometry: THREE.BufferGeometry; matrices: THREE.Matrix4[]; colors: THREE.Color[]; layer: number }) {
+  const mesh = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
     const g = mesh.current;
     if (!g) return;
-    const r = rng(23), m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
-    const up = new THREE.Vector3(0, 1, 0), c = new THREE.Color();
-    for (let i = 0; i < CLUMPS; i++) {
-      let x = 0, z = 0;
-      do {
-        x = (r() - 0.5) * 28;
-        z = (r() - 0.5) * 28;
-      } while (!isOpen(x, z));
-      // taller in the lush stretches, shorter near the paths and banks (where isOpen with a margin fails)
-      const tall = 0.24 + (field(x, z) * 0.5 + 0.5) * 0.18 + r() * 0.08, edge = isOpen(x, z, 0.3) ? 1 : 0.6;
-      const k = 0.85 + r() * 0.45;
-      s.set(k, tall * edge, k);
-      m.compose(p.set(x, groundY(x, z) - 0.01, z), q.setFromAxisAngle(up, r() * Math.PI * 2), s);
-      g.setMatrixAt(i, m);
-      g.setColorAt(i, c.setHSL(0.24 + r() * 0.05, 0.52 + r() * 0.18, 0.38 + r() * 0.12));
-    }
+    matrices.forEach((m, i) => g.setMatrixAt(i, m));
+    colors.forEach((c, i) => g.setColorAt(i, c));
     g.instanceMatrix.needsUpdate = true;
     if (g.instanceColor) g.instanceColor.needsUpdate = true;
+    g.computeBoundingSphere();
+    if (g.boundingSphere) g.boundingSphere.radius += 0.6; // room for the blades to lean
     g.layers.set(layer); // skipped by the pond's reflection and click picking
     g.customDepthMaterial = castNoShadow(); // shadowed by the trees, but not drawn into the shadow map itself
-  }, [layer]);
+  }, [matrices, colors, layer]);
+  useFrame(() => {
+    if (mesh.current) mesh.current.count = quality.level === 0 ? Math.round(matrices.length * LITE) : matrices.length;
+  });
+  return <instancedMesh ref={mesh} args={[geometry, meadowMaterial(), matrices.length]} receiveShadow />;
+}
 
+export function Meadow({ layer }: { layer: number }) {
+  const geometry = useMemo(() => clumpGeometry(), []);
+  const chunks = useMemo(() => plant(), []);
   useFrame(() => {
     light.dir.value.copy(sun).normalize();
     light.color.value.copy(DAY_GLOW).lerp(DUSK_GLOW, daylight.evening);
-    if (mesh.current) mesh.current.count = quality.level === 0 ? Math.round(CLUMPS * LITE) : CLUMPS;
   });
-
-  return <instancedMesh ref={mesh} args={[geometry, meadowMaterial(), CLUMPS]} receiveShadow frustumCulled={false} />;
+  return (
+    <>
+      {chunks.map((ch, i) => (
+        <Chunk key={i} geometry={geometry} matrices={ch.matrices} colors={ch.colors} layer={layer} />
+      ))}
+    </>
+  );
 }
