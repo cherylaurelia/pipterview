@@ -8,6 +8,7 @@ npm install
 npm run studio   # preview and tweak it in the browser
 npm run render   # writes out/pipterview-launch.mp4
 npm run still    # writes out/poster.png (the end card), for a thumbnail
+npm run typecheck
 ```
 
 The shots, their timing and their captions are in `SHOTS` at the top of `src/Launch.tsx`.
@@ -21,7 +22,15 @@ The shots, their timing and their captions are in `SHOTS` at the top of `src/Lau
 - `code.jpg`: a technical round with the editor open
 - `sunset.jpg`: the sunset after "I'm done"
 
-The report is left out on purpose: in mock mode its feedback is placeholder text. When the island or the panels change, retake the screens the same way so the clip stays true to the app.
+The report is left out on purpose: in mock mode its feedback is placeholder text. When the island or the panels change, retake the screens so the clip stays true to the app:
+
+1. From the repo root: `npx next build`, then `MOCK_AI=1 npx next start -p 3011`.
+2. Open http://localhost:3011 in Chrome with DevTools' device toolbar set to 1400×900 and a device pixel ratio of 1.5. Clear the site's storage so you start fresh, then choose "Skip the tour".
+3. `home.jpg`: the home card as it first appears.
+4. `chat.jpg`: "Start practising", "Skip" on the check-in, then "I'll type instead". Send one answer (the one used: "In my last internship our team disagreed about whether to rewrite a flaky service…") and wait for Pip's follow-up.
+5. `sunset.jpg`: "I'm done" there, then "Watch the sunset" on the report.
+6. `code.jpg`: start fresh again, choose the Technical round, then "Skip" and "I'll type instead"; the editor opens with the problem.
+7. Capture each with DevTools' "Capture screenshot", save it as JPEG into `public/screens/` under the same name, and run `npm run render`.
 
 ## License
 

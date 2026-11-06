@@ -5,7 +5,8 @@
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "render": "remotion render src/index.ts Launch out/pipterview-launch.mp4",
-    "still": "remotion still src/index.ts Launch out/poster.png --frame=560"
+    "still": "remotion still src/index.ts Launch out/poster.png --frame=560",
+    "typecheck": "tsc -p ."
   },
   "dependencies": {
     "@remotion/cli": "4.0.537",
