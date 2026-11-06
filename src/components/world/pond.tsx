@@ -1,11 +1,12 @@
 "use client";
 
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { isDrag } from "./controls";
 import { reportSpot, takeAction, type CritterKind, type CritterPick } from "./critters";
 import { BoxLantern, DOCK, POND, WATER_COMMON, WATER_END, groundY, isOpen, pondEdge, pondRadius, rng, tickWater, waterMaterial } from "./island";
+import { Model, pale } from "./models";
 import { lilyPadTexture } from "./textures";
 import { quality } from "./quality";
 import { NOISE_GLSL, swayingToon, toon } from "./toon";
@@ -454,46 +455,14 @@ function LilyPads() {
   );
 }
 
-/** A wooden dock running from the shore out over the water, on posts. */
+/** A wooden dock (models/dock.py) running from the shore out over the water, on posts, with a lantern at the end. */
 function Dock() {
-  const L = DOCK.length, START = -0.4, PLANKS = 12, TOP = 0.07;
-  const step = (L - START) / PLANKS;
-  const wood = ["#b47d50", "#a56f45", "#bd895b"];
   return (
     <group position={[DOCK.x, 0, DOCK.z]} rotation={[0, DOCK.angle, 0]}>
-      {Array.from({ length: PLANKS }, (_, k) => (
-        <mesh key={k} position={[0, TOP, START + step * (k + 0.5)]} rotation={[0, (((k * 7) % 5) - 2) * 0.012, 0]} material={toon(wood[k % 3])} castShadow receiveShadow>
-          <boxGeometry args={[0.82, 0.05, step * 0.84]} />
-        </mesh>
-      ))}
-      {[-0.3, 0.3].map((x) => (
-        <mesh key={x} position={[x, TOP - 0.06, (START + L) / 2]} material={toon("#8a5d3b")} castShadow>
-          <boxGeometry args={[0.07, 0.07, L - START]} />
-        </mesh>
-      ))}
-      {/* a tin bucket, and a lantern on a post at the end that glows at dusk */}
-      <group position={[0.22, TOP + 0.025, L - 0.45]}>
-        <mesh position={[0, 0.07, 0]} material={toon("#9fb4c4", true)} castShadow>
-          <cylinderGeometry args={[0.085, 0.065, 0.14, 16, 1, true]} />
-        </mesh>
-        <mesh position={[0, 0.005, 0]} material={toon("#8aa0b0")}>
-          <cylinderGeometry args={[0.065, 0.065, 0.01, 16]} />
-        </mesh>
-        <mesh position={[0, 0.12, 0]} rotation={[0, 0, 0]} material={toon("#6f8090")}>
-          <torusGeometry args={[0.085, 0.006, 6, 20, Math.PI]} />
-        </mesh>
-      </group>
-      <mesh position={[-0.36, TOP + 0.25, L - 0.06]} material={toon("#7d5638")} castShadow>
-        <cylinderGeometry args={[0.03, 0.035, 0.5, 8]} />
-      </mesh>
-      <BoxLantern position={[-0.36, TOP + 0.5, L - 0.06]} scale={0.8} />
-      {[0.55, 1.25, L - 0.06].flatMap((z) =>
-        [-0.38, 0.38].map((x) => (
-          <mesh key={`${z}${x}`} position={[x, z > L - 0.1 ? -0.12 : -0.17, z]} material={toon("#7d5638")} castShadow>
-            <cylinderGeometry args={[0.045, 0.05, z > L - 0.1 ? 0.55 : 0.45, 8]} />
-          </mesh>
-        )),
-      )}
+      <Suspense fallback={null}>
+        <Model name="dock" material={pale("bucket")} />
+      </Suspense>
+      <BoxLantern position={[-0.36, 0.57, DOCK.length - 0.06]} scale={0.8} />
     </group>
   );
 }

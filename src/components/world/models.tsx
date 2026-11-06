@@ -11,7 +11,8 @@ import { toon } from "./toon";
 // named parts, each part's geometry in the model's own space in metres, and is drawn in the world's soft-shaded look: a
 // part's material is named after its colour in the program ("oak #a77a4f"), which becomes the toon material of that colour.
 
-export type ModelName = "table" | "chair";
+export const MODELS = ["table", "chair", "bench", "cottage", "windmill", "sails", "dock"] as const;
+export type ModelName = (typeof MODELS)[number];
 
 export interface ModelPart {
   /** The part's name in its program: "top", "leg"… (copies share it). */
@@ -72,10 +73,13 @@ export function useModel(name: ModelName) {
 
 /** Starts fetching the models as soon as the world's code loads, so they're there by the time the scene draws. */
 export function preloadModels() {
-  for (const name of ["table", "chair"] as const) useLoader.preload(GLTFLoader, url(name), withMeshopt);
+  for (const name of MODELS) useLoader.preload(GLTFLoader, url(name), withMeshopt);
 }
 
-/** A sand3d model drawn as it is, every part in its toon colour. */
-export function Model({ name }: { name: ModelName }) {
-  return useModel(name).map((p, i) => <mesh key={i} geometry={p.geometry} material={toon(p.color)} castShadow receiveShadow />);
+/** Parts drawn the soft way but with a lifted darkest step (`toon(colour, true)`), for pale things. */
+export const pale = (...names: string[]) => (p: ModelPart) => (names.includes(p.name) ? toon(p.color, true) : undefined);
+
+/** A sand3d model, every part in its toon colour unless `material` gives that part another (painted walls, glass…). */
+export function Model({ name, material }: { name: ModelName; material?: (part: ModelPart) => THREE.Material | undefined }) {
+  return useModel(name).map((p, i) => <mesh key={i} geometry={p.geometry} material={material?.(p) ?? toon(p.color)} castShadow receiveShadow />);
 }
