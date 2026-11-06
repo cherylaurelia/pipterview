@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // vendored copies of packages' built files (see src/lib/voice/denoise.ts)
+    "public/voice/**",
   ]),
 ]);
 

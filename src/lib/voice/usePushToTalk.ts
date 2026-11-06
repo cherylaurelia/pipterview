@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { openDenoisedMic, type DenoisedMic } from "./denoise";
 
 /**
  * Push-to-talk speech-to-text using the browser's Web Speech API (best in
  * Chrome and Edge; Safari works; Firefox has no support). Swap this hook's
- * internals for a hosted STT service later without touching callers.
+ * internals for a hosted STT service later without touching callers. Where it
+ * can, recognition hears the mic through RNNoise (see denoise.ts).
  */
 export function usePushToTalk(lang = "en-US") {
   // null while server-rendering, then whether this browser has recognition.
@@ -28,6 +30,9 @@ export function usePushToTalk(lang = "en-US") {
   // When speech was last heard, for hands-free mode's pause detection.
   const lastSpeechRef = useRef(0);
   const firstSpeechRef = useRef(0);
+  // The noise-cleaned mic for this hold, if there is one, and whether it's still being opened.
+  const micRef = useRef<DenoisedMic | null>(null);
+  const openingRef = useRef(false);
 
   useEffect(() => {
     const Ctor = getRecognitionCtor();
@@ -64,12 +69,14 @@ export function usePushToTalk(lang = "en-US") {
       sessionTextRef.current = "";
       if (holdingRef.current) {
         try {
-          recognition.start();
+          listenTo(recognition, micRef.current);
           return;
         } catch {
           // Fall through and finish if the restart is rejected.
         }
       }
+      micRef.current?.close();
+      micRef.current = null;
       setListening(false);
       resolveRef.current?.(committedRef.current.trim());
       resolveRef.current = null;
@@ -79,6 +86,8 @@ export function usePushToTalk(lang = "en-US") {
     return () => {
       holdingRef.current = false;
       recognition.abort();
+      micRef.current?.close();
+      micRef.current = null;
     };
   }, [lang]);
 
@@ -92,13 +101,29 @@ export function usePushToTalk(lang = "en-US") {
     firstSpeechRef.current = 0;
     setLiveText("");
     holdingRef.current = true;
-    try {
-      recognition.start();
-      setListening(true);
-    } catch {
-      // start() throws if a previous session hasn't fully ended yet.
-      holdingRef.current = false;
-    }
+    openingRef.current = true;
+    setListening(true);
+    void openDenoisedMic().then((mic) => {
+      openingRef.current = false;
+      if (!holdingRef.current) {
+        // let go while the mic was opening: nothing was heard
+        mic?.close();
+        setListening(false);
+        resolveRef.current?.("");
+        resolveRef.current = null;
+        return;
+      }
+      micRef.current = mic;
+      try {
+        listenTo(recognition, mic);
+      } catch {
+        // start() throws if a previous session hasn't fully ended yet.
+        mic?.close();
+        micRef.current = null;
+        holdingRef.current = false;
+        setListening(false);
+      }
+    });
   }, []);
 
   /** Stops listening and resolves with everything heard during the hold. */
@@ -108,7 +133,7 @@ export function usePushToTalk(lang = "en-US") {
     holdingRef.current = false;
     return new Promise((resolve) => {
       resolveRef.current = resolve;
-      recognition.stop();
+      if (!openingRef.current) recognition.stop(); // still opening: start()'s callback resolves it
     });
   }, []);
 
@@ -120,6 +145,12 @@ export function usePushToTalk(lang = "en-US") {
   const currentText = useCallback(() => joinText(committedRef.current, sessionTextRef.current), []);
 
   return { supported, listening, liveText, error, start, stop, lastSpeechAt, firstSpeechAt, currentText };
+}
+
+/** Starts a recognition session on the cleaned mic, or on the plain mic without one. */
+function listenTo(recognition: SpeechRecognition, mic: DenoisedMic | null) {
+  if (mic && mic.track.readyState === "live") recognition.start(mic.track);
+  else recognition.start();
 }
 
 function getRecognitionCtor() {

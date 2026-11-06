@@ -34,7 +34,8 @@ interface SpeechRecognition extends EventTarget {
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
   onend: (() => void) | null;
-  start(): void;
+  /** With a track, listens to it instead of the microphone (Chrome; other browsers ignore the argument). */
+  start(audioTrack?: MediaStreamTrack): void;
   stop(): void;
   abort(): void;
 }
